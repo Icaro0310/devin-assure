@@ -82,6 +82,7 @@ def summarize(snap: MetricsSnapshot) -> dict[str, Any]:
         "orphan_dbs": snap.orphan_dbs,
         "top_longest": top_sessions(snap, n=5, key="duration_ms"),
         "top_costliest": top_sessions(snap, n=5, key="cost_usd"),
+        "models": by_model(snap),
     }
 
 
