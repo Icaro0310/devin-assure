@@ -1,0 +1,9 @@
+{
+  "id": "demo-fail",
+  "description": "Intentionally failing case — shows how FAIL verdicts and check details render in the report.",
+  "session_ref": "Demo eval session",
+  "rubric": [
+    { "grader": "contains", "text": "this phrase was never produced" },
+    { "grader": "tool_called", "name": "deploy_to_prod" }
+  ]
+}

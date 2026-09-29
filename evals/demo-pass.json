@@ -1,0 +1,11 @@
+{
+  "id": "demo-pass",
+  "description": "Transcript + hygiene checks that all pass on the demo session.",
+  "session_ref": "Demo eval session",
+  "rubric": [
+    { "grader": "contains", "text": "all tests pass" },
+    { "grader": "not_contains", "text": "traceback" },
+    { "grader": "exit_code", "value": 0, "mode": "all" },
+    { "grader": "no_secrets" }
+  ]
+}

@@ -10,3 +10,5 @@ build/
 *.db
 *.db-shm
 *.db-wal
+.devin/
+eval-report/

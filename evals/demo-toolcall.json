@@ -1,0 +1,10 @@
+{
+  "id": "demo-toolcall",
+  "description": "Ground-truth tool checks: the session must have run pytest, called devin_redact before publishing, and produced pyproject.toml in its workspace.",
+  "session_ref": "Demo eval session",
+  "rubric": [
+    { "grader": "tool_called", "name": "run_shell", "args_substr": "pytest" },
+    { "grader": "tool_called", "name": "devin_redact" },
+    { "grader": "file_exists", "path": "pyproject.toml" }
+  ]
+}
