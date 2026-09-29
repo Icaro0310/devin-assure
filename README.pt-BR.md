@@ -5,46 +5,86 @@
 
 **[English](README.md)** · Português (BR)
 
-Descrição numa linha do que esta ferramenta faz.
+Auditoria de QA para sessões Devin: verifica se o que a sessão *afirma*
+ter entregado é sustentado pelo que os tool calls *realmente fizeram* —
+testes corridos, commits criados, ficheiros escritos, push feito — e dá
+um veredito por sessão: `PASS` / `PARTIAL` / `UNVERIFIED`.
 
 ## O problema
 
-<!-- Dor real, com evidência. Quem sofre, quando, com que frequência. -->
+Sessões Devin terminam com o agente dizendo "testes passaram", "commit
+`a1b2c3d`", "push feito". São afirmações em texto — um modelo pode
+escrevê-las tendo ou não executado as ações. Verificar hoje significa ler
+a transcrição na mão ou confiar no resumo. Quem adota fluxos com agentes
+precisa de uma forma barata e repetível de responder: *a sessão fez mesmo
+o que afirma?*
 
 ## Trabalho anterior (prior art)
 
-<!-- O que já existe para outros agentes/ferramentas. Sê honesto e linka.
-     Este projeto adapta <X>; não reinventa a roda. -->
+Viewers de transcrição/sessão (incluindo a UI do próprio Devin) mostram
+*o que aconteceu*; checks de CI verificam resultados depois do facto;
+nenhum cruza as afirmações de entrega do agente com as ações gravadas. A
+ideia geral — comparar intenção declarada com comportamento observado —
+é antiga (auditorias manifest-vs-manifest, `git fsck`, atestações tipo
+proveniência SLSA). O que não existia: aplicar isso às afirmações do
+agente vs. o seu próprio log de tool calls persistido.
 
 ## O que o torna Devin-native
 
-<!-- O diferencial. Tem de passar 3 testes:
-     1. Lado a lado: faz algo que a base NÃO consegue de todo?
-     2. Sem Devin: o extra desaparece se o Devin sair da equação?
-     3. Uma frase: consegues explicá-lo sem jargão? -->
+O Devin persiste cada tool call em `sessions.db → tool_call_state`. Esta
+ferramenta lê essa tabela via
+[devin-internals-spec](https://github.com/Icaro0310/devin-internals-spec)
+e trata-a como **verdade terrestre**: "testes passaram" exige uma chamada
+run/execute que correu um test runner e terminou com sucesso; "commit
+`sha`" exige o hash num call ou no `git log`. Auditores que só leem texto
+*não conseguem* fazer isto — tire a store do Devin e a verificação
+desaparece.
 
 ## Instalação
 
 ```bash
-pipx install devin-qa-pack
+pipx install "devin-qa-pack @ git+https://github.com/Icaro0310/devin-qa-pack.git"
 ```
+
+(Publicação no PyPI está na fila do M2.)
 
 ## Uso
 
 ```bash
-devin-qa-pack --help
+# auditar uma sessão (id exato ou prefixo único)
+devin-qa-pack audit --session <id> --sessions-db caminho/sessions.db
+
+# auditar tudo, mais recentes primeiro
+devin-qa-pack audit --all --limit 20 --json
 ```
+
+`--sessions-db` pode ser omitido — a data dir padrão do Devin é detetada
+(`%APPDATA%/devin/cli/sessions.db` no Windows). Sempre read-only.
+
+Exit codes: `0` todas `PASS` · `1` alguma `PARTIAL`/`UNVERIFIED` ·
+`2` auditoria não correu.
 
 ## Limitações
 
-<!-- Sê explícito: internals privados/voláteis, comportamento por versão,
-     o que NÃO faz. -->
+- Os payloads `chat_message` e `tool_call_*_json` são formatos
+  **unstable** (ver SCHEMA.md do devin-internals-spec). O decode é
+  defensivo; linhas ilegíveis resolvem afirmações como `unverifiable`,
+  nunca `disputed`.
+- A extração de afirmações é heurística: procura frases de entrega
+  ("tests passed", "committed <sha>", "created <path>", "pushed").
+  Afirmações ditas de outra forma não são extraídas — a auditoria então
+  reporta `UNVERIFIED`, não um `PASS` falso.
+- Verificações de ficheiro/commit usam `sessions.working_directory` só
+  quando existe em disco e é um repo git — senão dependem só da
+  evidência dos tool calls.
+- Verifica *que* as ações aconteceram, não que o trabalho é bom.
+- Read-only, offline; sem monitorização em tempo real nem MCP (M2).
 
 ## Desenvolvimento
 
 ```bash
 pip install -e ".[dev]"
-pytest
+python -m pytest
 ```
 
 ## Licença

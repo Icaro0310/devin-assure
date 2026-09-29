@@ -5,46 +5,85 @@
 
 **[Português (BR)](README.pt-BR.md)** · English
 
-One-line description of what this tool does.
+QA audit for Devin sessions: checks that what a session *claims* it
+delivered is backed by what its tool calls *actually did* — tests run,
+commits created, files written, work pushed — and prints a verdict per
+session: `PASS` / `PARTIAL` / `UNVERIFIED`.
 
 ## The problem
 
-<!-- Real pain point, with evidence. Who suffers, when, how often. -->
+Devin sessions end with the agent saying "tests passed", "committed
+`a1b2c3d`", "pushed to origin". Those are text claims — a model can write
+them whether or not the actions happened. Verifying them today means
+scrolling the transcript by hand or trusting the summary. Teams that
+adopt agent workflows need a cheap, repeatable way to answer *did this
+session actually do what it claims?*
 
 ## Prior art
 
-<!-- What already exists for other agents/tools. Be honest and link it.
-     This project adapts <X>; it does not reinvent it. -->
+Transcript/session viewers (including Devin's own UI) show *what
+happened*; CI status checks verify outcomes after the fact; neither
+cross-checks the agent's delivery claims against recorded actions. The
+general idea — compare declared intent with observed behavior — is old
+(manifest-vs-manifest audits, `git fsck`, attestations like SLSA
+provenance). What didn't exist: applying it to an agent's claims vs. its
+own persisted tool-call log.
 
 ## What makes it Devin-native
 
-<!-- The differentiator. Must pass three tests:
-     1. Side-by-side: does it do something the base tool *cannot* do at all?
-     2. No-Devin: does the extra disappear if Devin is removed?
-     3. One sentence: can you explain it without jargon? -->
+Devin persists every tool call in `sessions.db → tool_call_state`. This
+tool reads that table via
+[devin-internals-spec](https://github.com/Icaro0310/devin-internals-spec)
+and treats it as **ground truth**: a "tests passed" claim must be backed
+by a run/execute call that ran a test runner and completed; "committed
+`sha`" must show the hash in a call or in `git log`. Text-only auditors
+*cannot* do this — remove Devin's store and the check disappears.
 
 ## Install
 
 ```bash
-pipx install devin-qa-pack
+pipx install "devin-qa-pack @ git+https://github.com/Icaro0310/devin-qa-pack.git"
 ```
+
+(PyPI publication is on the M2 roadmap.)
 
 ## Usage
 
 ```bash
-devin-qa-pack --help
+# audit one session (exact id or unique prefix)
+devin-qa-pack audit --session <id> --sessions-db path/to/sessions.db
+
+# audit everything, most recent first
+devin-qa-pack audit --all --limit 20 --json
 ```
+
+`--sessions-db` may be omitted — the default Devin data dir is detected
+(`%APPDATA%/devin/cli/sessions.db` on Windows). Always read-only.
+
+Exit codes: `0` every session `PASS` · `1` some session
+`PARTIAL`/`UNVERIFIED` · `2` audit could not run.
 
 ## Limitations
 
-<!-- Be explicit: private/volatile internals, version-specific behavior,
-     what it does NOT do. -->
+- `chat_message` and `tool_call_*_json` payloads are **unstable** formats
+  (see devin-internals-spec SCHEMA.md). Decoding is defensive; rows that
+  can't be read resolve claims to `unverifiable`, never to `disputed`.
+- Claim extraction is heuristic: it looks for delivery phrasing
+  ("tests passed", "committed <sha>", "created <path>", "pushed").
+  Claims phrased differently are not extracted — the audit then reports
+  `UNVERIFIED`, not a false `PASS`.
+- File/commit checks use `sessions.working_directory` only when it
+  exists on disk and is a git repo — otherwise they rely on tool-call
+  evidence alone.
+- It verifies *that* actions happened, not that the work is good.
+  Green tests in a tool call don't prove the fix is correct.
+- Read-only, offline; no real-time monitoring, no MCP server (M2).
 
 ## Development
 
 ```bash
 pip install -e ".[dev]"
-pytest
+python -m pytest
 ```
 
 ## License
