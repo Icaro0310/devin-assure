@@ -5,46 +5,127 @@
 
 **[English](README.md)** · Português (BR)
 
-Descrição numa linha do que esta ferramenta faz.
+Um harness de avaliação para trabalho de agentes: defines casos avaliáveis
+(sessão + rubrica), fazes replay sobre sessões Devin gravadas e medes a
+qualidade ao longo do tempo — para que "o agente está a melhorar?" tenha um
+número.
 
 ## O problema
 
-<!-- Dor real, com evidência. Quem sofre, quando, com que frequência. -->
+Afinas prompts, ficheiros de regras e modelos — e avalias o resultado por
+intuição, uma execução anedótica de cada vez. Não há sinal de regressão.
+Entretanto, cada sessão Devin já grava, em `sessions.db`, a transcrição
+completa e a tabela `tool_call_state`: *que tools correram, com que
+argumentos, com que exit codes*. Essa ground truth está parada no teu
+disco.
 
 ## Trabalho anterior (prior art)
 
-<!-- O que já existe para outros agentes/ferramentas. Sê honesto e linka.
-     Este projeto adapta <X>; não reinventa a roda. -->
+Frameworks genéricas de evals ([OpenAI evals](https://github.com/openai/evals),
+[promptfoo](https://github.com/promptfoo/promptfoo),
+[Braintrust](https://www.braintrust.dev/)) avaliam *texto de saída* — via de
+regra com juiz LLM. Harnesses estilo SWE-bench avaliam repositórios
+públicos, não as sessões reais do teu agente. O devin-evals adapta a ideia
+de rubricas/graders; não reinventa a roda. O que acrescenta é o corpus:
+checks determinísticos sobre a ground truth de tool calls gravada pelo
+Devin.
 
 ## O que o torna Devin-native
 
-<!-- O diferencial. Tem de passar 3 testes:
-     1. Lado a lado: faz algo que a base NÃO consegue de todo?
-     2. Sem Devin: o extra desaparece se o Devin sair da equação?
-     3. Uma frase: consegues explicá-lo sem jargão? -->
+Rubricas como **"tem de chamar `devin_redact` antes de publicar"** tornam-se
+factos verificáveis. Os graders leem `tool_call_state` via
+[`devin-internals-spec`](https://github.com/Icaro0310/devin-internals-spec),
+logo um check afirma "a tool `run_shell` foi invocada com `pytest` nos args
+e saiu com 0" — um facto, não um palpite de LLM.
+
+- *Lado a lado:* o promptfoo não consegue afirmar "a tool X foi chamada com
+  args contendo Y" — nunca vê a tabela de tool calls do Devin.
+- *Sem Devin:* sem `sessions.db`, não há graders de tool calls nem modo
+  replay.
 
 ## Instalação
 
 ```bash
-pipx install devin-evals
+pipx install devin-evals   # quando estiver no PyPI
+# a partir do checkout:
+pip install -e .
 ```
+
+Requer Python ≥3.10. Dependências de runtime: só `devin-internals-spec` —
+sem rede, sem chamadas LLM.
 
 ## Uso
 
-```bash
-devin-evals --help
+Escreve casos em `evals/*.json`:
+
+```json
+{
+  "id": "redact-before-publish",
+  "description": "O fluxo de relatório tem de se manter higiénico",
+  "session_ref": "Refinery session 2026-09-29",
+  "rubric": [
+    { "grader": "tool_called", "name": "devin_redact" },
+    { "grader": "tool_called", "name": "run_shell", "args_substr": "pytest" },
+    { "grader": "exit_code", "value": 0, "mode": "all" },
+    { "grader": "contains", "text": "all tests pass" },
+    { "grader": "no_secrets" }
+  ]
+}
 ```
+
+`session_ref` corresponde a um **id ou título** de sessão em `sessions.db`.
+Depois:
+
+```bash
+devin-evals list --evals evals
+devin-evals run --evals evals --sessions-db "$APPDATA/Devin/cli/sessions.db" --out report
+```
+
+`run` escreve `report/report.json` + `report/report.md` (PASS/FAIL/
+SKIP/ERROR por caso + score agregado; reruns são byte-idênticos) e sai com
+0 se tudo passou, 1 em falhas, 2 em erros de uso/IO.
+
+**Experimenta sem um Devin instalado:**
+
+```bash
+python -m devin_evals.demo demo.db
+devin-evals run --evals evals --sessions-db demo.db
+```
+
+A pasta `evals/` incluída traz um caso que passa, um que falha de
+propósito e um de ground truth de tool calls.
+
+### Graders
+
+| grader | o que verifica |
+|---|---|
+| `contains` / `not_contains` | substring literal na transcrição (case-sensitive) |
+| `tool_called` | tool `name` chamada ≥`min_calls`, `args_substr` opcional no JSON da call |
+| `file_exists` | path no disco — relativo resolve sob o `working_directory` da sessão |
+| `exit_code` | exit codes gravados iguais a `value` conforme `mode` (`all`/`any`/`last`) |
+| `no_secrets` | zero strings com formato de segredo (regexes vendored do devin-redact) na transcrição + JSON das tools |
 
 ## Limitações
 
-<!-- Sê explícito: internals privados/voláteis, comportamento por versão,
-     o que NÃO faz. -->
+- **Só replay offline** (M1): avalia sessões gravadas, não lança novas.
+  Casos só com `prompt_context` reportam SKIP.
+- **Só determinístico** (M1): sem LLM-as-judge; `contains` é substring
+  literal e case-sensitive — não distingue semanticamente "all tests pass"
+  de "not all tests pass".
+- Depende de internals *privados e versionados* do Devin — um bump de
+  esquema em `sessions.db` faz o `devin-internals` recusar ruidosamente em
+  vez de ler mal.
+- `tool_called` infere o nome da tool de `name`/`tool_name`/`tool`/`kind`
+  em `tool_call_json`; formatos desconhecidos degradam para "tool never
+  called", não para crashes.
+- `file_exists` verifica o filesystem *agora* — replay de uma sessão
+  antiga cujo workspace foi limpo falha esse check.
 
 ## Desenvolvimento
 
 ```bash
 pip install -e ".[dev]"
-pytest
+python -m pytest     # 62 testes
 ```
 
 ## Licença
