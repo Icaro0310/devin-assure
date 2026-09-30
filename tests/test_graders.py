@@ -195,7 +195,11 @@ def test_no_secrets_flags_env_assignment():
 
 
 def test_no_secrets_flags_pem():
-    pem = "-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----"
+    pem = (
+        "-----BEGIN PRIVATE "
+        "KEY-----\nabc\n-----END PRIVATE "
+        "KEY-----"
+    )
     ev = make_evidence(transcript=pem)
     assert not grade("no_secrets", {}, ev).passed
 
