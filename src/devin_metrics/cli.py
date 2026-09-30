@@ -25,6 +25,8 @@ from devin_internals.schema import SchemaError
 
 from devin_metrics.aggregate import by_day, by_project, summarize
 from devin_metrics.collect import MetricsSnapshot, collect
+from devin_metrics.dashboard.collect import collect_stats
+from devin_metrics.dashboard.render import render_html
 from devin_metrics.paths import (
     acp_messages_dir,
     default_data_dir,
@@ -82,6 +84,26 @@ def cmd_daily(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_dashboard(args: argparse.Namespace) -> int:
+    sessions_db, acp_dir = _resolve(args)
+    if not acp_dir.is_dir():
+        print(
+            f"warning: {acp_dir}: no such directory — "
+            "cost/token fields will be empty",
+            file=sys.stderr,
+        )
+    stats = collect_stats(sessions_db, acp_dir)
+    if args.json:
+        import json
+
+        print(json.dumps(stats, indent=2))
+        return 0
+    out = Path(args.out).expanduser()
+    out.write_text(render_html(stats), encoding="utf-8")
+    print(f"wrote {out} ({out.stat().st_size:,} bytes) — open it in a browser")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="devin-metrics",
@@ -114,6 +136,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="keep the N most recent activity days (default: all)",
     )
     p_daily.set_defaults(func=cmd_daily)
+    p_dash = sub.add_parser("dashboard", parents=[common],
+                            help="render the static HTML dashboard")
+    p_dash.add_argument(
+        "--out", metavar="FILE", default="index.html",
+        help="output file (default: index.html)",
+    )
+    p_dash.set_defaults(func=cmd_dashboard)
     return parser
 
 

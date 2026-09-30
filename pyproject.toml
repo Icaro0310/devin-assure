@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devin-metrics"
-version = "0.1.0"
+version = "0.2.0"
 description = "Token, cost and productivity metrics across Devin sessions — local-only, no telemetry."
 readme = "README.md"
 license = { text = "MIT" }
@@ -19,6 +19,7 @@ dev = ["pytest>=8"]
 
 [project.scripts]
 devin-metrics = "devin_metrics.cli:main"
+devin-dashboard = "devin_metrics.dashboard.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

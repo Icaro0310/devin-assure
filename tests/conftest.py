@@ -158,3 +158,10 @@ def sessions_db(data_dir: Path) -> Path:
 @pytest.fixture
 def acp_dir(data_dir: Path) -> Path:
     return data_dir / "User" / "acp-messages"
+
+
+@pytest.fixture
+def stats(sessions_db: Path, acp_dir: Path) -> dict:
+    from devin_metrics.dashboard.collect import collect_stats
+
+    return collect_stats(sessions_db, acp_dir)
