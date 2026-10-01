@@ -64,6 +64,14 @@ devin-qa-pack audit --all --limit 20 --json
 Exit codes: `0` todas `PASS` · `1` alguma `PARTIAL`/`UNVERIFIED` ·
 `2` auditoria não correu.
 
+## Suporte de plataformas
+
+Testado em **Windows e Linux** (o CI corre em `windows-latest` +
+`ubuntu-latest`). As stores locais do Devin são auto-detetadas por
+plataforma — `%APPDATA%` no Windows, `~/.config/devin/` (XDG) no Linux,
+`~/Library/Application Support/devin/` no macOS. Passa um caminho
+explícito para override (ver Uso).
+
 ## Limitações
 
 - Os payloads `chat_message` e `tool_call_*_json` são formatos
