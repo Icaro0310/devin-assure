@@ -105,6 +105,13 @@ propósito e um de ground truth de tool calls.
 | `exit_code` | exit codes gravados iguais a `value` conforme `mode` (`all`/`any`/`last`) |
 | `no_secrets` | zero strings com formato de segredo (regexes vendored do devin-redact) na transcrição + JSON das tools |
 
+## Suporte de plataformas
+
+Python stdlib puro — comportamento idêntico em Windows, Linux e macOS. O
+CI corre a suite em `windows-latest` + `ubuntu-latest`; o ficheiro ou
+diretório alvo é sempre um argumento explícito, sem paths
+específicos de plataforma.
+
 ## Limitações
 
 - **Só replay offline** (M1): avalia sessões gravadas, não lança novas.

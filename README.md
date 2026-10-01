@@ -100,6 +100,13 @@ failing case, and a tool-call-ground-truth case.
 | `exit_code` | recorded exit codes match `value` per `mode` (`all`/`any`/`last`) |
 | `no_secrets` | zero secret-shaped strings (vendored devin-redact patterns) in transcript + tool JSON |
 
+## Platform support
+
+Pure stdlib Python — identical behavior on Windows, Linux and macOS. CI runs
+the suite on `windows-latest` + `ubuntu-latest`; the target file or
+directory is always an explicit argument, so there are no
+platform-specific paths.
+
 ## Limitations
 
 - **Offline replay only** (M1): grades recorded sessions, cannot spawn new
