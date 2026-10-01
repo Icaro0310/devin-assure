@@ -71,6 +71,13 @@ devin-metrics summary --sessions-db path/to/sessions.db --acp-dir path/to/acp-me
 A missing `acp-messages` dir degrades gracefully: everything except
 cost/token columns still works, and `cost_usd` shows `-` (unknown ≠ zero).
 
+## Platform support
+
+Tested on **Windows and Linux** (`windows-latest` + `ubuntu-latest` in CI).
+Devin's local stores are auto-detected per platform — `%APPDATA%` on
+Windows, `~/.config/devin/` (XDG) on Linux, `~/Library/Application Support/devin/`
+on macOS. Pass an explicit path to override (see Usage).
+
 ## Limitations
 
 - **Read-only, no network.** Stores are opened `mode=ro`; nothing is

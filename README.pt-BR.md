@@ -73,6 +73,14 @@ Um `acp-messages` ausente degrada graciosamente: tudo exceto colunas de
 custo/tokens continua a funcionar, e `cost_usd` mostra `-` (desconhecido ≠
 zero).
 
+## Suporte de plataformas
+
+Testado em **Windows e Linux** (o CI corre em `windows-latest` +
+`ubuntu-latest`). As stores locais do Devin são auto-detetadas por
+plataforma — `%APPDATA%` no Windows, `~/.config/devin/` (XDG) no Linux,
+`~/Library/Application Support/devin/` no macOS. Passa um caminho
+explícito para override (ver Uso).
+
 ## Limitações
 
 - **Read-only, sem rede.** Os stores abrem em `mode=ro`; nada é escrito ou
