@@ -114,6 +114,27 @@ pip install -e ".[dev]"
 python -m pytest
 ```
 
+## When to use this
+
+- You want to verify that a finished Devin session actually ran tests, created commits, wrote files, or pushed — not just claimed to.
+- You are gating agent output in CI and need a machine-readable verdict (`PASS`/`PARTIAL`/`UNVERIFIED`) with exit codes.
+- You want to audit many sessions at once, offline, without sending transcripts to an LLM.
+- You are on a restricted machine: the tool is read-only and never touches the network.
+
+## When NOT to use this
+
+- You need a review of code quality or correctness — it verifies that actions happened, not that the work is good.
+- You need real-time monitoring or an MCP server (on the M2 roadmap).
+- Your agent is not Devin — the ground truth comes from Devin's `sessions.db`.
+
+## FAQ
+
+**How do I verify a Devin session actually ran the tests it claims?** Run `devin-qa-pack audit --session <id>`. It reads the session's `tool_call_state` rows from `sessions.db`, extracts delivery claims like "tests passed", and checks each against recorded tool calls — a claim without matching evidence resolves to `UNVERIFIED` or `PARTIAL`, not `PASS`.
+
+**Does devin-qa-pack need network access or an API key?** No. It is a fully offline, read-only audit of the local `sessions.db`. It never calls an LLM, never sends data anywhere, and never writes to Devin's stores.
+
+**Where does devin-qa-pack find sessions.db?** It auto-detects `%APPDATA%/devin/cli/sessions.db` on Windows, `$XDG_DATA_HOME/devin/cli/sessions.db` on Linux (`~/.local/share/devin/cli/sessions.db` by default), `~/Library/Application Support/devin/` on macOS, plus a legacy `~/.config/devin` layout. Override with `--sessions-db`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

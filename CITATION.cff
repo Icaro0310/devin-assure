@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: devin-qa-pack
+authors:
+  - family-names: Galvao
+    given-names: Icaro
+url: "https://github.com/Icaro0310/devin-qa-pack"
+repository-code: "https://github.com/Icaro0310/devin-qa-pack"
+license: MIT
+abstract: "QA audit for Devin sessions: verifies an AI agent's deliverable claims against its recorded tool-call ground truth."
+keywords:
+  - ai-agents
+  - devin
+  - verification
+  - qa-audit
+  - tool-calls
+  - session-audit

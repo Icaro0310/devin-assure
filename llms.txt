@@ -1,0 +1,22 @@
+# devin-qa-pack
+
+> QA audit for Devin sessions: verifies that an AI agent's delivery claims ("tests passed", "committed abc123", "pushed") are backed by its recorded tool calls.
+
+devin-qa-pack reads the `tool_call_state` table in Devin's local `sessions.db` (via the devin-internals-spec schema), extracts delivery claims from session transcripts, and checks each claim against ground truth. It prints a verdict per session: `PASS`, `PARTIAL`, or `UNVERIFIED`. It is built for teams adopting agent workflows who need a cheap, repeatable answer to "did this session actually do what it says?" — offline, read-only, no LLM calls.
+
+## Docs
+- [README](https://github.com/Icaro0310/devin-qa-pack/blob/main/README.md): full documentation
+- [devin-internals-spec](https://github.com/Icaro0310/devin-internals-spec): the sessions.db schema this tool reads
+
+## Key commands
+- `devin-qa-pack audit --session <id> --sessions-db path/to/sessions.db`: audit one session (exact id or unique prefix)
+- `devin-qa-pack audit --all --limit 20 --json`: audit all sessions, most recent first, JSON output
+- `pipx install "devin-qa-pack @ git+https://github.com/Icaro0310/devin-qa-pack.git"`: install the CLI
+- `python -m pytest`: run the test suite (dev install)
+
+## When to use / when not
+- Use when: auditing whether a Devin session's claims (tests run, commits created, files written, pushes) match its recorded actions; CI gates on agent output; spot-checking agent sessions at scale.
+- Not when: you need code-quality review (it verifies actions happened, not that the work is good); real-time monitoring (it is an offline audit); non-Devin agents (ground truth comes from Devin's sessions.db); phrasing outside its delivery-claim heuristics (unextracted claims report `UNVERIFIED`, never a false `PASS`).
+
+## Related
+- [devin-ecosystem](https://icaro0310.github.io/): the 20+ tool ecosystem this belongs to
