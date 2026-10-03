@@ -2,6 +2,9 @@
 
 <img src="assets/banner.svg" alt="devin-qa-pack" width="100%"/>
 
+<a href="https://github.com/Icaro0310/devin-qa-pack/actions/workflows/tests.yml"><img src="https://github.com/Icaro0310/devin-qa-pack/actions/workflows/tests.yml/badge.svg" alt="tests"/></a>
+
+
 </div>
 
 # devin-qa-pack
