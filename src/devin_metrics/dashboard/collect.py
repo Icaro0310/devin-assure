@@ -30,31 +30,25 @@ from devin_internals.parsers import AcpMessagesStore, SessionsStore
 from devin_internals.schema import SchemaError
 
 from devin_metrics.dashboard import __version__
+from devin_metrics.paths import (
+    acp_messages_dir,
+    default_data_dir as _default_data_dir,
+    sessions_db_path,
+)
 
 
 # -- store locations ---------------------------------------------------------
-# Same convention as devin-doctor/devin-metrics — the ecosystem agrees on one
-# data-dir map.
 
 def default_data_dir() -> Path:
-    if sys.platform.startswith("win"):
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / "devin"
-        return Path.home() / "AppData" / "Roaming" / "devin"
-    if sys.platform == "darwin":
-        return Path.home() / "Library" / "Application Support" / "devin"
-    xdg = os.environ.get("XDG_CONFIG_HOME")
-    base = Path(xdg) if xdg else Path.home() / ".config"
-    return base / "devin"
+    return _default_data_dir()
 
 
 def default_sessions_db(root: Path) -> Path:
-    return root / "cli" / "sessions.db"
+    return sessions_db_path(root)
 
 
 def default_acp_dir(root: Path) -> Path:
-    return root / "User" / "acp-messages"
+    return acp_messages_dir(root)
 
 
 # -- acp usage extraction ----------------------------------------------------

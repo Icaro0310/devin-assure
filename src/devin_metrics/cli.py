@@ -29,6 +29,7 @@ from devin_metrics.dashboard.collect import collect_stats
 from devin_metrics.dashboard.render import render_html
 from devin_metrics.paths import (
     acp_messages_dir,
+    default_acp_messages_dir,
     default_data_dir,
     sessions_db_path,
 )
@@ -50,7 +51,8 @@ def _resolve(args: argparse.Namespace) -> tuple[Path, Path]:
     acp_dir = (
         Path(args.acp_dir).expanduser()
         if args.acp_dir is not None
-        else acp_messages_dir(root)
+        else acp_messages_dir(root) if args.data_dir
+        else default_acp_messages_dir()
     )
     return sessions_db, acp_dir
 

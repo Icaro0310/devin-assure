@@ -42,14 +42,12 @@ O `working_directory` de cada sessão dá atribuição por projeto de graça.
 
 ## Instalação
 
-```bash
-pipx install devin-metrics
-```
+Requer Python ≥ 3.10 e `pipx`. **Windows (PowerShell):** instale `pipx` com `py -m pip install --user pipx`, execute `py -m pipx ensurepath` e reabra o terminal. **Linux (Debian/Ubuntu):** execute `sudo apt install pipx python3-venv` e `pipx ensurepath`; reabra o terminal. Noutras distribuições Linux, instale `pipx` pelo gestor de pacotes.
 
-Até estar no PyPI, instala do repositório:
+Este pacote ainda não está no PyPI; instale a versão pública do GitHub:
 
 ```bash
-pipx install git+https://github.com/Icaro0310/devin-metrics.git
+pipx install "devin-metrics @ git+https://github.com/Icaro0310/devin-metrics.git"
 ```
 
 ## Uso
@@ -58,12 +56,21 @@ pipx install git+https://github.com/Icaro0310/devin-metrics.git
 devin-metrics summary                  # números principais + top-5
 devin-metrics projects                 # tabela custo/sessões por projeto
 devin-metrics daily --days 14          # atividade ao longo do tempo
+devin-metrics dashboard --out usage.html
+
+devin-dashboard build --out usage.html # alias do executável dashboard
+devin-dashboard data --json            # dados do dashboard em JSON
 devin-metrics summary --json           # JSON puro para scripts
 ```
 
-Por omissão, os stores são localizados no data dir da plataforma
-(`%APPDATA%/devin` no Windows). Podes sobrepor com `--data-dir`, ou apontar
-diretamente para os stores:
+`devin-dashboard` é um alias instalado pelo mesmo pacote. `build` escreve um
+HTML autónomo; `data` imprime o payload normalizado das métricas.
+
+Por omissão, `sessions.db` é lida da raiz de dados da plataforma
+(`%APPDATA%/devin` no Windows, `$XDG_DATA_HOME/devin` no Linux, normalmente
+`~/.local/share/devin`). Logs ACP são lidos da raiz de configuração UI separada
+(`%APPDATA%/Devin/User` no Windows, `$XDG_CONFIG_HOME/Devin/User` no Linux).
+Sobrepõe com `--data-dir`, `--sessions-db` ou `--acp-dir`.
 
 ```bash
 devin-metrics summary --sessions-db caminho/sessions.db --acp-dir caminho/acp-messages
@@ -73,13 +80,22 @@ Um `acp-messages` ausente degrada graciosamente: tudo exceto colunas de
 custo/tokens continua a funcionar, e `cost_usd` mostra `-` (desconhecido ≠
 zero).
 
+## Funciona só com o Devin (modo Devin-only)
+
+Todas as métricas são calculadas localmente a partir das stores do próprio
+Devin e gravadas numa base de dados local — zero telemetria, zero chamadas de
+rede. O alias `devin-dashboard` incluído neste pacote (que absorveu o antigo
+dashboard standalone) também renderiza inteiramente na tua máquina.
+
 ## Suporte de plataformas
 
 Testado em **Windows e Linux** (o CI corre em `windows-latest` +
-`ubuntu-latest`). As stores locais do Devin são auto-detetadas por
-plataforma — `%APPDATA%` no Windows, `~/.config/devin/` (XDG) no Linux,
-`~/Library/Application Support/devin/` no macOS. Passa um caminho
-explícito para override (ver Uso).
+`ubuntu-latest`). A base CLI é auto-detetada de `%APPDATA%/devin/cli/sessions.db`
+no Windows e `$XDG_DATA_HOME/devin/cli/sessions.db` no Linux (por omissão
+`~/.local/share/devin/cli/sessions.db`). Os logs ACP são lidos de
+`$XDG_CONFIG_HOME/Devin/User/acp-messages` (por omissão
+`~/.config/Devin/User/acp-messages`). Estruturas antigas `~/.config/devin`
+também são verificadas. Sobrepõe com `--sessions-db` ou `--acp-dir`.
 
 ## Limitações
 
