@@ -41,6 +41,8 @@ by a run/execute call that ran a test runner and completed; "committed
 
 ## Install
 
+Python ≥ 3.10 and `pipx` are required. **Windows (PowerShell):** install `pipx` with `py -m pip install --user pipx`, run `py -m pipx ensurepath`, then reopen the terminal. **Linux (Debian/Ubuntu):** run `sudo apt install pipx python3-venv` and `pipx ensurepath`; reopen the terminal. Other Linux distributions should install `pipx` using their package manager.
+
 ```bash
 pipx install "devin-qa-pack @ git+https://github.com/Icaro0310/devin-qa-pack.git"
 ```
@@ -57,18 +59,28 @@ devin-qa-pack audit --session <id> --sessions-db path/to/sessions.db
 devin-qa-pack audit --all --limit 20 --json
 ```
 
-`--sessions-db` may be omitted — the default Devin data dir is detected
-(`%APPDATA%/devin/cli/sessions.db` on Windows). Always read-only.
+`--sessions-db` may be omitted. It auto-detects
+`%APPDATA%/devin/cli/sessions.db` on Windows and
+`$XDG_DATA_HOME/devin/cli/sessions.db` on Linux (default
+`~/.local/share/devin/cli/sessions.db`). Always read-only.
 
 Exit codes: `0` every session `PASS` · `1` some session
 `PARTIAL`/`UNVERIFIED` · `2` audit could not run.
 
+## Works with Devin alone (Devin-only mode)
+
+devin-qa-pack is an offline, read-only audit of recorded Devin sessions. It
+never calls an LLM, never touches the network, and never writes to Devin's
+stores — a safe pick for restricted machines.
+
 ## Platform support
 
 Tested on **Windows and Linux** (`windows-latest` + `ubuntu-latest` in CI).
-Devin's local stores are auto-detected per platform — `%APPDATA%` on
-Windows, `~/.config/devin/` (XDG) on Linux, `~/Library/Application Support/devin/`
-on macOS. Pass an explicit path to override (see Usage).
+The CLI session DB is auto-detected from `%APPDATA%/devin/cli/sessions.db`
+on Windows and `$XDG_DATA_HOME/devin/cli/sessions.db` on Linux (default
+`~/.local/share/devin/cli/sessions.db`). A legacy `~/.config/devin` layout is
+also checked. macOS uses `~/Library/Application Support/devin/`. Pass
+`--sessions-db` to override.
 
 ## Limitations
 

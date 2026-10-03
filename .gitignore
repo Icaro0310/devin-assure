@@ -10,3 +10,6 @@ build/
 *.db
 *.db-shm
 *.db-wal
+
+# Devin local runtime (hooks write session logs/state here — never commit)
+.devin/
