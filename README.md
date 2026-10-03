@@ -41,8 +41,10 @@ and exited 0" — a fact, not an LLM judgement call.
 
 ## Install
 
+Python ≥ 3.10 and `pipx` are required. **Windows (PowerShell):** install `pipx` with `py -m pip install --user pipx`, run `py -m pipx ensurepath`, then reopen the terminal. **Linux (Debian/Ubuntu):** run `sudo apt install pipx python3-venv` and `pipx ensurepath`; reopen the terminal. Other Linux distributions should install `pipx` using their package manager.
+
 ```bash
-pipx install devin-evals   # once on PyPI
+pipx install "devin-evals @ git+https://github.com/Icaro0310/devin-evals.git"
 # from a checkout:
 pip install -e .
 ```
@@ -71,9 +73,17 @@ Write cases in `evals/*.json`:
 
 `session_ref` matches a session **id or title** in `sessions.db`. Then:
 
-```bash
+```powershell
+# Windows PowerShell
 devin-evals list --evals evals
-devin-evals run --evals evals --sessions-db "$APPDATA/Devin/cli/sessions.db" --out report
+devin-evals run --evals evals --sessions-db "$env:APPDATA\devin\cli\sessions.db" --out report
+```
+
+```bash
+# Linux
+sessions_db="${XDG_DATA_HOME:-$HOME/.local/share}/devin/cli/sessions.db"
+devin-evals list --evals evals
+devin-evals run --evals evals --sessions-db "$sessions_db" --out report
 ```
 
 `run` writes `report/report.json` + `report/report.md` (per-case
@@ -99,6 +109,11 @@ failing case, and a tool-call-ground-truth case.
 | `file_exists` | path on disk — relative resolves under the session's `working_directory` |
 | `exit_code` | recorded exit codes match `value` per `mode` (`all`/`any`/`last`) |
 | `no_secrets` | zero secret-shaped strings (vendored devin-redact patterns) in transcript + tool JSON |
+
+## Works with Devin alone (Devin-only mode)
+
+devin-evals scores recorded sessions with deterministic rubrics — no LLM
+calls, no network access, nothing beyond Devin's own session data and Python.
 
 ## Platform support
 

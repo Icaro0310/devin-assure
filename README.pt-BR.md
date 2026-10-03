@@ -45,8 +45,10 @@ e saiu com 0" — um facto, não um palpite de LLM.
 
 ## Instalação
 
+Requer Python ≥ 3.10 e `pipx`. **Windows (PowerShell):** instale `pipx` com `py -m pip install --user pipx`, execute `py -m pipx ensurepath` e reabra o terminal. **Linux (Debian/Ubuntu):** execute `sudo apt install pipx python3-venv` e `pipx ensurepath`; reabra o terminal. Noutras distribuições Linux, instale `pipx` pelo gestor de pacotes.
+
 ```bash
-pipx install devin-evals   # quando estiver no PyPI
+pipx install "devin-evals @ git+https://github.com/Icaro0310/devin-evals.git"
 # a partir do checkout:
 pip install -e .
 ```
@@ -76,9 +78,17 @@ Escreve casos em `evals/*.json`:
 `session_ref` corresponde a um **id ou título** de sessão em `sessions.db`.
 Depois:
 
-```bash
+```powershell
+# Windows PowerShell
 devin-evals list --evals evals
-devin-evals run --evals evals --sessions-db "$APPDATA/Devin/cli/sessions.db" --out report
+devin-evals run --evals evals --sessions-db "$env:APPDATA\devin\cli\sessions.db" --out report
+```
+
+```bash
+# Linux
+sessions_db="${XDG_DATA_HOME:-$HOME/.local/share}/devin/cli/sessions.db"
+devin-evals list --evals evals
+devin-evals run --evals evals --sessions-db "$sessions_db" --out report
 ```
 
 `run` escreve `report/report.json` + `report/report.md` (PASS/FAIL/
@@ -104,6 +114,12 @@ propósito e um de ground truth de tool calls.
 | `file_exists` | path no disco — relativo resolve sob o `working_directory` da sessão |
 | `exit_code` | exit codes gravados iguais a `value` conforme `mode` (`all`/`any`/`last`) |
 | `no_secrets` | zero strings com formato de segredo (regexes vendored do devin-redact) na transcrição + JSON das tools |
+
+## Funciona só com o Devin (modo Devin-only)
+
+O devin-evals pontua sessões gravadas com rubricas determinísticas — sem
+chamadas a LLM, sem acesso à rede, nada além dos dados de sessão do próprio
+Devin e Python.
 
 ## Suporte de plataformas
 
