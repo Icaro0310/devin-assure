@@ -163,3 +163,8 @@ python -m pytest     # 62 testes
 ## Licença
 
 MIT — vê [LICENSE](LICENSE).
+
+
+---
+
+Se isso te poupou tempo de depuração, uma ⭐ no repositório ajuda outras pessoas a encontrá-lo.
