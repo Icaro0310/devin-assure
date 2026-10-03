@@ -1,3 +1,9 @@
+<div align="center">
+
+<img src="assets/banner.svg" alt="devin-metrics" width="100%"/>
+
+</div>
+
 # devin-metrics
 
 > **Projeto comunitário não oficial.** Sem afiliação, endosso ou patrocínio da
