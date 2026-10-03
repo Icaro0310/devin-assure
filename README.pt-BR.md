@@ -2,6 +2,9 @@
 
 <img src="assets/banner.svg" alt="devin-evals" width="100%"/>
 
+<a href="https://github.com/Icaro0310/devin-evals/actions/workflows/tests.yml"><img src="https://github.com/Icaro0310/devin-evals/actions/workflows/tests.yml/badge.svg" alt="tests"/></a>
+
+
 </div>
 
 # devin-evals
