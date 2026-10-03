@@ -153,6 +153,27 @@ pip install -e ".[dev]"
 python -m pytest     # 62 tests
 ```
 
+## When to use this
+
+- You changed a prompt, rules file or model and want a numeric regression signal across recorded sessions.
+- You want to assert tool-call behavior — e.g. "must call `devin_redact` before publishing" — as a checkable fact.
+- You need reproducible scoring: deterministic graders make reruns byte-identical, no LLM judge involved.
+- You want to try it without a Devin install: `python -m devin_evals.demo demo.db` builds a sample DB.
+
+## When NOT to use this
+
+- You need semantic judgement of free text — `contains` is a literal, case-sensitive substring and there is no LLM-as-judge (M1).
+- You need to spawn new sessions — this is offline replay of recorded sessions only.
+- Your agent is not Devin — the ground truth comes from `sessions.db`/`tool_call_state`.
+
+## FAQ
+
+**How do I regression-test changes to my Devin prompts or rules?** Define cases in `evals/*.json` pairing a `session_ref` (session id or title) with a rubric, then run `devin-evals run --evals evals --sessions-db <path> --out report`. Each rubric item is a deterministic grader over the recorded tool calls, so reruns produce identical scores — a real before/after comparison.
+
+**Does devin-evals use an LLM judge?** No. All graders (`contains`, `tool_called`, `file_exists`, `exit_code`, `no_secrets`) are deterministic checks over `tool_call_state` and the transcript. That makes scores reproducible but also literal — it cannot evaluate semantic quality of prose.
+
+**Can I use devin-evals without Devin installed?** Yes, for a demo: `python -m devin_evals.demo demo.db` creates a synthetic sessions.db and the shipped `evals/` directory contains passing and intentionally failing cases. For real use you need a `sessions.db` from actual Devin sessions.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
