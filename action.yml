@@ -1,0 +1,45 @@
+name: devin-qa-pack audit
+description: >-
+  Verify AI coding agent claims (diffs, test runs, commits, pushes) against
+  the agent's own tool_call_state. Gate CI on evidence, not narrative.
+author: Icaro0310
+branding:
+  icon: check-circle
+  color: green
+inputs:
+  sessions-db:
+    description: Path to the agent sessions.db (default: auto-detect)
+    required: false
+    default: ""
+  session:
+    description: Audit a single session ID instead of --all
+    required: false
+    default: ""
+  limit:
+    description: Max sessions to audit when using --all
+    required: false
+    default: "20"
+  python-version:
+    description: Python used to install the pack
+    required: false
+    default: "3.12"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install devin-qa-pack
+      shell: bash
+      run: pip install "git+https://github.com/Icaro0310/devin-qa-pack@v${{ github.action_ref == 'main' && '0.1.0' || '0.1.0' }}#egg=devin-qa-pack" || pip install .
+    - name: Run audit
+      shell: bash
+      env:
+        SESSIONS_DB: ${{ inputs.sessions-db }}
+        SESSION_ID: ${{ inputs.session }}
+        LIMIT: ${{ inputs.limit }}
+      run: |
+        args="audit --all --limit $LIMIT"
+        [ -n "$SESSION_ID" ] && args="audit --session $SESSION_ID"
+        [ -n "$SESSIONS_DB" ] && args="$args --db $SESSIONS_DB"
+        devin-qa-pack $args
