@@ -160,6 +160,27 @@ pip install -e ".[dev]"
 python -m pytest     # 62 testes
 ```
 
+## Quando usar
+
+- Você mudou um prompt, ficheiro de regras ou modelo e quer um sinal numérico de regressão entre sessões gravadas.
+- Você quer afirmar comportamento de tool calls — ex.: "tem de chamar `devin_redact` antes de publicar" — como um facto verificável.
+- Você precisa de pontuação reproduzível: graders determinísticos tornam re-execuções byte-idênticas, sem juiz LLM envolvido.
+- Você quer experimentar sem uma instalação do Devin: `python -m devin_evals.demo demo.db` constrói uma DB de exemplo.
+
+## Quando NÃO usar
+
+- Você precisa de julgamento semântico de texto livre — `contains` é uma substring literal e case-sensitive e não há LLM-as-judge (M1).
+- Você precisa de criar novas sessões — isto é replay offline apenas de sessões gravadas.
+- O seu agente não é o Devin — a verdade terrestre vem de `sessions.db`/`tool_call_state`.
+
+## FAQ
+
+**Como testo regressões em mudanças nos meus prompts ou regras do Devin?** Defina casos em `evals/*.json` emparelhando um `session_ref` (id ou título da sessão) com uma rubric, e execute `devin-evals run --evals evals --sessions-db <path> --out report`. Cada item da rubric é um grader determinístico sobre os tool calls gravados, por isso re-execuções produzem pontuações idênticas — uma comparação antes/depois real.
+
+**O devin-evals usa um juiz LLM?** Não. Todos os graders (`contains`, `tool_called`, `file_exists`, `exit_code`, `no_secrets`) são checks determinísticos sobre `tool_call_state` e a transcrição. Isso torna as pontuações reproduzíveis mas também literais — não consegue avaliar a qualidade semântica de prosa.
+
+**Posso usar o devin-evals sem o Devin instalado?** Sim, para uma demo: `python -m devin_evals.demo demo.db` cria um sessions.db sintético e o diretório `evals/` incluído contém casos que passam e casos intencionalmente falhos. Para uso real precisa de um `sessions.db` de sessões Devin reais.
+
 ## Licença
 
 MIT — vê [LICENSE](LICENSE).
