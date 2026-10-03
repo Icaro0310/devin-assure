@@ -31,7 +31,7 @@ runs:
         python-version: ${{ inputs.python-version }}
     - name: Install devin-qa-pack
       shell: bash
-      run: pip install "git+https://github.com/Icaro0310/devin-qa-pack@v${{ github.action_ref == 'main' && '0.1.0' || '0.1.0' }}#egg=devin-qa-pack" || pip install .
+      run: pip install "git+https://github.com/Icaro0310/devin-qa-pack@v0.1.0"
     - name: Run audit
       shell: bash
       env:
