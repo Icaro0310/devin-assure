@@ -1,3 +1,9 @@
+<div align="center">
+
+<img src="assets/banner.svg" alt="devin-evals" width="100%"/>
+
+</div>
+
 # devin-evals
 
 > **Unofficial community project.** Not affiliated with, endorsed by, or
