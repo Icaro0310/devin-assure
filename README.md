@@ -121,6 +121,39 @@ pip install -e ".[dev]"
 python -m pytest
 ```
 
+## When to use this
+
+- You want to know what your Devin usage costs: totals per project, model,
+  or day, plus longest sessions and tool-call mix.
+- You need a scriptable JSON feed of usage stats (`--json` on every command).
+- You want a standalone HTML dashboard of activity (`devin-metrics dashboard`
+  or the `devin-dashboard` alias).
+- Telemetry is a hard no — everything is computed and stored locally.
+
+## When NOT to use this
+
+- You need to search message content — use `devin-search`; or relationship
+  queries across sessions/files/tools — use `devin-graph`.
+- You need live, real-time session monitoring — use `devin-office`.
+- The machine has no Devin CLI/Desktop install — there is nothing to measure.
+
+## FAQ
+
+**What is devin-metrics?** A local CLI that reads Devin's own session
+databases and reports usage metrics: sessions per day/week, cost and token
+totals per project and model, longest sessions, and tool-call mix. It also
+ships a `devin-dashboard` alias that writes a standalone HTML dashboard.
+
+**How does devin-metrics get cost data?** It reads Devin's local stores
+directly — `sessions.db` plus `acp-messages/*.db`, which carry per-message
+model/cost fields — so cost comes from protocol data, not scraped text. A
+missing `acp-messages` dir degrades gracefully: `cost_usd` shows `-` (unknown,
+not zero).
+
+**Does devin-metrics send data anywhere?** No. All metrics are computed
+locally and written to a local database. There are no network calls and no
+telemetry; Devin's own stores are opened `mode=ro` and never written.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

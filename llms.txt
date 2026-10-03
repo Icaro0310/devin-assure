@@ -1,0 +1,31 @@
+# devin-metrics
+
+> Local-only metrics for Devin usage: sessions per day/week, cost and token aggregates per project and model, longest sessions, and tool-call mix.
+
+devin-metrics answers "what did my Devin usage cost?" Devin sessions accumulate real cost in tokens, model time, and tool calls, but there is no built-in way to see weekly spend or which project eats the budget. The data already sits on disk in `sessions.db` and `acp-messages/*.db`; devin-metrics is the read side that turns it into summaries, per-project tables, daily activity, and a standalone HTML dashboard. It is for Devin CLI/Desktop users who want usage and cost visibility with zero telemetry: all computation is local, nothing is sent anywhere. Unofficial community tooling, not affiliated with Cognition AI.
+
+## Docs
+
+- [README](https://github.com/Icaro0310/devin-metrics/blob/main/README.md): full documentation
+
+## Key commands
+
+- `pipx install "devin-metrics @ git+https://github.com/Icaro0310/devin-metrics.git"`: install (Python >= 3.10)
+- `devin-metrics summary`: headline numbers and top-5 lists
+- `devin-metrics projects`: per-project cost/session table
+- `devin-metrics daily --days 14`: activity over time
+- `devin-metrics dashboard --out usage.html`: write a standalone HTML dashboard
+- `devin-dashboard build --out usage.html`: dashboard executable alias shipped by the same package
+- `devin-dashboard data --json`: normalized stats payload as JSON
+- `devin-metrics summary --json`: raw JSON for scripting
+
+## When to use / when not
+
+- Use when: you want to know cost/token totals per project, model, or day; you need a scriptable JSON feed of usage stats; you want a self-contained HTML dashboard of your activity; you want all of it computed locally with no telemetry.
+- Not when: you need to search message content (use devin-search); you need relationship queries between sessions, files, and tools (use devin-graph); your `sessions.db` schema is outside v15-v17 (refused loudly); you need real-time live monitoring (use devin-office); there is no Devin install on the machine (nothing to measure).
+
+## Related
+
+- [devin-ecosystem](https://icaro0310.github.io/): the 20+ tool ecosystem this belongs to
+- [devin-internals-spec](https://github.com/Icaro0310/devin-internals-spec): owns parsing and schema detection for Devin's stores
+- [devin-office](https://github.com/Icaro0310/devin-office): live session dashboard (real-time vs historical metrics)
