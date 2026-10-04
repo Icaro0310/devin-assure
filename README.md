@@ -70,6 +70,10 @@ devin-qa-pack audit --all --limit 20 --json
 # aggregated report: one self-contained static HTML file (inline CSS,
 # no JS, no external assets — opens offline)
 devin-qa-pack report --sessions-db path/to/sessions.db --out report.html
+
+# live audit at SessionEnd: audit ONLY the session that just ended
+# (hook mode — writes a JSON side file, never touches the session)
+devin-qa-pack session-end
 ```
 
 The `report` subcommand audits all sessions (or one with `--session`,
@@ -84,6 +88,51 @@ evidence and the source excerpt for every checked claim.
 
 Exit codes: `0` every session `PASS` · `1` some session
 `PARTIAL`/`UNVERIFIED` · `2` audit could not run.
+
+## SessionEnd hook (live audit)
+
+`devin-qa-pack session-end` audits **only the session that just ended**
+and writes the verdict to a JSON **side file** — never into the
+transcript or any Devin store. Session resolution order:
+
+1. `--session-id <id>` (exact id or unique prefix)
+2. the `session_id` field of the hook payload JSON on stdin
+3. the `DEVIN_SESSION_ID` env var (exported by the hook dispatcher)
+4. the most recently active session in `sessions.db`
+
+The side file defaults to `<data-dir>/qa/<session-id>.json` (same
+platform data dir as the store auto-detection; `--data-dir` and `--out`
+override) and contains `{session_id, verdict, claims: [...],
+audited_at}` — the same claim shape as `audit --json`. A one-line
+summary is also printed. `--limit N` bounds the number of claims
+verified.
+
+**Fail-soft:** `session-end` always exits `0` once it ran — the verdict
+travels in the side file, so a hook can never fail the host session. A
+session that cannot be resolved produces a `SKIPPED` verdict (still
+written to the side file when an id is known). Non-zero exits are
+reserved for usage errors (`2`), consistent with the other subcommands.
+
+Register it as a `SessionEnd` hook (hooks.json entry for the
+`devin-powerups` hook dispatcher — it pipes the hook payload JSON on
+stdin and exports `DEVIN_SESSION_ID`):
+
+```json
+{
+  "SessionEnd": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "devin-qa-pack session-end",
+          "timeout": 30
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## Works with Devin alone (Devin-only mode)
 

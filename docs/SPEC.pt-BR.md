@@ -45,7 +45,12 @@ diretório de trabalho em disco.
   `verified` / `disputed` / `unverifiable`.
 - `report.py` — veredito por sessão: `PASS` / `PARTIAL` / `UNVERIFIED`,
   com achados por afirmação.
-- `cli.py` — wrapper fino; `paths.py` — local padrão do store.
+- `session_end.py` — auditoria ao vivo QA-1: audita só a sessão que
+  acabou de terminar (id via `--session-id`, payload do hook no stdin,
+  `$DEVIN_SESSION_ID` ou a sessão mais recentemente ativa) e escreve o
+  veredito num ficheiro lateral JSON — nunca numa store do Devin.
+- `cli.py` — wrapper fino (`audit`, `report`, `session-end`);
+  `paths.py` — local padrão do store.
 
 ## 4. Fora de escopo
 

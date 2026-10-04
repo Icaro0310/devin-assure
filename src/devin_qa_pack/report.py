@@ -61,11 +61,17 @@ def _verdict(results: list[VerifiedClaim]) -> str:
     return PARTIAL
 
 
-def audit_session(store: SessionsStore, session: Session) -> SessionAudit:
+def audit_session(
+    store: SessionsStore,
+    session: Session,
+    claim_limit: int | None = None,
+) -> SessionAudit:
     nodes = store.message_nodes(session.id)
     states = store.tool_call_state(session.id)
     calls = parse_tool_calls(states)
     claims = extract_claims(nodes)
+    if claim_limit is not None:
+        claims = claims[: max(claim_limit, 0)]
     results = [
         verify_claim(
             c,

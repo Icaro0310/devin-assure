@@ -27,6 +27,7 @@ from devin_qa_pack.report import (
     audits_payload,
     render_text,
 )
+from devin_qa_pack.session_end import run_session_end, summary_line
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -64,6 +65,41 @@ def _build_parser() -> argparse.ArgumentParser:
                         help="report one session (exact id or unique prefix)")
     report.add_argument("--limit", type=int, metavar="N",
                         help="max sessions (most recent first)")
+
+    se = sub.add_parser(
+        "session-end",
+        help="live audit of only the session that just ended "
+        "(SessionEnd hook handler); verdict goes to a side file")
+    se.add_argument(
+        "--sessions-db",
+        metavar="PATH",
+        help="path to sessions.db (default: auto-detect Devin data dir)",
+    )
+    se.add_argument(
+        "--session-id",
+        metavar="ID",
+        help="session to audit (default: session_id from the hook payload "
+        "on stdin, then $DEVIN_SESSION_ID, then the most recently "
+        "active session)",
+    )
+    se.add_argument(
+        "--data-dir",
+        metavar="PATH",
+        help="Devin data dir for the default output path "
+        "(default: auto-detect)",
+    )
+    se.add_argument(
+        "--out",
+        metavar="PATH",
+        help="side-file path "
+        "(default: <data-dir>/qa/<session-id>.json)",
+    )
+    se.add_argument(
+        "--limit",
+        type=int,
+        metavar="N",
+        help="verify at most N claims (bounds the audit)",
+    )
     return parser
 
 
@@ -146,12 +182,36 @@ def _cmd_report(args: argparse.Namespace) -> int:
     return 0 if all(a.verdict == PASS for a in audits) else 1
 
 
+def _cmd_session_end(args: argparse.Namespace) -> int:
+    """SessionEnd hook handler — fail-soft: always exit 0 once it ran.
+
+    Unlike ``audit``/``report`` the verdict does NOT map to the exit
+    code (it travels in the side file), so the hook can never fail the
+    host session. Non-zero exits are usage errors only (argparse → 2).
+    """
+    try:
+        result = run_session_end(
+            sessions_db=args.sessions_db,
+            session_id=args.session_id,
+            data_dir=args.data_dir,
+            out=args.out,
+            claim_limit=args.limit,
+        )
+    except Exception as exc:  # fail-soft — a hook must never break the host
+        print(f"qa session-end: SKIPPED - — internal error: {exc}")
+        return 0
+    print(summary_line(result))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "audit":
         return _cmd_audit(args)
     if args.command == "report":
         return _cmd_report(args)
+    if args.command == "session-end":
+        return _cmd_session_end(args)
     _build_parser().print_help()
     return 2
 

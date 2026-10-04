@@ -50,8 +50,12 @@ call or in `git log` of the on-disk working directory.
   `UNVERIFIED`, with per-claim findings.
 - `html_report.py` — aggregate audits into one deterministic,
   self-contained static HTML file (inline CSS, zero JS).
-- `cli.py` — thin wrapper (`audit`, `report`); `paths.py` — default
-  store location.
+- `session_end.py` — QA-1 live audit: audits only the session that
+  just ended (id from `--session-id`, the stdin hook payload,
+  `$DEVIN_SESSION_ID`, or the most recently active session) and writes
+  the verdict to a JSON side file — never into a Devin store.
+- `cli.py` — thin wrapper (`audit`, `report`, `session-end`);
+  `paths.py` — default store location.
 
 ## 4. Non-scope
 
@@ -95,12 +99,19 @@ Session verdict:
 | Interface | Description |
 |---|---|
 | **Library** `devin_qa_pack` | `claims.extract_claims` · `verify.verify_claim(s)` · `report.audit_session/audit_all` — frozen dataclasses in, statuses out |
-| **CLI** `devin-qa-pack` | `audit --sessions-db <path> --session <id|prefix>` · `audit --all [--limit N]` · `report [--session <id|prefix>] [--limit N] --out <file>` (self-contained HTML) · `--json` on audit · auto-detects `<data dir>/cli/sessions.db` when `--sessions-db` omitted |
+| **CLI** `devin-qa-pack` | `audit --sessions-db <path> --session <id|prefix>` · `audit --all [--limit N]` · `report [--session <id|prefix>] [--limit N] --out <file>` (self-contained HTML) · `session-end [--session-id <id>] [--out <file>] [--data-dir <dir>] [--limit N]` (SessionEnd hook handler) · `--json` on audit · auto-detects `<data dir>/cli/sessions.db` when `--sessions-db` omitted |
 | **Docs** | `SPEC.md` (canonical) + `SPEC.pt-BR.md` |
 
 CLI exit codes: `0` every audited session `PASS` · `1` audit ran, some
 session `PARTIAL`/`UNVERIFIED` · `2` audit could not run (missing or
 unreadable store, unknown/ambiguous session, bad usage).
+
+`session-end` is fail-soft by contract: it always exits `0` once it ran
+— the verdict travels in the side file, so a SessionEnd hook can never
+fail the host session. Unresolvable sessions produce a `SKIPPED`
+verdict written to the side file (`{session_id, verdict: "SKIPPED",
+reason, claims: [], audited_at}`). Non-zero exits are usage errors
+only (`2`).
 
 ### JSON contract
 

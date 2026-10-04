@@ -72,6 +72,11 @@ devin-qa-pack audit --all --limit 20 --json
 # relatório agregado: um ficheiro HTML estático autocontido (CSS inline,
 # sem JS, sem assets externos — abre offline)
 devin-qa-pack report --sessions-db caminho/sessions.db --out report.html
+
+# auditoria ao vivo no SessionEnd: audita SÓ a sessão que acabou de
+# terminar (modo hook — escreve um ficheiro JSON lateral, nunca toca
+# na sessão)
+devin-qa-pack session-end
 ```
 
 O subcomando `report` audita todas as sessões (ou uma com `--session`,
@@ -86,6 +91,52 @@ com evidência e o excerto de origem de cada claim verificado.
 
 Exit codes: `0` todas `PASS` · `1` alguma `PARTIAL`/`UNVERIFIED` ·
 `2` auditoria não correu.
+
+## Hook SessionEnd (auditoria ao vivo)
+
+`devin-qa-pack session-end` audita **apenas a sessão que acabou de
+terminar** e escreve o veredito num **ficheiro lateral** JSON — nunca na
+transcrição nem em nenhuma store do Devin. Ordem de resolução da sessão:
+
+1. `--session-id <id>` (id exato ou prefixo único)
+2. o campo `session_id` do payload JSON do hook no stdin
+3. a variável `DEVIN_SESSION_ID` (exportada pelo dispatcher de hooks)
+4. a sessão mais recentemente ativa no `sessions.db`
+
+O ficheiro lateral vai por defeito para
+`<data-dir>/qa/<session-id>.json` (o mesmo data-dir de plataforma da
+auto-detecção da store; `--data-dir` e `--out` substituem) e contém
+`{session_id, verdict, claims: [...], audited_at}` — o mesmo formato de
+claims do `audit --json`. Também imprime um resumo de uma linha.
+`--limit N` limita o número de afirmações verificadas.
+
+**Fail-soft:** `session-end` sai sempre com `0` depois de correr — o
+veredito viaja no ficheiro lateral, por isso o hook nunca pode falhar a
+sessão hospedeira. Uma sessão que não pode ser resolvida produz um
+veredito `SKIPPED` (ainda escrito no ficheiro lateral quando o id é
+conhecido). Saídas não-zero ficam reservadas a erros de uso (`2`), como
+nos outros subcomandos.
+
+Regista-o como hook `SessionEnd` (entrada hooks.json para o dispatcher
+de hooks do `devin-powerups` — ele passa o payload do hook em JSON no
+stdin e exporta `DEVIN_SESSION_ID`):
+
+```json
+{
+  "SessionEnd": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "devin-qa-pack session-end",
+          "timeout": 30
+        }
+      ]
+    }
+  ]
+}
+```
 
 ## Funciona só com o Devin (modo Devin-only)
 

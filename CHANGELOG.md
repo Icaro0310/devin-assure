@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `devin-qa-pack session-end` CLI (QA-1): live audit of only the
+  session that just ended — built to run as a `SessionEnd` hook
+  handler. Session id resolves from `--session-id`, the hook payload
+  on stdin (`{"session_id": ...}`), `$DEVIN_SESSION_ID`, or falls back
+  to the most recently active session. Writes the verdict to a JSON
+  side file (`<data-dir>/qa/<session-id>.json`, `--out`/`--data-dir`
+  override) containing `{session_id, verdict, claims, audited_at}` and
+  prints a one-line summary. `--limit` bounds claims verified.
+  Fail-soft: always exits 0 once it ran (unresolvable sessions yield a
+  `SKIPPED` verdict); non-zero only on usage errors.
 - `devin-qa-pack report` CLI: audits sessions and writes one
   deterministic, self-contained static HTML report (inline CSS, zero
   JavaScript, no external assets) — verdict counts, per-session table
