@@ -1,0 +1,9 @@
+{
+  "id": "bugfix",
+  "description": "Hygiene base for a bugfix session: commands end clean, no tracebacks leaked into the transcript, no secrets anywhere. Cases extend this with session-specific checks (e.g. contains the regression test name, file_exists on the patched file).",
+  "rubric": [
+    { "grader": "exit_code", "value": 0, "mode": "all" },
+    { "grader": "not_contains", "text": "Traceback (most recent call last)" },
+    { "grader": "no_secrets" }
+  ]
+}

@@ -131,6 +131,26 @@ the suite on `windows-latest` + `ubuntu-latest`; the target file or
 directory is always an explicit argument, so there are no
 platform-specific paths.
 
+
+### Rubric packs (EV-4)
+
+Reusable check sets for common session types, so replay works out of the
+box. Built-ins shipped with the package: `bugfix`, `feature`, `refactor` —
+each is a small hygiene rubric (clean exit codes, no tracebacks, no
+secrets) meant to be **extended** by the case's own `rubric`.
+
+```json
+{
+  "session_ref": "my-session-id",
+  "packs": ["bugfix"],
+  "rubric": [ { "grader": "contains", "text": "test_regression" } ]
+}
+```
+
+Pack checks run **before** the case's own checks. List them with
+`devin-evals packs`; override or add your own with `--packs-dir <dir>`
+(a `<name>.json` file there shadows the built-in of the same name).
+
 ## Limitations
 
 - **Offline replay only** (M1): grades recorded sessions, cannot spawn new

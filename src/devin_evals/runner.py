@@ -207,13 +207,14 @@ def run_evals(
     evals_dir: str | Path,
     sessions_db: str | Path,
     out_dir: str | Path | None = None,
+    packs_dir: str | Path | None = None,
 ) -> dict[str, Any]:
     """Grade every case in ``evals_dir`` against ``sessions_db``.
 
     Writes ``report.json`` + ``report.md`` under ``out_dir`` when given.
     Returns the report dict (identical content to ``report.json``).
     """
-    cases = load_cases(evals_dir)
+    cases = load_cases(evals_dir, packs_dir=packs_dir)
     case_results: list[dict[str, Any]] = []
     with SessionsStore(sessions_db) as store:
         schema_version = store.schema_info["schema_version"]

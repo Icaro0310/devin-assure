@@ -137,6 +137,16 @@ CI corre a suite em `windows-latest` + `ubuntu-latest`; o ficheiro ou
 diretório alvo é sempre um argumento explícito, sem paths
 específicos de plataforma.
 
+
+### Rubric packs (EV-4)
+
+Conjuntos reutilizáveis de checks para tipos comuns de sessão. Embutidos:
+`bugfix`, `feature`, `refactor` — cada um é uma rubrica de higiene (exit
+codes limpos, sem tracebacks, sem segredos) pensada para ser **estendida**
+pela `rubric` do próprio caso. Use `"packs": ["bugfix"]` no JSON do caso;
+os checks do pack rodam **antes** dos checks locais. Liste com
+`devin-evals packs`; sobrescreva ou adicione packs com `--packs-dir <dir>`.
+
 ## Limitações
 
 - **Só replay offline** (M1): avalia sessões gravadas, não lança novas.
