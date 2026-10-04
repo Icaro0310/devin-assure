@@ -201,6 +201,7 @@ const cards = [
   ["Input tokens", fmtInt(S.input_tokens_total)],
   ["Output tokens", fmtInt(S.output_tokens_total)],
   ["Avg cost/session", fmtUsd(S.avg_cost_usd)],
+  ["Peak context tokens", fmtInt(S.peak_context_tokens)],
   ["First activity", S.first_seen || "—"],
   ["Last activity", S.last_seen || "—"],
 ];
@@ -220,6 +221,7 @@ document.getElementById("src-meta").textContent =
     : "not found");
 barChart("chart-daily-sessions", DATA.daily, r => r.sessions, fmtInt);
 lineChart("chart-daily-cost", DATA.daily, r => r.cost_usd, fmtUsd);
+lineChart("chart-daily-context", DATA.daily, r => r.context_tokens, fmtInt);
 hbarChart("chart-projects", DATA.projects, "project", "cost_usd", "sessions",
           fmtUsd);
 hbarChart("chart-models", DATA.models, "model", "cost_usd", "sessions", fmtUsd);
@@ -245,6 +247,7 @@ _PAGE = """<!DOCTYPE html>
 <section class="grid charts">
 <div class="panel"><h2>Sessions per day</h2><div id="chart-daily-sessions"></div></div>
 <div class="panel"><h2>Cost per day (USD)</h2><div id="chart-daily-cost"></div></div>
+<div class="panel"><h2>Peak context tokens per day</h2><div id="chart-daily-context"></div></div>
 <div class="panel"><h2>Cost by project</h2><div id="chart-projects"></div></div>
 <div class="panel"><h2>Cost by model</h2><div id="chart-models"></div></div>
 </section>

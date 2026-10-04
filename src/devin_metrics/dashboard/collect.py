@@ -82,6 +82,20 @@ class SessionRow:
     cost_usd: float | None
     input_tokens: int | None
     output_tokens: int | None
+    context_tokens: int | None
+
+
+def _metadata_tokens(raw: str | None) -> int | None:
+    """Peak ``num_tokens_preceding`` from a message_nodes metadata blob."""
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return _int(data.get("num_tokens_preceding"))
 
 
 def _num(value: Any) -> float | None:
@@ -168,6 +182,11 @@ def _sum_or_none(values: Iterable[float | int | None]) -> float | int | None:
     return sum(known) if known else None
 
 
+def _max_or_none(values: Iterable[int | None]) -> int | None:
+    known = [v for v in values if v is not None]
+    return max(known) if known else None
+
+
 def _session_dict(s: SessionRow) -> dict[str, Any]:
     return {
         "id": s.id,
@@ -197,6 +216,8 @@ def _by_day(sessions: list[SessionRow]) -> list[dict[str, Any]]:
             "tool_calls": _sum(s.n_tool_calls for s in groups[d]),
             "duration_ms": _sum(s.duration_ms for s in groups[d]),
             "cost_usd": _sum_or_none(s.cost_usd for s in groups[d]),
+            "context_tokens": _max_or_none(
+                s.context_tokens for s in groups[d]),
         }
         for d in sorted(groups)
     ]
@@ -302,6 +323,8 @@ def _summary(
             if with_cost
             else None
         ),
+        "peak_context_tokens": _max_or_none(
+            s.context_tokens for s in sessions),
     }
 
 
@@ -324,8 +347,13 @@ def collect_stats(
         schema_version = store.schema_info["schema_version"]
         raw_sessions = store.sessions()
         msg_counts: dict[str, int] = {}
+        ctx_peak: dict[str, int] = {}
         for node in store.message_nodes():
             msg_counts[node.session_id] = msg_counts.get(node.session_id, 0) + 1
+            ntp = _metadata_tokens(node.metadata)
+            if ntp is not None:
+                if ntp > ctx_peak.get(node.session_id, -1):
+                    ctx_peak[node.session_id] = ntp
         tool_counts: dict[str, int] = {}
         for tc in store.tool_call_state():
             tool_counts[tc.session_id] = tool_counts.get(tc.session_id, 0) + 1
@@ -358,6 +386,7 @@ def collect_stats(
             output_tokens=_sum_or_none(
                 [u.output_tokens for u in by_session.get(s.id, [])]
             ),
+            context_tokens=ctx_peak.get(s.id),
         )
         for s in raw_sessions
     ]

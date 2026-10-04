@@ -104,6 +104,9 @@ Windows and `$XDG_DATA_HOME/devin/cli/sessions.db` on Linux (default
 `~/.config/Devin/User/acp-messages`). Legacy `~/.config/devin` layouts are
 also checked. Override with `--sessions-db` or `--acp-dir`.
 
+
+The dashboard also charts **peak `num_tokens_preceding` per day** — the only token signal persisted locally (verified: no cost fields are stored). Cost charts show a "no data" note rather than fake zeros.
+
 ## Limitations
 
 - **Read-only, no network.** Stores are opened `mode=ro`; nothing is
