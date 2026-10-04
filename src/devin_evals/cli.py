@@ -13,6 +13,35 @@ from devin_evals.cases import CaseError, builtin_packs, load_cases
 from devin_evals.corpus import generate_corpus, verify_corpus
 from devin_evals.runner import run_evals
 
+
+def _cmd_judge(args: argparse.Namespace) -> int:
+    """EV-1: opt-in LLM judge — fail-closed without DEVIN_BRIDGE_CMD."""
+    import json as _json
+    from devin_evals.judge import build_prompt, judge_available, run_judge
+    ok, msg = judge_available()
+    if not ok:
+        print(f"error: {msg}", file=sys.stderr)
+        return _USAGE
+    try:
+        cases = load_cases(args.evals, packs_dir=args.packs_dir)
+    except CaseError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return _USAGE
+    case = next((c for c in cases if c.id == args.case), None)
+    if case is None:
+        print(f"error: no case {args.case!r} in {args.evals}", file=sys.stderr)
+        return _USAGE
+    evidence = {"note": "offline evidence assembly — the judge sees "
+                        "the case description + your question"}
+    res = run_judge(
+        build_prompt(case.id, case.description, evidence, args.question),
+        cwd=args.cwd, case_id=case.id)
+    print(_json.dumps({"case": case.id, "deterministic": False, **res},
+                      indent=2))
+    if not res.get("ok"):
+        return _FAILED
+    return _OK if res["verdict"] == "pass" else _FAILED
+
 _OK, _FAILED, _USAGE = 0, 1, 2
 
 
@@ -134,6 +163,22 @@ def build_parser() -> argparse.ArgumentParser:
     pk = sub.add_parser(
         "packs", help="list the built-in rubric packs (bugfix, feature, refactor)")
     pk.set_defaults(func=_cmd_packs)
+
+    ju = sub.add_parser(
+        "judge",
+        help="EV-1: opt-in LLM judge for one case (non-deterministic; "
+        "needs DEVIN_BRIDGE_CMD — sessions are labelled judge:<id> for "
+        "janitor to reap)")
+    ju.add_argument("case", help="eval case id to judge")
+    ju.add_argument("--evals", required=True,
+                    help="directory of *.json eval cases")
+    ju.add_argument("--packs-dir", help="directory of custom rubric packs")
+    ju.add_argument("--cwd", default=".",
+                    help="working dir for the judge session (default: .)")
+    ju.add_argument("--question", required=True,
+                    help="the judgment question, e.g. 'did the session "
+                    "address the user request?'")
+    ju.set_defaults(func=_cmd_judge)
 
     co = sub.add_parser(
         "corpus",

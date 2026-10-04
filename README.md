@@ -209,6 +209,13 @@ recent* match: `latest`, `project:<substr>` (matches
 `working_directory`), `window:<YYYY-MM-DD>:<YYYY-MM-DD>` — plus exact id
 or title as before.
 
+
+`devin-evals judge <case> --question "…"` (EV-1, **opt-in**) asks a live
+LLM to grade one case. Non-deterministic, off by default, fail-closed:
+needs `DEVIN_BRIDGE_CMD` (drives `devin-bridge`, which gates via policy)
+and uses the free model unless `DEVIN_JUDGE_MODEL` overrides. Sessions
+are labelled `judge:<case>` so `devin-janitor` can reap the noise.
+
 ## Limitations
 
 - **Offline replay only** (M1): grades recorded sessions, cannot spawn new

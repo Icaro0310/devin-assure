@@ -208,6 +208,13 @@ por um proxy de transcrição (`not_contains` na política insegura).
 `working_directory`), `window:<AAAA-MM-DD>:<AAAA-MM-DD>` — além de id ou
 título exatos como antes.
 
+
+`devin-evals judge <case> --question "…"` (EV-1, **opt-in**) pede a um LLM
+ao vivo que avalie um caso. Não-determinístico, desligado por defeito,
+fail-closed: precisa de `DEVIN_BRIDGE_CMD` (usa o `devin-bridge`, que
+respeita a policy) e o modelo free salvo `DEVIN_JUDGE_MODEL`. As sessões
+são rotuladas `judge:<case>` para o `devin-janitor` as limpar.
+
 ## Limitações
 
 - **Só replay offline** (M1): avalia sessões gravadas, não lança novas.
