@@ -112,6 +112,13 @@ The dashboard also charts **peak `num_tokens_preceding` per day** — the only t
 
 Rework stats from the knowledge graph: files re-touched by multiple tool calls in the same session, per session and per model. Known noise: pseudo-paths like `/dev/null` and shell builtins can rank high — they are real `file_touched` edges, just not meaningful rework.
 
+
+`devin-metrics watch` is an **advisory** context guard (ME-2): lists
+sessions/days whose `context_tokens` exceed thresholds
+(`--session-warn`, `--daily-warn`, `--fail` for CI). It never blocks —
+and it watches *context size*, not cost: local stores have no cost data
+(verified, see SCHEMA.md).
+
 ## Limitations
 
 - **Read-only, no network.** Stores are opened `mode=ro`; nothing is

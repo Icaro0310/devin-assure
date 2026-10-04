@@ -88,6 +88,60 @@ def cmd_daily(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_watch(args: argparse.Namespace) -> int:
+    """ME-2: advisory context guard — warns, never blocks.
+
+    Cost is unverifiable in local stores (ME-3), so the guard watches
+    ``context_tokens`` (peak prompt size per session) — the only real
+    resource signal that persists. Thresholds are advisory: sessions that
+    crossed them are listed, exit stays 0 unless --fail.
+    """
+    snap = _snapshot(args)
+    findings: list[dict] = []
+    by_ctx = sorted(
+        (s for s in snap.sessions if s.context_tokens is not None),
+        key=lambda s: s.context_tokens or 0, reverse=True)
+    over_session = [s for s in by_ctx if s.context_tokens > args.session_warn]
+    days: dict[str, int] = {}
+    for s in snap.sessions:
+        if s.context_tokens:
+            from devin_metrics.aggregate import _day
+            d = _day(s.created_at)
+            days[d] = days.get(d, 0) + s.context_tokens
+    over_days = {d: v for d, v in days.items() if v > args.daily_warn}
+    for s in over_session:
+        findings.append({"kind": "session", "session_id": s.id,
+                         "context_tokens": s.context_tokens,
+                         "threshold": args.session_warn})
+    for d, v in sorted(over_days.items()):
+        findings.append({"kind": "day", "date": d, "context_tokens": v,
+                         "threshold": args.daily_warn})
+    report = {
+        "advisory": True,
+        "thresholds": {"session_warn": args.session_warn,
+                       "daily_warn": args.daily_warn},
+        "sessions_observed": len(by_ctx),
+        "findings": findings,
+        "note": "advisory only — context_tokens is peak prompt size, "
+                "not cost (local stores have no cost data, verified ME-3)",
+    }
+    if args.json:
+        print(json.dumps(report, indent=2))
+    else:
+        print(f"watch (advisory): {len(by_ctx)} sessions observed · "
+              f"{len(findings)} finding(s)")
+        for f in findings:
+            if f["kind"] == "session":
+                print(f"  session {f['session_id'][:16]}… "
+                      f"{f['context_tokens']:,} tok > {f['threshold']:,}")
+            else:
+                print(f"  day {f['date']}  {f['context_tokens']:,} tok "
+                      f"> {f['threshold']:,}")
+        if not findings:
+            print("  all clear")
+    return 1 if (findings and args.fail) else 0
+
+
 def cmd_churn(args: argparse.Namespace) -> int:
     report = churn_report(args.graph)
     print(json.dumps(report, indent=2) if args.json
@@ -160,6 +214,19 @@ def build_parser() -> argparse.ArgumentParser:
                          help="path to a built graph.db (default ./graph.db)")
     p_churn.add_argument("--json", action="store_true")
     p_churn.set_defaults(func=cmd_churn)
+    p_watch = sub.add_parser(
+        "watch", parents=[common],
+        help="advisory context guard — lists sessions/days over a token "
+             "threshold; never blocks (ME-2)")
+    p_watch.add_argument("--session-warn", type=int, default=400_000,
+                         metavar="N", help="flag sessions with peak context "
+                         "> N tokens (default: %(default)s)")
+    p_watch.add_argument("--daily-warn", type=int, default=2_000_000,
+                         metavar="N", help="flag days whose summed context "
+                         "> N tokens (default: %(default)s)")
+    p_watch.add_argument("--fail", action="store_true",
+                         help="exit 1 when findings exist (CI mode)")
+    p_watch.set_defaults(func=cmd_watch)
     return parser
 
 

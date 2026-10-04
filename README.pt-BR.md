@@ -111,6 +111,13 @@ O dashboard também plota o **pico de `num_tokens_preceding` por dia** — o ún
 
 Estatísticas de retrabalho a partir do grafo: arquivos retocados por múltiplos tool calls na mesma sessão, por sessão e por modelo. Ruído conhecido: pseudo-paths como `/dev/null` podem ranquear alto — são arestas `file_touched` reais, mas não representam retrabalho útil.
 
+
+`devin-metrics watch` é uma guarda **consultiva** de contexto (ME-2): lista
+sessões/dias cujo `context_tokens` excede os limites
+(`--session-warn`, `--daily-warn`, `--fail` para CI). Nunca bloqueia —
+e vigia *tamanho de contexto*, não custo: os stores locais não têm custo
+(verificado, ver SCHEMA.md).
+
 ## Limitações
 
 - **Read-only, sem rede.** Os stores abrem em `mode=ro`; nada é escrito ou
