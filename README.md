@@ -107,6 +107,11 @@ also checked. Override with `--sessions-db` or `--acp-dir`.
 
 The dashboard also charts **peak `num_tokens_preceding` per day** — the only token signal persisted locally (verified: no cost fields are stored). Cost charts show a "no data" note rather than fake zeros.
 
+
+### `devin-metrics churn` (needs `devin-graph build`)
+
+Rework stats from the knowledge graph: files re-touched by multiple tool calls in the same session, per session and per model. Known noise: pseudo-paths like `/dev/null` and shell builtins can rank high — they are real `file_touched` edges, just not meaningful rework.
+
 ## Limitations
 
 - **Read-only, no network.** Stores are opened `mode=ro`; nothing is

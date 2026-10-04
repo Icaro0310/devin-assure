@@ -16,6 +16,7 @@ is fatal (exit 1): it is the only source of session rows.
 from __future__ import annotations
 
 import argparse
+import json
 import sqlite3
 import sys
 from pathlib import Path
@@ -24,6 +25,7 @@ from typing import Sequence
 from devin_internals.schema import SchemaError
 
 from devin_metrics.aggregate import by_day, by_project, summarize
+from devin_metrics.churn import churn_report, render_churn
 from devin_metrics.collect import MetricsSnapshot, collect
 from devin_metrics.dashboard.collect import collect_stats
 from devin_metrics.dashboard.render import render_html
@@ -86,6 +88,13 @@ def cmd_daily(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_churn(args: argparse.Namespace) -> int:
+    report = churn_report(args.graph)
+    print(json.dumps(report, indent=2) if args.json
+          else render_churn(report))
+    return 0
+
+
 def cmd_dashboard(args: argparse.Namespace) -> int:
     sessions_db, acp_dir = _resolve(args)
     if not acp_dir.is_dir():
@@ -145,6 +154,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="output file (default: index.html)",
     )
     p_dash.set_defaults(func=cmd_dashboard)
+    p_churn = sub.add_parser(
+        "churn", help="rework stats from a graph.db (devin-graph build first)")
+    p_churn.add_argument("--graph", metavar="DB", default="graph.db",
+                         help="path to a built graph.db (default ./graph.db)")
+    p_churn.add_argument("--json", action="store_true")
+    p_churn.set_defaults(func=cmd_churn)
     return parser
 
 

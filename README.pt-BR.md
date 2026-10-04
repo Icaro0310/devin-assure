@@ -106,6 +106,11 @@ também são verificadas. Sobrepõe com `--sessions-db` ou `--acp-dir`.
 
 O dashboard também plota o **pico de `num_tokens_preceding` por dia** — o único sinal de tokens persistido localmente (verificado: nenhum campo de custo é gravado). Os gráficos de custo mostram "sem dados" em vez de zeros falsos.
 
+
+### `devin-metrics churn` (requer `devin-graph build`)
+
+Estatísticas de retrabalho a partir do grafo: arquivos retocados por múltiplos tool calls na mesma sessão, por sessão e por modelo. Ruído conhecido: pseudo-paths como `/dev/null` podem ranquear alto — são arestas `file_touched` reais, mas não representam retrabalho útil.
+
 ## Limitações
 
 - **Read-only, sem rede.** Os stores abrem em `mode=ro`; nada é escrito ou
