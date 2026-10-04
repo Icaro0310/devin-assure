@@ -1,9 +1,20 @@
 # STATUS — devin-qa-pack
 
-Updated: 2026-10-04 · Milestone: **M1 (done) + QA-1** · Version: 0.1.0
+Updated: 2026-10-04 · Milestone: **M1 (done) + QA-1 + QA-4** · Version: 0.1.0
 
 ## Done after M1
 
+- **QA-4 — `intent` prompt-vs-coverage audit** (`intent.py` + `intent`
+  CLI): compares the session's first user message against every path
+  seen in `tool_call_state` payloads. Reports `possibly_missed`
+  (prompt-named paths never touched) and `scope_drift` (touched paths
+  with no prompt-named anchor). Conservative heuristics: only
+  file-grade refs (known extension, absolute or `./`-prefixed) can be
+  "missed"; weak refs (dirs, `pkg.mod` names, repo basenames) only
+  widen scope anchors; slash-words/URLs/flags filtered; `.git`-style
+  internals ignored. Statuses `aligned`/`flagged`/`skipped`; exit
+  `0`/`1`/`2` like `audit`. Result also rides as an `intent` field in
+  the session-end side file (optional, fail-soft).
 - **QA-1 — `session-end` live audit** (`session_end.py` + `session-end`
   CLI): audits only the session that just ended; session id resolves
   from `--session-id` → stdin hook payload (`session_id`) →

@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `devin-qa-pack intent <session>` CLI (QA-4): prompt intent vs.
+  touched-path coverage. Reads the session's first user message,
+  extracts the paths/modules/repo names it references, extracts every
+  path seen in `tool_call_state` payloads and reports
+  `possibly_missed` (prompt-named paths never touched) and
+  `scope_drift` (touched paths with no prompt-named anchor).
+  Deliberately conservative heuristics — only file-grade references
+  can be "missed"; slash-words, bare dir mentions and URL tokens never
+  are. Statuses `aligned`/`flagged`/`skipped`; exit `0` aligned, `1`
+  flagged or not computable, `2` could not run. The `session-end` side
+  file gains an `intent` field with the same analysis.
 - `devin-qa-pack session-end` CLI (QA-1): live audit of only the
   session that just ended — built to run as a `SessionEnd` hook
   handler. Session id resolves from `--session-id`, the hook payload

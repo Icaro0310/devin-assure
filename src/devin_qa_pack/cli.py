@@ -9,6 +9,13 @@ audit could not run (missing/unknown store, unknown session).
 ``devin-qa-pack session-end`` is the SessionEnd hook variant: it audits
 only the session that just ended, writes the verdict to a JSON side
 file and is fail-soft (always exit 0 once it ran; 2 on usage errors).
+
+``devin-qa-pack intent <session>`` is QA-4: it compares the session's
+initial user request with the paths its tool calls touched and reports
+prompt-named paths never touched (``possibly_missed``) plus touched
+paths outside the prompt's scope (``scope_drift``). Heuristic.
+Exit codes: 0 = aligned · 1 = flagged or not computable · 2 = could not
+run (missing/unknown store, unknown session).
 """
 
 from __future__ import annotations
@@ -23,6 +30,13 @@ from devin_internals.parsers.sessions import Session
 from devin_internals.schema import SchemaError
 
 from devin_qa_pack.html_report import render_html
+from devin_qa_pack.intent import (
+    FLAGGED,
+    SKIPPED,
+    audit_intent,
+    intent_dict,
+    render_intent,
+)
 from devin_qa_pack.paths import default_sessions_db
 from devin_qa_pack.report import (
     PASS,
@@ -103,6 +117,26 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         metavar="N",
         help="verify at most N claims (bounds the audit)",
+    )
+
+    intent = sub.add_parser(
+        "intent",
+        help="QA-4: compare the initial user request with the paths the "
+        "session's tool calls touched (heuristic: possibly_missed + "
+        "scope_drift)",
+    )
+    intent.add_argument(
+        "session",
+        metavar="ID",
+        help="session to audit (exact id or unique prefix)",
+    )
+    intent.add_argument(
+        "--sessions-db",
+        metavar="PATH",
+        help="path to sessions.db (default: auto-detect Devin data dir)",
+    )
+    intent.add_argument(
+        "--json", action="store_true", help="JSON output"
     )
     return parser
 
@@ -186,6 +220,27 @@ def _cmd_report(args: argparse.Namespace) -> int:
     return 0 if all(a.verdict == PASS for a in audits) else 1
 
 
+def _cmd_intent(args: argparse.Namespace) -> int:
+    """QA-4 — 0 aligned · 1 flagged/not computable · 2 could not run."""
+    db, store = _open_store(args.sessions_db)
+    if store is None:
+        return 2
+    with store:
+        session = _find_session(store, args.session)
+        if session is None:
+            return 2
+        audit = audit_intent(
+            session,
+            store.message_nodes(session.id),
+            store.tool_call_state(session.id),
+        )
+    if args.json:
+        print(json.dumps(intent_dict(audit), indent=2))
+    else:
+        print(render_intent(audit))
+    return 1 if audit.status in (FLAGGED, SKIPPED) else 0
+
+
 def _cmd_session_end(args: argparse.Namespace) -> int:
     """SessionEnd hook handler — fail-soft: always exit 0 once it ran.
 
@@ -214,6 +269,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_audit(args)
     if args.command == "report":
         return _cmd_report(args)
+    if args.command == "intent":
+        return _cmd_intent(args)
     if args.command == "session-end":
         return _cmd_session_end(args)
     _build_parser().print_help()

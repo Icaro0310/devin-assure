@@ -77,6 +77,9 @@ devin-qa-pack report --sessions-db caminho/sessions.db --out report.html
 # terminar (modo hook — escreve um ficheiro JSON lateral, nunca toca
 # na sessão)
 devin-qa-pack session-end
+
+# intenção vs. cobertura (QA-4): o agente tocou o que o prompt pediu?
+devin-qa-pack intent <sessão> --sessions-db caminho/sessions.db
 ```
 
 O subcomando `report` audita todas as sessões (ou uma com `--session`,
@@ -91,6 +94,37 @@ com evidência e o excerto de origem de cada claim verificado.
 
 Exit codes: `0` todas `PASS` · `1` alguma `PARTIAL`/`UNVERIFIED` ·
 `2` auditoria não correu.
+
+## Intenção vs. cobertura (`intent`, QA-4)
+
+`devin-qa-pack intent <sessão>` responde a outra pergunta: o agente
+realmente tocou o que o utilizador pediu? Ele pega a **primeira
+mensagem do utilizador** da sessão, extrai os caminhos/módulos/nomes
+de repo que ela referencia, extrai cada caminho visto nos payloads de
+`tool_call_state` (escritas, leituras e comandos contam como
+"tocado") e reporta dois achados heurísticos:
+
+- **`possibly_missed`** — caminhos que o prompt nomeou explicitamente
+  (ficheiro com extensão, caminho absoluto ou prefixado com `./`) e que
+  nenhum tool call referenciou.
+- **`scope_drift`** — caminhos tocados que não partilham nenhum
+  diretório, nome de ficheiro ou âncora de repo com o que o prompt
+  nomeou.
+
+Estados: `aligned` (nada sinalizado) · `flagged` (pelo menos um
+caminho perdido ou fora de escopo) · `skipped` (não computável — sem
+mensagem de utilizador, sem referências a caminhos no prompt, ou sem
+tool calls). Exit codes: `0` aligned · `1` flagged ou skipped ·
+`2` não correu. A mesma análise viaja como campo `intent` no ficheiro
+lateral do `session-end` sempre que a sessão resolve.
+
+**Isto é uma heurística** — deliberadamente conservadora: só
+referências de ficheiro podem virar "missed" (uma menção nua a `src/`
+ou um slash-word tipo `and/or` nunca vira); a cobertura é por
+segmento de caminho e basename, não por semântica; e drift significa
+*"sem âncora nomeada no prompt"*, não *"ficheiro errado"*. Um prompt
+que não nomeia caminho nenhum devolve `skipped` em vez de sinalizar
+todos os ficheiros tocados.
 
 ## Hook SessionEnd (auditoria ao vivo)
 
@@ -107,7 +141,9 @@ O ficheiro lateral vai por defeito para
 `<data-dir>/qa/<session-id>.json` (o mesmo data-dir de plataforma da
 auto-detecção da store; `--data-dir` e `--out` substituem) e contém
 `{session_id, verdict, claims: [...], audited_at}` — o mesmo formato de
-claims do `audit --json`. Também imprime um resumo de uma linha.
+claims do `audit --json`, mais um campo opcional `intent` (a análise
+QA-4 de prompt vs. caminhos tocados) quando a sessão resolve. Também
+imprime um resumo de uma linha.
 `--limit N` limita o número de afirmações verificadas.
 
 **Fail-soft:** `session-end` sai sempre com `0` depois de correr — o
@@ -171,6 +207,13 @@ também é verificada. macOS usa `~/Library/Application Support/devin/`. Usa
 - Verificações de ficheiro/commit usam `sessions.working_directory` só
   quando existe em disco e é um repo git — senão dependem só da
   evidência dos tool calls.
+- A análise `intent` é explicitamente heurística: a extração de
+  caminhos do prompt é por regex (menções nuas a diretórios sem
+  extensão e tokens `a/b` sem extensão podem passar despercebidas),
+  "tocado" inclui leituras e comandos e não só escritas, e follow-ups
+  posteriores do utilizador são ignorados — só a primeira mensagem do
+  utilizador define a intenção. Trata `possibly_missed`/`scope_drift`
+  como dicas de revisão, não vereditos.
 - Verifica *que* as ações aconteceram, não que o trabalho é bom.
 - Read-only, offline; sem monitorização em tempo real nem MCP (M2).
 

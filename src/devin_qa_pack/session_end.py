@@ -4,8 +4,10 @@ Audits exactly one session — the one that just ended — and writes the
 verdict to a *side file*, never into the transcript or any Devin store.
 Default path: ``<data-dir>/qa/<session-id>.json`` (``--out`` overrides;
 ``--data-dir`` overrides the auto-detected Devin data dir). The file
-carries ``{session_id, verdict, claims: [...], audited_at}`` and the
-command also prints a one-line summary.
+carries ``{session_id, verdict, claims: [...], audited_at}`` — plus an
+optional ``intent`` field (QA-4 prompt-vs-touched-paths analysis) when
+the session could be resolved — and the command also prints a one-line
+summary.
 
 Session resolution order: ``--session-id`` → the hook payload on stdin
 (``{"session_id": "..."}``, what the hook dispatcher pipes in) → the
@@ -35,6 +37,7 @@ from devin_internals.parsers import SessionsStore
 from devin_internals.parsers.sessions import Session
 from devin_internals.schema import SchemaError
 
+from devin_qa_pack.intent import audit_intent, intent_dict
 from devin_qa_pack.paths import default_data_dir, default_sessions_db
 from devin_qa_pack.report import audit_dict, audit_session
 
@@ -200,6 +203,7 @@ def run_session_end(
     )
 
     audit = None
+    intent = None
     reason: str | None = None
     db = (
         Path(sessions_db).expanduser()
@@ -216,11 +220,21 @@ def run_session_end(
                     audit = audit_session(
                         store, session, claim_limit=claim_limit
                     )
+                    try:
+                        intent = audit_intent(
+                            session,
+                            store.message_nodes(session.id),
+                            store.tool_call_state(session.id),
+                        )
+                    except Exception:
+                        intent = None  # fail-soft — side field is optional
         except (SchemaError, OSError) as exc:
             reason = f"cannot open {db}: {exc}"
 
     if audit is not None:
         payload = audit_dict(audit)
+        if intent is not None:
+            payload["intent"] = intent_dict(intent)
         payload["audited_at"] = _utc_now()
         result = SessionEndResult(
             session_id=audit.session_id,

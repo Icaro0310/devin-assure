@@ -74,6 +74,9 @@ devin-qa-pack report --sessions-db path/to/sessions.db --out report.html
 # live audit at SessionEnd: audit ONLY the session that just ended
 # (hook mode — writes a JSON side file, never touches the session)
 devin-qa-pack session-end
+
+# intent vs. coverage (QA-4): did the agent touch what the prompt named?
+devin-qa-pack intent <session> --sessions-db path/to/sessions.db
 ```
 
 The `report` subcommand audits all sessions (or one with `--session`,
@@ -89,6 +92,35 @@ evidence and the source excerpt for every checked claim.
 Exit codes: `0` every session `PASS` · `1` some session
 `PARTIAL`/`UNVERIFIED` · `2` audit could not run.
 
+## Intent vs. coverage (`intent`, QA-4)
+
+`devin-qa-pack intent <session>` answers a different question: did the
+agent actually touch what the user asked for? It takes the session's
+**first user message**, extracts the paths/modules/repo names it
+references, extracts every path seen in `tool_call_state` payloads
+(writes, reads and commands all count as "touched") and reports two
+heuristic findings:
+
+- **`possibly_missed`** — paths the prompt explicitly named (filename
+  with an extension, absolute or `./`-prefixed path) that no tool call
+  ever referenced.
+- **`scope_drift`** — touched paths sharing no directory, filename or
+  repo anchor with anything the prompt named.
+
+Statuses: `aligned` (nothing flagged) · `flagged` (at least one missed
+or drift path) · `skipped` (not computable — no user message, no
+path-ish references in the prompt, or no tool calls). Exit codes:
+`0` aligned · `1` flagged or skipped · `2` could not run. The same
+analysis rides along as an `intent` field in the `session-end` side
+file whenever the session resolves.
+
+**This is a heuristic** — kept deliberately conservative: only
+file-grade references can be "missed" (a bare `src/` mention or a
+slash-word like `and/or` never is); coverage is by path-segment and
+basename match, not semantics; and drift means *"no prompt-named
+anchor"*, not *"wrong file"*. A prompt naming no paths at all yields
+`skipped` rather than flagging every touched file.
+
 ## SessionEnd hook (live audit)
 
 `devin-qa-pack session-end` audits **only the session that just ended**
@@ -103,7 +135,9 @@ transcript or any Devin store. Session resolution order:
 The side file defaults to `<data-dir>/qa/<session-id>.json` (same
 platform data dir as the store auto-detection; `--data-dir` and `--out`
 override) and contains `{session_id, verdict, claims: [...],
-audited_at}` — the same claim shape as `audit --json`. A one-line
+audited_at}` — the same claim shape as `audit --json`, plus an
+optional `intent` field (the QA-4 prompt-vs-touched-paths analysis)
+when the session resolves. A one-line
 summary is also printed. `--limit N` bounds the number of claims
 verified.
 
@@ -165,6 +199,12 @@ also checked. macOS uses `~/Library/Application Support/devin/`. Pass
 - File/commit checks use `sessions.working_directory` only when it
   exists on disk and is a git repo — otherwise they rely on tool-call
   evidence alone.
+- The `intent` analysis is explicitly heuristic: prompt path extraction
+  is regex-based (bare directory mentions without extensions and
+  extensionless `a/b` tokens can be missed as references), "touched"
+  includes reads and commands not just writes, and later user
+  follow-ups are ignored — only the first user message sets intent.
+  Treat `possibly_missed`/`scope_drift` as review hints, not verdicts.
 - It verifies *that* actions happened, not that the work is good.
   Green tests in a tool call don't prove the fix is correct.
 - Read-only, offline; no real-time monitoring, no MCP server (M2).
