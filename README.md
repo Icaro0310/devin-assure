@@ -90,6 +90,14 @@ evidence and the source excerpt for every checked claim.
 `$XDG_DATA_HOME/devin/cli/sessions.db` on Linux (default
 `~/.local/share/devin/cli/sessions.db`). Always read-only.
 
+No Devin installed? Try it on a synthetic fixture:
+
+```bash
+pipx install "git+https://github.com/Icaro0310/devin-internals-spec"
+devin-inspect make-fixture /tmp/fx
+devin-qa-pack audit --all --sessions-db /tmp/fx/cli/sessions.db
+```
+
 Exit codes: `0` every session `PASS` · `1` some session
 `PARTIAL`/`UNVERIFIED` · `2` audit could not run.
 
