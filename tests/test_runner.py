@@ -149,3 +149,33 @@ def test_case_score_is_fraction_of_checks(evals_dir, sessions_db):
     )
     report = run_evals(evals_dir, sessions_db)
     assert report["cases"][0]["score"] == 0.5
+
+
+# -- EV-2: session_ref selectors ---------------------------------------------
+
+def test_session_ref_latest_and_project_and_window(tmp_path):
+    from devin_internals.fixtures import create_sessions_db
+    from devin_internals.parsers.sessions import SessionsStore
+    from devin_evals.runner import _find_session
+    import sqlite3, json
+
+    db = create_sessions_db(tmp_path / "sessions.db")
+    con = sqlite3.connect(db)
+    ids = con.execute("SELECT id FROM sessions ORDER BY created_at").fetchall()
+    con.execute("UPDATE sessions SET working_directory = ? WHERE id = ?",
+                ("/work/proj-alpha", ids[0][0]))
+    con.execute("UPDATE sessions SET created_at = ? WHERE id = ?",
+                (1_780_000_000_000, ids[0][0]))
+    con.commit(); con.close()
+
+    with SessionsStore(db) as store:
+        latest = _find_session(store, "latest")
+        assert latest is not None and latest.id != ids[0][0] or len(ids) < 2
+        proj = _find_session(store, "project:proj-alpha")
+        assert proj is not None and proj.id == ids[0][0]
+        win = _find_session(store, "window:2020-01-01:2030-01-01")
+        assert win is not None
+        none1 = _find_session(store, "project:no-such-dir-zzz")
+        assert none1 is None
+        bad = _find_session(store, "window:not-a-date:x")
+        assert bad is None

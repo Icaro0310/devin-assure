@@ -203,6 +203,12 @@ granularity is also coarser than the source catalogue: qa-pack's
 UNVERIFIED/PARTIAL both collapse to `fail`, and D08's "quarantined" is
 graded by a transcript-level proxy (`not_contains` on the unsafe policy).
 
+
+`session_ref` accepts selectors (EV-2), each resolving to the *most
+recent* match: `latest`, `project:<substr>` (matches
+`working_directory`), `window:<YYYY-MM-DD>:<YYYY-MM-DD>` — plus exact id
+or title as before.
+
 ## Limitations
 
 - **Offline replay only** (M1): grades recorded sessions, cannot spawn new

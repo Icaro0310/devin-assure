@@ -9,7 +9,9 @@ Schema::
     {
       "id": "string, optional — defaults to the file stem",
       "description": "string",
-      "session_ref": "session id OR title in sessions.db (either this or
+      "session_ref": "session id OR title in sessions.db, or a selector: "
+                     "'latest', 'project:<substr>', 'window:<start>:<end>' "
+                     "(each resolves to the most recent match; either this or
                       prompt_context should be present)",
       "prompt_context": "inline context for live-mode cases (M2); cases with
                          no session_ref are reported as SKIP in offline replay",

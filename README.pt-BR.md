@@ -202,6 +202,12 @@ veredito também é mais grossa que o catálogo de origem: UNVERIFIED e
 PARTIAL do qa-pack colapsam em `fail`, e o "quarantined" de D08 é avaliado
 por um proxy de transcrição (`not_contains` na política insegura).
 
+
+`session_ref` aceita seletores (EV-2), cada um resolvendo para a sessão
+*mais recente* que casa: `latest`, `project:<substr>` (casa
+`working_directory`), `window:<AAAA-MM-DD>:<AAAA-MM-DD>` — além de id ou
+título exatos como antes.
+
 ## Limitações
 
 - **Só replay offline** (M1): avalia sessões gravadas, não lança novas.

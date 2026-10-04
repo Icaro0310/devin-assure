@@ -86,7 +86,37 @@ def build_evidence(store: SessionsStore, session: Session) -> Evidence:
 
 
 def _find_session(store: SessionsStore, ref: str) -> Session | None:
+    """Resolve ``session_ref`` — EV-2 selectors plus id/title.
+
+    Selectors (each resolves to the *most recent* matching session):
+    - ``latest`` — most recent session by ``created_at``
+    - ``project:<substr>`` — most recent whose ``working_directory``
+      contains ``<substr>`` (case-insensitive)
+    - ``window:<iso-start>:<iso-end>`` — most recent created inside the
+      window, e.g. ``window:2026-10-01:2026-10-04``
+    Anything else falls back to exact id, then exact title.
+    """
     sessions = store.sessions()
+    by_recent = sorted(sessions, key=lambda s: s.created_at, reverse=True)
+    if ref == "latest":
+        return by_recent[0] if by_recent else None
+    if ref.startswith("project:"):
+        needle = ref[len("project:"):].lower()
+        for s in by_recent:
+            if needle in (s.working_directory or "").lower():
+                return s
+        return None
+    if ref.startswith("window:"):
+        try:
+            _head, start, end = ref.split(":", 2)
+            lo = _iso_to_ms(start)
+            hi = _iso_to_ms(end, end_of_day=True)
+        except (ValueError, TypeError):
+            return None
+        for s in by_recent:
+            if lo <= s.created_at <= hi:
+                return s
+        return None
     for s in sessions:
         if s.id == ref:
             return s
@@ -94,6 +124,14 @@ def _find_session(store: SessionsStore, ref: str) -> Session | None:
         if s.title == ref:
             return s
     return None
+
+
+def _iso_to_ms(iso: str, *, end_of_day: bool = False) -> int:
+    """YYYY-MM-DD → epoch ms (UTC; end_of_day → 23:59:59.999)."""
+    from datetime import date, datetime, time, timezone
+    d = date.fromisoformat(iso.strip())
+    t = time.max if end_of_day else time.min
+    return int(datetime.combine(d, t, tzinfo=timezone.utc).timestamp() * 1000)
 
 
 def evaluate_case(case: EvalCase, store: SessionsStore) -> dict[str, Any]:
