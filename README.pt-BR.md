@@ -215,6 +215,13 @@ fail-closed: precisa de `DEVIN_BRIDGE_CMD` (usa o `devin-bridge`, que
 respeita a policy) e o modelo free salvo `DEVIN_JUDGE_MODEL`. As sessões
 são rotuladas `judge:<case>` para o `devin-janitor` as limpar.
 
+
+`ab-run` (EV-5/G3, **opt-in**) corre uma tarefa em duas sessões novas via
+bridge (prefixos variante A vs B), depois avalia ambas com a mesma
+rubrica — o ciclo de prova com-skill/sem-skill. Consome tokens reais,
+fail-closed sem `DEVIN_BRIDGE_CMD`; as sessões são rotuladas
+`ab-run:<tag>:<variant>` para o janitor. `--dry-run` pré-visualiza grátis.
+
 ## Limitações
 
 - **Só replay offline** (M1): avalia sessões gravadas, não lança novas.

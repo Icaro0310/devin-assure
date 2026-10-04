@@ -216,6 +216,13 @@ needs `DEVIN_BRIDGE_CMD` (drives `devin-bridge`, which gates via policy)
 and uses the free model unless `DEVIN_JUDGE_MODEL` overrides. Sessions
 are labelled `judge:<case>` so `devin-janitor` can reap the noise.
 
+
+`ab-run` (EV-5/G3, **opt-in**) runs one task in two fresh bridge sessions
+(variant A vs B prefixes), then grades both against the same rubric —
+the with-skill/without-skill proof loop. Consumes real tokens,
+fail-closed without `DEVIN_BRIDGE_CMD`; sessions are labelled
+`ab-run:<tag>:<variant>` for janitor. `--dry-run` previews for free.
+
 ## Limitations
 
 - **Offline replay only** (M1): grades recorded sessions, cannot spawn new
