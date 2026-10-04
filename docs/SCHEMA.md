@@ -24,11 +24,35 @@ this file only documents **what we read** and the one **assumption** we make.
 | `messages.payload` | messages | JSON — see assumption below |
 | filename stem | — | `session_id` join key |
 
-## ⚠ Assumed acp payload shape (UNVERIFIED)
+## Read from `message_nodes.metadata` (sessions.db)
 
-`devin-internals-spec` marks `messages.payload` **(unstable)** — the column
-exists (verified) but the inner format was never inspected because it is row
-content. devin-metrics therefore *assumes* usage-bearing rows look like:
+| field | table | used for |
+|---|---|---|
+| `metadata.num_tokens_preceding` | message_nodes | cumulative context-window tokens per node — the **only** persisted token signal; reported per session as `context_tokens` (the session's peak value) |
+
+## ✅ Verified: acp payload shape (2026-10, real install)
+
+The `messages.payload` JSON was inspected on a real v17 install
+(52 acp-messages DBs, thousands of rows). Findings:
+
+- **No cost, no token, no model fields.** Payload keys are `id`, `kind`,
+  `content`, `sourceEventTimestampMs`, `sourceEventIsStart`, `warnings`.
+  Kinds observed: `user_message`, `agent_message`, `agent_thought`,
+  `tool_call`.
+- **`tool_call_state` carries no cost/usage columns either** (4 000 rows
+  scanned, zero matches for cost/usage/token/price/billing keys).
+- Per-turn cost exists **only in the live ACP session meta**
+  (`total_credit_cost` / `total_acu_cost`) and is never written to disk —
+  historical cost is unrecoverable from the local stores.
+- `meta` table keys are `info`, `message_count`, `schema_version`
+  (observed: `6`, plus `1` on two legacy DBs), `truncated`.
+- `sessions.cogs_json` is prompt/permissions config (`core/plan_mask`,
+  `core/smart_permission`), **not** cost-of-goods data.
+
+`collect.extract_usage` is kept as the single forward-compatible adapter:
+it still parses the documented shape below so a future payload change
+touches one function — but on current stores it produces no records and
+`cost_usd` is always `-` (unknown ≠ zero).
 
 ```json
 {
@@ -38,26 +62,10 @@ content. devin-metrics therefore *assumes* usage-bearing rows look like:
 }
 ```
 
-Extraction rules (`collect.extract_usage` — the **single adapter**):
-
-- `payload` must parse as a JSON **object**, else the row is ignored.
-- `model`: top-level string, optional.
-- `cost_usd`: top-level number, optional.
-- `usage.input_tokens` / `usage.output_tokens`: ints inside a `usage`
-  object, optional.
-- A row carrying **none** of these fields contributes no `UsageRecord`
-  (user chatter, tool calls, thoughts are ignored).
-
-If a real install shows a different shape, the fix is *one function*:
-`extract_usage()` in `src/devin_metrics/collect.py`. Every fixture row in
-`tests/conftest.py` uses exactly this shape so the assumption is exercised
-end-to-end.
-
 ## Known gaps
 
-- Payload shape above is **not verified** against a real store (M2 task #1).
-- Orphan acp DBs (filename matches no session) contribute to
-  `cost_usd_total` / per-model rows but cannot be attributed to a project
-  or day — surfaced as `orphan_dbs` in the summary.
-- `sessions.metadata`/`cogs_json` may carry richer usage data in real
-  installs — marked *(unstable)* upstream; not consumed in M1.
+- **Cost is unrecoverable locally** — verified. For historical analysis,
+  `context_tokens` (peak `num_tokens_preceding`) is the best available
+  proxy for session size.
+- Orphan acp DBs (filename matches no session) cannot be attributed to a
+  project or day — surfaced as `orphan_dbs` in the summary.

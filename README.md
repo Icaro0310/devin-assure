@@ -11,17 +11,17 @@
 
 **[Português (BR)](README.pt-BR.md)** · English
 
-Local-only metrics for your Devin usage: sessions per day/week, cost and
-token aggregates per project and model, longest sessions, tool-call mix —
+Local-only metrics for your Devin usage: sessions per day/week, per-project
+and per-model rollups, context-size peaks, longest sessions, tool-call mix —
 zero telemetry, JSON + markdown output.
 
 ## The problem
 
-Devin sessions accumulate real cost — tokens, model time, tool calls — but
-there is no way to answer "what did I spend this week?" or "which project
-eats my budget?". The data already exists on disk in `sessions.db` and
-`acp-messages/*.db`; nothing reads it. `devin-metrics` is the missing read
-side.
+Devin sessions accumulate real activity — context growth, model time, tool
+calls — but there is no way to answer "which project ate my week?" or "how
+big did my sessions get?". The data already exists on disk in `sessions.db`
+and `acp-messages/*.db`; nothing reads it. `devin-metrics` is the missing
+read side.
 
 ## Prior art
 
@@ -36,12 +36,13 @@ which owns parsing + schema detection.
 ## What makes it Devin-native
 
 - **Side-by-side:** generic token trackers cannot open Devin's stores at
-  all — the format is unpublished. This tool reads them directly, so cost
-  comes from protocol data (`acp-messages`), not scraped text.
+  all — the format is unpublished. This tool reads them directly, so
+  metrics come from protocol data (`sessions.db`, `acp-messages`), not
+  scraped text.
 - **No-Devin:** remove Devin and there is nothing to measure — no store, no
   metrics.
 - **One sentence:** it reads Devin's own databases and tells you what your
-  sessions cost — locally, with nothing sent anywhere.
+  sessions did — locally, with nothing sent anywhere.
 
 Per-session `working_directory` gives project attribution for free.
 
@@ -81,8 +82,10 @@ on Windows, `$XDG_CONFIG_HOME/Devin/User` on Linux). Override with
 devin-metrics summary --sessions-db path/to/sessions.db --acp-dir path/to/acp-messages
 ```
 
-A missing `acp-messages` dir degrades gracefully: everything except
-cost/token columns still works, and `cost_usd` shows `-` (unknown ≠ zero).
+A missing `acp-messages` dir degrades gracefully: `cost_usd` shows `-`
+(unknown ≠ zero). Note that per-turn cost is **not persisted** even when
+the dir exists (verified — see Limitations); `context_tokens` is the real
+per-session token signal.
 
 ## Works with Devin alone (Devin-only mode)
 
@@ -105,14 +108,17 @@ also checked. Override with `--sessions-db` or `--acp-dir`.
 
 - **Read-only, no network.** Stores are opened `mode=ro`; nothing is
   written or sent anywhere.
-- **Cost shape is assumed.** The acp `messages.payload` JSON carries
-  model/cost fields per our reading — documented and marked *unverified* in
-  `docs/SCHEMA.md`; the assumption is isolated in `collect.extract_usage()`
-  so a real-shape fix touches one function.
+- **Cost is not persisted locally — verified.** A real install (2026-10)
+  confirms acp payloads and `tool_call_state` carry **no** cost/token
+  fields; per-turn cost lives only in the live ACP session meta and is
+  never written to disk. `cost_usd` therefore shows `-` on real data.
+  The one token signal that *does* persist — `num_tokens_preceding` in
+  `message_nodes.metadata` — is reported per session as `context_tokens`
+  (peak context size). Details: `docs/SCHEMA.md`.
 - **Schema-gated.** `sessions.db` versions outside v15–v17 are refused
   loudly (via `devin-internals-spec`'s detector) rather than misread.
-- Verified against synthetic fixtures only — a real install may surface
-  shape drift (tracked in STATUS.md → M2).
+- Drift-checked — `devin-inspect contract` (from devin-internals-spec)
+  validates this install against every known contract boundary.
 
 ## Development
 
@@ -144,11 +150,14 @@ databases and reports usage metrics: sessions per day/week, cost and token
 totals per project and model, longest sessions, and tool-call mix. It also
 ships a `devin-dashboard` alias that writes a standalone HTML dashboard.
 
-**How does devin-metrics get cost data?** It reads Devin's local stores
-directly — `sessions.db` plus `acp-messages/*.db`, which carry per-message
-model/cost fields — so cost comes from protocol data, not scraped text. A
-missing `acp-messages` dir degrades gracefully: `cost_usd` shows `-` (unknown,
-not zero).
+**How does devin-metrics get cost data?** Honest answer: it mostly
+doesn't — verified on a real install, Devin's local stores persist **no**
+cost or token fields (cost exists only in the live ACP session meta and
+is never written to disk). What it does measure: sessions, messages,
+tool calls, durations, per-project/per-model rollups, and `context_tokens`
+(peak `num_tokens_preceding` — the only token signal that persists). The
+`extract_usage()` adapter remains ready if a future schema starts
+persisting cost.
 
 **Does devin-metrics send data anywhere?** No. All metrics are computed
 locally and written to a local database. There are no network calls and no

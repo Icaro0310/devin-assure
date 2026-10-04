@@ -11,17 +11,17 @@
 
 **[English](README.md)** · Português (BR)
 
-Métricas locais do teu uso do Devin: sessões por dia/semana, custo e tokens
-agregados por projeto e modelo, sessões mais longas, distribuição de
+Métricas locais do teu uso do Devin: sessões por dia/semana, rollups por
+projeto e modelo, picos de contexto, sessões mais longas, distribuição de
 tool-calls — zero telemetria, saída em JSON + markdown.
 
 ## O problema
 
-As sessões do Devin acumulam custo real — tokens, tempo de modelo,
-tool-calls — mas não há como responder "quanto gastei esta semana?" ou
-"que projeto consome o meu orçamento?". Os dados já existem em disco em
-`sessions.db` e `acp-messages/*.db`; nada os lê. `devin-metrics` é o lado
-de leitura que faltava.
+As sessões do Devin acumulam atividade real — crescimento de contexto,
+tempo de modelo, tool-calls — mas não há como responder "que projeto comeu
+a minha semana?" ou "quão grandes ficaram as minhas sessões?". Os dados já
+existem em disco em `sessions.db` e `acp-messages/*.db`; nada os lê.
+`devin-metrics` é o lado de leitura que faltava.
 
 ## Trabalho anterior (prior art)
 
@@ -37,12 +37,12 @@ dono do parsing + deteção de schema.
 
 - **Lado a lado:** trackers genéricos de tokens não conseguem abrir os
   stores do Devin — o formato não é publicado. Esta ferramenta lê-os
-  diretamente: o custo vem de dados do protocolo (`acp-messages`), não de
-  texto raspado.
+  diretamente: as métricas vêm de dados do protocolo (`sessions.db`,
+  `acp-messages`), não de texto raspado.
 - **Sem Devin:** remove o Devin e não há nada para medir — sem store, sem
   métricas.
-- **Uma frase:** lê as bases de dados do próprio Devin e diz quanto custam
-  as tuas sessões — localmente, sem enviar nada.
+- **Uma frase:** lê as bases de dados do próprio Devin e diz o que as tuas
+  sessões fizeram — localmente, sem enviar nada.
 
 O `working_directory` de cada sessão dá atribuição por projeto de graça.
 
@@ -107,14 +107,18 @@ também são verificadas. Sobrepõe com `--sessions-db` ou `--acp-dir`.
 
 - **Read-only, sem rede.** Os stores abrem em `mode=ro`; nada é escrito ou
   enviado.
-- **Shape de custo assumido.** O JSON de `messages.payload` carrega campos
-  de modelo/custo segundo a nossa leitura — documentado e marcado *não
-  verificado* em `docs/SCHEMA.md`; a assunção está isolada em
-  `collect.extract_usage()` para que uma correção toque numa só função.
+- **Custo não persiste localmente — verificado.** Uma instalação real
+  (2026-10) confirma que os payloads acp e o `tool_call_state` **não**
+  carregam campos de custo/tokens; o custo por turno existe apenas no meta
+  da sessão ACP ao vivo e nunca vai para disco. `cost_usd` mostra `-` em
+  dados reais. O único sinal de tokens que *persiste* —
+  `num_tokens_preceding` em `message_nodes.metadata` — aparece por sessão
+  como `context_tokens` (pico de contexto). Detalhes: `docs/SCHEMA.md`.
 - **Schema com gate.** Versões de `sessions.db` fora de v15–v17 são
   recusadas com erro claro (via o detector do `devin-internals-spec`).
-- Verificado apenas contra fixtures sintéticos — uma instalação real pode
-  revelar drift de shape (ver STATUS.md → M2).
+- Verificado com drift-check — `devin-inspect contract` (do
+  devin-internals-spec) valida a instalação contra todas as fronteiras de
+  contrato conhecidas.
 
 ## Desenvolvimento
 
@@ -140,7 +144,7 @@ python -m pytest
 
 **O que é o devin-metrics?** Um CLI local que lê as próprias bases de sessões do Devin e reporta métricas de uso: sessões por dia/semana, totais de custo e tokens por projeto e modelo, sessões mais longas e mix de tool calls. Também traz um alias `devin-dashboard` que escreve um dashboard HTML standalone.
 
-**Como o devin-metrics obtém dados de custo?** Lê os stores locais do Devin diretamente — `sessions.db` mais `acp-messages/*.db`, que carregam campos de modelo/custo por mensagem — por isso o custo vem de dados de protocolo, não de texto raspado. Um diretório `acp-messages` em falta degrada graciosamente: `cost_usd` mostra `-` (desconhecido, não zero).
+**Como o devin-metrics obtém dados de custo?** Resposta honesta: na maior parte não obtém — verificado numa instalação real, os stores locais do Devin **não** persistem campos de custo/tokens (o custo só existe no meta da sessão ACP ao vivo). O que ele mede: sessões, mensagens, tool calls, durações, rollups por projeto/modelo e `context_tokens` (pico de `num_tokens_preceding` — o único sinal de tokens que persiste). O adaptador `extract_usage()` fica pronto para uma mudança futura de schema.
 
 **O devin-metrics envia dados para algum lado?** Não. Todas as métricas são calculadas localmente e escritas numa base de dados local. Não há chamadas de rede nem telemetria; os stores do Devin são abertos `mode=ro` e nunca escritos.
 

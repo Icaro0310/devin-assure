@@ -5,10 +5,14 @@ Two sources:
 - ``cli/sessions.db`` — session rows (id, ``working_directory`` = project,
   declared model, timestamps) plus ``message_nodes``/``tool_call_state``
   counts, via :class:`devin_internals.parsers.SessionsStore`.
-- ``User/acp-messages/<session-uuid>.db`` — per-session ACP message log whose
-  ``messages.payload`` JSON is *assumed* to carry model/cost/token fields
-  (see ``docs/SCHEMA.md``). The whole assumption lives in exactly one
-  function: :func:`extract_usage`.
+- ``User/acp-messages/<session-uuid>.db`` — per-session ACP message log.
+  *Verified 2026-10 on a real install*: payloads carry **no** model, cost
+  or token fields — per-turn cost exists only in the live ACP session meta
+  (``total_credit_cost``/``total_acu_cost``) and is never persisted.
+  :func:`extract_usage` is kept as the single forward-compatible adapter.
+- ``message_nodes.metadata.num_tokens_preceding`` — the **only** persisted
+  token signal (cumulative context size per node). Reported per session as
+  ``context_tokens`` = the session's peak value.
 
 acp DBs are linked to sessions by **filename stem** = session id.
 """
@@ -58,6 +62,7 @@ class SessionMetrics:
     cost_usd: float | None
     input_tokens: int | None
     output_tokens: int | None
+    context_tokens: int | None
 
 
 @dataclass(frozen=True)
@@ -88,8 +93,9 @@ def extract_usage(
 ) -> UsageRecord | None:
     """THE adapter: assumed acp ``messages.payload`` shape → UsageRecord.
 
-    Assumed shape (documented in ``docs/SCHEMA.md``, *unverified* against the
-    real store — see "Known gaps")::
+    Assumed shape (documented in ``docs/SCHEMA.md``, *verified absent* on a
+    real install 2026-10 — real payloads carry none of these fields; this
+    adapter stays so a future payload change only edits one function)::
 
         {"model": "<model-id>", "cost_usd": <number>,
          "usage": {"input_tokens": <int>, "output_tokens": <int>}}
@@ -166,8 +172,23 @@ def collect(sessions_db: str | Path, acp_dir: str | Path | None) -> MetricsSnaps
     with SessionsStore(sessions_db) as store:
         sessions = store.sessions()
         msg_counts: dict[str, int] = {}
+        context_peak: dict[str, int] = {}
         for node in store.message_nodes():
             msg_counts[node.session_id] = msg_counts.get(node.session_id, 0) + 1
+            if node.metadata:
+                try:
+                    parsed = json.loads(node.metadata)
+                    ntp = (
+                        parsed.get("num_tokens_preceding")
+                        if isinstance(parsed, dict)
+                        else None
+                    )
+                except (TypeError, ValueError):
+                    ntp = None
+                if isinstance(ntp, int) and ntp > context_peak.get(
+                    node.session_id, 0
+                ):
+                    context_peak[node.session_id] = ntp
         tool_counts: dict[str, int] = {}
         for tc in store.tool_call_state():
             tool_counts[tc.session_id] = tool_counts.get(tc.session_id, 0) + 1
@@ -202,6 +223,7 @@ def collect(sessions_db: str | Path, acp_dir: str | Path | None) -> MetricsSnaps
             output_tokens=_sum_or_none(
                 [u.output_tokens for u in by_session.get(s.id, [])]
             ),
+            context_tokens=context_peak.get(s.id),
         )
         for s in sessions
     )

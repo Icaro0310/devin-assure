@@ -36,6 +36,7 @@ def session_to_dict(s: SessionMetrics) -> dict[str, Any]:
         "cost_usd": s.cost_usd,
         "input_tokens": s.input_tokens,
         "output_tokens": s.output_tokens,
+        "context_tokens": s.context_tokens,
     }
 
 
@@ -68,6 +69,14 @@ def summarize(snap: MetricsSnapshot) -> dict[str, Any]:
         "cost_usd_by_sessions": _sum_or_none(s.cost_usd for s in sessions),
         "input_tokens_total": _sum_or_none(u.input_tokens for u in snap.usage),
         "output_tokens_total": _sum_or_none(u.output_tokens for u in snap.usage),
+        "context_tokens_peak": max(
+            (s.context_tokens for s in sessions
+             if s.context_tokens is not None),
+            default=None,
+        ),
+        "sessions_with_context": sum(
+            1 for s in sessions if s.context_tokens is not None
+        ),
         "avg_duration_ms": (_sum(s.duration_ms for s in sessions) / n) if n else None,
         "avg_messages": (_sum(s.n_messages for s in sessions) / n) if n else None,
         "avg_cost_usd": (
