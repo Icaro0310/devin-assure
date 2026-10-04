@@ -24,8 +24,9 @@ TESTS = "tests"
 COMMIT = "commit"
 FILE = "file"
 PUSH = "push"
+HTTP = "http"
 
-CLAIM_KINDS = (TESTS, COMMIT, FILE, PUSH)
+CLAIM_KINDS = (TESTS, COMMIT, FILE, PUSH, HTTP)
 
 _RUNNER_TOKENS = (
     "cargo test",
@@ -61,6 +62,22 @@ _FILE_VERB_RE = re.compile(
 _PATH_TOKEN_RE = re.compile(
     r"(?<![\w/.-])(?:[A-Za-z]:[\\/])?[A-Za-z0-9_-]+(?:[\\/][\w.@-]+)*"
     r"\.[A-Za-z0-9]{2,10}\b"
+)
+
+# "the API returned 200" / "endpoint responded with 404" / "HTTP 500" /
+# "status code: 200" — the captured group is the claimed status code.
+_HTTP_CLAIM_RES = (
+    re.compile(
+        r"\b(?:returned|responded|replied|answered|came\s+back)\b"
+        r"[^.\n]*?\b([1-5]\d{2})\b",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\bHTTP\s+(?:status\s*(?:code)?\s*)?([1-5]\d{2})\b",
+               re.IGNORECASE),
+    re.compile(
+        r"\bstatus\s*(?:code)?\s*(?:of|was|is|:|=)\s*([1-5]\d{2})\b",
+        re.IGNORECASE,
+    ),
 )
 
 _SKIP_ROLES = {"user", "human"}
@@ -143,6 +160,9 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
     if _FILE_VERB_RE.search(line):
         for m in _PATH_TOKEN_RE.finditer(line):
             yield FILE, _normalize_path(m.group(0))
+    for rx in _HTTP_CLAIM_RES:
+        for m in rx.finditer(line):
+            yield HTTP, m.group(1)
 
 
 def extract_claims(nodes: Iterable[MessageNode]) -> list[Claim]:

@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `devin-qa-pack report` CLI: audits sessions and writes one
+  deterministic, self-contained static HTML report (inline CSS, zero
+  JavaScript, no external assets) — verdict counts, per-session table
+  and per-claim breakdown. `--out`, `--session`, `--limit`.
+- `http` claim kind: "the API returned 200"-style assertions are
+  extracted from agent messages and verified against HTTP status codes
+  recorded in `tool_call_state` payloads/output — verified (matching
+  status), disputed (different status), unverifiable (no status
+  recorded). No network, verification is against recorded output only.
+
 - `devin-qa-pack audit` CLI: per-session or `--all` audits of a
   `sessions.db`, `--json` output, default-store auto-detection, exit
   codes 0/1/2.

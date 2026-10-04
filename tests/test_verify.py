@@ -5,7 +5,7 @@ from pathlib import Path
 
 from devin_internals.parsers.sessions import ToolCallState
 
-from devin_qa_pack.claims import COMMIT, FILE, PUSH, TESTS, Claim
+from devin_qa_pack.claims import COMMIT, FILE, HTTP, PUSH, TESTS, Claim
 from devin_qa_pack.verify import (
     DISPUTED,
     UNVERIFIABLE,
@@ -171,4 +171,55 @@ def test_file_claim_disputed_when_file_missing_on_disk(tmp_path):
 
 def test_file_claim_unverifiable_without_disk_or_calls():
     result = verify_claim(claim(FILE, "docs/spec.pdf"), [], "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+# -- http claims ---------------------------------------------------------------
+
+
+def test_http_claim_verified_by_matching_status_in_output():
+    calls = parse_tool_calls(
+        [exec_state("curl -i https://api.example.test/health",
+                    output="HTTP/1.1 200 OK\n\nok")]
+    )
+    result = verify_claim(claim(HTTP, "200"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_http_claim_verified_by_status_code_field():
+    calls = parse_tool_calls(
+        [tstate("tc", {"kind": "execute",
+                       "rawOutput": {"status_code": 200, "body": "ok"}})]
+    )
+    result = verify_claim(claim(HTTP, "200"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_http_claim_disputed_by_different_status():
+    calls = parse_tool_calls(
+        [exec_state("curl -i https://api.example.test/health",
+                    output="HTTP/1.1 500 Internal Server Error")]
+    )
+    result = verify_claim(claim(HTTP, "200"), calls, "/nonexistent")
+    assert result.status == DISPUTED
+    assert "500" in result.evidence
+
+
+def test_http_claim_unverifiable_when_no_status_recorded():
+    calls = parse_tool_calls([exec_state("git status")])
+    result = verify_claim(claim(HTTP, "200"), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+def test_http_claim_unverifiable_when_ground_truth_unreadable():
+    states = [tstate("tc-null")]  # NULL payloads → dropped
+    result = verify_claim(claim(HTTP, "200"), parse_tool_calls(states),
+                          "/nonexistent", raw_call_count=len(states))
+    assert result.status == UNVERIFIABLE
+
+
+def test_http_claim_ignores_call_state_not_http():
+    # the ACP call status ("completed") must not read as an HTTP code
+    calls = parse_tool_calls([exec_state("pytest -q")])
+    result = verify_claim(claim(HTTP, "200"), calls, "/nonexistent")
     assert result.status == UNVERIFIABLE

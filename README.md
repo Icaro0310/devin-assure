@@ -16,8 +16,8 @@
 
 QA audit for Devin sessions: checks that what a session *claims* it
 delivered is backed by what its tool calls *actually did* — tests run,
-commits created, files written, work pushed — and prints a verdict per
-session: `PASS` / `PARTIAL` / `UNVERIFIED`.
+commits created, files written, work pushed, HTTP statuses returned —
+and prints a verdict per session: `PASS` / `PARTIAL` / `UNVERIFIED`.
 
 ## The problem
 
@@ -66,7 +66,16 @@ devin-qa-pack audit --session <id> --sessions-db path/to/sessions.db
 
 # audit everything, most recent first
 devin-qa-pack audit --all --limit 20 --json
+
+# aggregated report: one self-contained static HTML file (inline CSS,
+# no JS, no external assets — opens offline)
+devin-qa-pack report --sessions-db path/to/sessions.db --out report.html
 ```
+
+The `report` subcommand audits all sessions (or one with `--session`,
+bounded with `--limit`) and writes a single deterministic HTML file:
+verdict counts, a per-session table and a per-claim breakdown with
+evidence and the source excerpt for every checked claim.
 
 `--sessions-db` may be omitted. It auto-detects
 `%APPDATA%/devin/cli/sessions.db` on Windows and
@@ -97,9 +106,13 @@ also checked. macOS uses `~/Library/Application Support/devin/`. Pass
   (see devin-internals-spec SCHEMA.md). Decoding is defensive; rows that
   can't be read resolve claims to `unverifiable`, never to `disputed`.
 - Claim extraction is heuristic: it looks for delivery phrasing
-  ("tests passed", "committed <sha>", "created <path>", "pushed").
-  Claims phrased differently are not extracted — the audit then reports
-  `UNVERIFIED`, not a false `PASS`.
+  ("tests passed", "committed <sha>", "created <path>", "pushed",
+  "the API returned 200"). Claims phrased differently are not
+  extracted — the audit then reports `UNVERIFIED`, not a false `PASS`.
+- HTTP-status claims are checked only against recorded tool-call
+  output: a claim is `verified` when a recorded status matches,
+  `disputed` when outputs record a different status and `unverifiable`
+  when no output records any status. No request is ever replayed.
 - File/commit checks use `sessions.working_directory` only when it
   exists on disk and is a git repo — otherwise they rely on tool-call
   evidence alone.
@@ -118,7 +131,7 @@ python -m pytest
 
 - You want to verify that a finished Devin session actually ran tests, created commits, wrote files, or pushed — not just claimed to.
 - You are gating agent output in CI and need a machine-readable verdict (`PASS`/`PARTIAL`/`UNVERIFIED`) with exit codes.
-- You want to audit many sessions at once, offline, without sending transcripts to an LLM.
+- You want to audit many sessions at once, offline, without sending transcripts to an LLM — and optionally publish a single static HTML report (`devin-qa-pack report`).
 - You are on a restricted machine: the tool is read-only and never touches the network.
 
 ## When NOT to use this

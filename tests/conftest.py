@@ -109,6 +109,8 @@ def sessions_db(tmp_path: Path) -> Path:
       calls, working dir not on disk).
     - ``sess-opaque``: a tests claim whose only tool-call row has NULL
       payloads (interrupted call — ground truth unreadable).
+    - ``sess-http``: an "API returned 200" claim backed by a curl call
+      whose recorded output carries ``HTTP/1.1 200 OK``.
     """
     db = create_sessions_db(tmp_path / "sessions.db", n_sessions=0)
     missing_wd = str(tmp_path / "no-such-wd")
@@ -166,6 +168,25 @@ def sessions_db(tmp_path: Path) -> Path:
                     created=_BASE_TS_MS + 10_800_000)
         add_message(con, "sess-opaque", 1, "agent", "Tests passed.")
         add_tool_call(con, "sess-opaque", "tc-null")
+
+        add_session(con, "sess-http", missing_wd, "HTTP session",
+                    created=_BASE_TS_MS + 14_400_000)
+        add_message(
+            con,
+            "sess-http",
+            1,
+            "agent",
+            "The API returned 200 for the health endpoint.",
+        )
+        add_tool_call(
+            con,
+            "sess-http",
+            "tc-curl",
+            exec_call(
+                "curl -i https://api.example.test/health",
+                output="HTTP/1.1 200 OK\nContent-Length: 2\n\nok",
+            ),
+        )
     con.close()
     return db
 

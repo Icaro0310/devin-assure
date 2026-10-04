@@ -40,14 +40,18 @@ call or in `git log` of the on-disk working directory.
 - `claims.py` — extract deliverable claims from `message_nodes`:
   test-result claims (`tests`, with the runner name when stated),
   commit claims (`commit` + hash), file claims (`file` + path),
-  push claims (`push`). Agent-role messages only; claims deduplicated
+  push claims (`push`), HTTP-status claims (`http` + status code, e.g.
+  "the API returned 200"). Agent-role messages only; claims deduplicated
   by `(kind, detail)`.
 - `verify.py` — resolve each claim against `tool_call_state` ground
   truth, plus `git` when `sessions.working_directory` is a repo on disk:
   `verified` / `disputed` / `unverifiable`.
 - `report.py` — one verdict per session: `PASS` / `PARTIAL` /
   `UNVERIFIED`, with per-claim findings.
-- `cli.py` — thin wrapper; `paths.py` — default store location.
+- `html_report.py` — aggregate audits into one deterministic,
+  self-contained static HTML file (inline CSS, zero JS).
+- `cli.py` — thin wrapper (`audit`, `report`); `paths.py` — default
+  store location.
 
 ## 4. Non-scope
 
@@ -69,6 +73,7 @@ Per claim kind, given the session's parsed tool calls:
 | `push` | an execute call ran `git push` and completed | matching call failed, or none recorded | unreadable ground truth |
 | `commit` | hash appears in a tool call's payloads, or `git cat-file -e <sha>^{commit}` succeeds in the on-disk repo | repo exists but lacks the hash; no call and no repo | unreadable ground truth |
 | `file` | a tool call references the path, or the file exists under the on-disk working dir | matching call failed, or file absent under on-disk working dir | no disk path and no tool call to check |
+| `http` | a tool-call payload/output records the claimed status code | recorded outputs show a different status code | no output records any status, or ground-truth rows unreadable |
 
 "Unreadable ground truth" = `tool_call_state` rows exist but every
 payload is NULL (interrupted call) or fails JSON decode — the
@@ -90,7 +95,7 @@ Session verdict:
 | Interface | Description |
 |---|---|
 | **Library** `devin_qa_pack` | `claims.extract_claims` · `verify.verify_claim(s)` · `report.audit_session/audit_all` — frozen dataclasses in, statuses out |
-| **CLI** `devin-qa-pack` | `audit --sessions-db <path> --session <id|prefix>` · `audit --all [--limit N]` · `--json` everywhere · auto-detects `<data dir>/cli/sessions.db` when `--sessions-db` omitted |
+| **CLI** `devin-qa-pack` | `audit --sessions-db <path> --session <id|prefix>` · `audit --all [--limit N]` · `report [--session <id|prefix>] [--limit N] --out <file>` (self-contained HTML) · `--json` on audit · auto-detects `<data dir>/cli/sessions.db` when `--sessions-db` omitted |
 | **Docs** | `SPEC.md` (canonical) + `SPEC.pt-BR.md` |
 
 CLI exit codes: `0` every audited session `PASS` · `1` audit ran, some

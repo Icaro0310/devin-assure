@@ -28,7 +28,7 @@ from typing import Any, Iterable
 
 from devin_internals.parsers.sessions import ToolCallState
 
-from devin_qa_pack.claims import COMMIT, FILE, PUSH, TESTS, Claim
+from devin_qa_pack.claims import COMMIT, FILE, HTTP, PUSH, TESTS, Claim
 
 VERIFIED = "verified"
 DISPUTED = "disputed"
@@ -49,6 +49,52 @@ _TEST_CMD_RE = re.compile(
 )
 _PUSH_CMD_RE = re.compile(r"\bgit\s+push\b|\bpush\b", re.IGNORECASE)
 
+# HTTP-status evidence inside tool-call payloads: keyed fields like
+# ``{"status_code": 200}`` plus status-looking strings in captured output
+# (``HTTP/1.1 200 OK``, ``Status: 404``, ``200 OK``).
+_HTTP_KEY_NAMES = {
+    "status", "status_code", "statuscode", "http_status", "httpstatus",
+    "response_code", "responsecode",
+}
+_HTTP_VERSION_RE = re.compile(r"\bHTTP/\d(?:\.\d)?\s+([1-5]\d{2})\b",
+                              re.IGNORECASE)
+_HTTP_LABEL_RE = re.compile(
+    r"\bstatus(?:[_ ]?code)?\s*[:=]\s*([1-5]\d{2})\b", re.IGNORECASE
+)
+_HTTP_REASONS = (
+    "OK", "Created", "Accepted", "No Content", "Moved Permanently", "Found",
+    "See Other", "Not Modified", "Bad Request", "Unauthorized", "Forbidden",
+    "Not Found", "Method Not Allowed", "Conflict", "Gone",
+    "Internal Server Error", "Bad Gateway", "Service Unavailable",
+    "Gateway Timeout",
+)
+_HTTP_REASON_RE = re.compile(
+    r"\b([1-5]\d{2})\s+(?:"
+    + "|".join(re.escape(r) for r in _HTTP_REASONS) + r")\b"
+)
+
+
+def _http_statuses(value: Any) -> Iterable[int]:
+    """HTTP status codes asserted anywhere in a tool-call payload."""
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if str(k).lower() in _HTTP_KEY_NAMES:
+                if isinstance(v, bool):
+                    pass  # JSON true/false — not a status code
+                elif isinstance(v, int) and 100 <= v <= 599:
+                    yield v
+                elif isinstance(v, str) and v.isdigit() \
+                        and 100 <= int(v) <= 599:
+                    yield int(v)
+            yield from _http_statuses(v)
+    elif isinstance(value, list):
+        for v in value:
+            yield from _http_statuses(v)
+    elif isinstance(value, str):
+        for rx in (_HTTP_VERSION_RE, _HTTP_LABEL_RE, _HTTP_REASON_RE):
+            for m in rx.finditer(value):
+                yield int(m.group(1))
+
 
 @dataclass(frozen=True)
 class ParsedToolCall:
@@ -57,6 +103,7 @@ class ParsedToolCall:
     status: str  # "completed" | "failed" | "pending" | "unknown"
     commands: tuple[str, ...]
     search_text: str  # all string values from both payloads, normalized
+    http_statuses: tuple[int, ...]  # HTTP status codes found in the payloads
 
 
 @dataclass(frozen=True)
@@ -149,12 +196,14 @@ def parse_tool_call(state: ToolCallState) -> ParsedToolCall | None:
     )
     call_payload = payloads[-1] if len(payloads) > 1 else payloads[0]
     search = " ".join(strings + [state.tool_call_id])
+    statuses = tuple(sorted({s for p in payloads for s in _http_statuses(p)}))
     return ParsedToolCall(
         tool_call_id=state.tool_call_id,
         kind=_kind_of(call_payload, list(commands)),
         status=_status_of(payloads),
         commands=commands,
         search_text=search.lower().replace("\\", "/"),
+        http_statuses=statuses,
     )
 
 
@@ -212,6 +261,46 @@ def _evidence_for(kind: str, call: ParsedToolCall) -> str:
     return f"tool call {call.tool_call_id} {call.status}"
 
 
+def _verify_http(
+    claim: Claim,
+    calls: list[ParsedToolCall],
+    raw_n: int,
+) -> VerifiedClaim:
+    """HTTP-status claims check *output values*, not call state: a claim is
+    ``verified`` when a recorded status equals it, ``disputed`` when outputs
+    record a different status, ``unverifiable`` when no output records any
+    status (or the rows holding it are unreadable)."""
+    try:
+        claimed = int(claim.detail)
+    except ValueError:
+        return VerifiedClaim(
+            claim, UNVERIFIABLE, f"`{claim.detail}` is not a status code"
+        )
+    for c in calls:
+        if claimed in c.http_statuses:
+            return VerifiedClaim(
+                claim, VERIFIED,
+                f"tool call {c.tool_call_id} output reports HTTP {claimed}",
+            )
+    with_status = [c for c in calls if c.http_statuses]
+    if with_status:
+        c = with_status[0]
+        seen = ", ".join(str(s) for s in c.http_statuses)
+        return VerifiedClaim(
+            claim, DISPUTED,
+            f"tool call {c.tool_call_id} output reports HTTP {seen}, "
+            f"not {claimed}",
+        )
+    if raw_n > len(calls):
+        return VerifiedClaim(
+            claim, UNVERIFIABLE,
+            f"{raw_n - len(calls)} tool_call_state row(s) unreadable",
+        )
+    return VerifiedClaim(
+        claim, UNVERIFIABLE, "no tool output records an HTTP status"
+    )
+
+
 def verify_claim(
     claim: Claim,
     calls: list[ParsedToolCall],
@@ -226,6 +315,8 @@ def verify_claim(
     and the claim is unverifiable rather than disputed.
     """
     raw_n = len(calls) if raw_call_count is None else raw_call_count
+    if claim.kind == HTTP:
+        return _verify_http(claim, calls, raw_n)
     matched = [c for c in calls if _matches(claim, c)]
 
     if any(c.status == "completed" for c in matched):

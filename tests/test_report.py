@@ -50,8 +50,18 @@ def test_audit_all_respects_limit(sessions_db):
     with SessionsStore(sessions_db) as store:
         audits = audit_all(store)
         limited = audit_all(store, limit=2)
-    assert len(audits) == 4
+    assert len(audits) == 5
     assert len(limited) == 2
+
+
+def test_http_session_is_pass(sessions_db):
+    with SessionsStore(sessions_db) as store:
+        audit = audit_session(store, _session(store, "sess-http"))
+    assert audit.verdict == PASS
+    assert [(r.claim.kind, r.claim.detail) for r in audit.results] == [
+        ("http", "200")
+    ]
+    assert audit.results[0].status == "verified"
 
 
 def test_payload_shape(sessions_db):

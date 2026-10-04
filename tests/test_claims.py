@@ -5,7 +5,14 @@ import json
 from devin_internals.parsers import SessionsStore
 from devin_internals.parsers.sessions import MessageNode
 
-from devin_qa_pack.claims import COMMIT, FILE, PUSH, TESTS, extract_claims
+from devin_qa_pack.claims import (
+    COMMIT,
+    FILE,
+    HTTP,
+    PUSH,
+    TESTS,
+    extract_claims,
+)
 
 
 def make_node(text, role="agent", node_id=1, sid="s", created_at=0):
@@ -82,3 +89,40 @@ def test_file_claim_requires_a_write_verb():
     assert extract_claims([make_node("see src/report.html for details")]) == []
     claims = extract_claims([make_node("updated docs/usage.md")])
     assert [(c.kind, c.detail) for c in claims] == [(FILE, "docs/usage.md")]
+
+
+# -- http claims ---------------------------------------------------------------
+
+
+def test_http_claim_returned_status():
+    claims = extract_claims(
+        [make_node("The API returned 200 for the health endpoint.")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(HTTP, "200")]
+
+
+def test_http_claim_responded_with_status():
+    claims = extract_claims(
+        [make_node("the endpoint responded with a 404")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(HTTP, "404")]
+
+
+def test_http_claim_bare_http_and_status_phrasing():
+    assert [(c.kind, c.detail) for c in extract_claims(
+        [make_node("checked it: HTTP 500")])] == [(HTTP, "500")]
+    assert [(c.kind, c.detail) for c in extract_claims(
+        [make_node("status code: 201")])] == [(HTTP, "201")]
+
+
+def test_http_claim_deduplicates_same_code():
+    claims = extract_claims(
+        [make_node("the API returned 200 — HTTP 200, status was 200.")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(HTTP, "200")]
+
+
+def test_http_claim_ignores_non_status_numbers():
+    # "returned 42" is not a 3-digit status; no claim is extracted
+    assert extract_claims(
+        [make_node("the function returned 42 rows")]) == []

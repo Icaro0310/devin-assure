@@ -16,8 +16,9 @@
 
 Auditoria de QA para sessões Devin: verifica se o que a sessão *afirma*
 ter entregado é sustentado pelo que os tool calls *realmente fizeram* —
-testes corridos, commits criados, ficheiros escritos, push feito — e dá
-um veredito por sessão: `PASS` / `PARTIAL` / `UNVERIFIED`.
+testes corridos, commits criados, ficheiros escritos, push feito,
+status HTTP devolvidos — e dá um veredito por sessão:
+`PASS` / `PARTIAL` / `UNVERIFIED`.
 
 ## O problema
 
@@ -67,7 +68,16 @@ devin-qa-pack audit --session <id> --sessions-db caminho/sessions.db
 
 # auditar tudo, mais recentes primeiro
 devin-qa-pack audit --all --limit 20 --json
+
+# relatório agregado: um ficheiro HTML estático autocontido (CSS inline,
+# sem JS, sem assets externos — abre offline)
+devin-qa-pack report --sessions-db caminho/sessions.db --out report.html
 ```
+
+O subcomando `report` audita todas as sessões (ou uma com `--session`,
+limitando com `--limit`) e escreve um único ficheiro HTML determinístico:
+contagem de vereditos, tabela por sessão e detalhamento por afirmação
+com evidência e o excerto de origem de cada claim verificado.
 
 `--sessions-db` pode ser omitido. A ferramenta auto-deteta
 `%APPDATA%/devin/cli/sessions.db` no Windows e
@@ -100,9 +110,13 @@ também é verificada. macOS usa `~/Library/Application Support/devin/`. Usa
   defensivo; linhas ilegíveis resolvem afirmações como `unverifiable`,
   nunca `disputed`.
 - A extração de afirmações é heurística: procura frases de entrega
-  ("tests passed", "committed <sha>", "created <path>", "pushed").
-  Afirmações ditas de outra forma não são extraídas — a auditoria então
-  reporta `UNVERIFIED`, não um `PASS` falso.
+  ("tests passed", "committed <sha>", "created <path>", "pushed",
+  "the API returned 200"). Afirmações ditas de outra forma não são
+  extraídas — a auditoria então reporta `UNVERIFIED`, não um `PASS` falso.
+- Afirmações de status HTTP são conferidas só contra a saída gravada dos
+  tool calls: `verified` quando um status registado bate, `disputed`
+  quando as saídas registam outro status e `unverifiable` quando nenhuma
+  saída regista status. Nenhum pedido é repetido na rede.
 - Verificações de ficheiro/commit usam `sessions.working_directory` só
   quando existe em disco e é um repo git — senão dependem só da
   evidência dos tool calls.
@@ -120,7 +134,7 @@ python -m pytest
 
 - Você quer verificar que uma sessão Devin terminada realmente correu testes, criou commits, escreveu ficheiros ou fez push — e não apenas afirmou que o fez.
 - Você está a fazer gate de output de agentes em CI e precisa de um veredito legível por máquina (`PASS`/`PARTIAL`/`UNVERIFIED`) com exit codes.
-- Você quer auditar muitas sessões de uma vez, offline, sem enviar transcrições para um LLM.
+- Você quer auditar muitas sessões de uma vez, offline, sem enviar transcrições para um LLM — e opcionalmente publicar um relatório HTML estático (`devin-qa-pack report`).
 - Você está numa máquina restrita: a ferramenta é read-only e nunca toca na rede.
 
 ## Quando NÃO usar

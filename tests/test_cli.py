@@ -33,7 +33,7 @@ def test_audit_all_json_shape(sessions_db, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert rc == 1  # not every session is PASS
     assert payload["sessions_db"].endswith("sessions.db")
-    assert len(payload["sessions"]) == 4
+    assert len(payload["sessions"]) == 5
     assert {s["verdict"] for s in payload["sessions"]} == {
         "PASS", "PARTIAL", "UNVERIFIED"
     }
@@ -76,3 +76,51 @@ def test_unique_session_prefix_resolves(sessions_db, capsys):
                "--session", "sess-veri"])
     assert rc == 0
     assert "sess-verified" in capsys.readouterr().out
+
+
+# -- report subcommand ---------------------------------------------------------
+
+
+def test_report_writes_html_file(sessions_db, tmp_path, capsys):
+    out = tmp_path / "report.html"
+    rc = main(["report", "--sessions-db", str(sessions_db),
+               "--out", str(out)])
+    assert rc == 1  # not every session is PASS
+    assert "5 session(s)" in capsys.readouterr().out
+    html = out.read_text(encoding="utf-8")
+    assert html.startswith("<!DOCTYPE html>")
+    assert "<style>" in html and "<script" not in html
+    assert "sess-verified" in html and "sess-http" in html
+    assert "PASS" in html and "PARTIAL" in html and "UNVERIFIED" in html
+
+
+def test_report_is_deterministic(sessions_db, tmp_path, capsys):
+    a = tmp_path / "a.html"
+    b = tmp_path / "b.html"
+    main(["report", "--sessions-db", str(sessions_db), "--out", str(a)])
+    main(["report", "--sessions-db", str(sessions_db), "--out", str(b)])
+    capsys.readouterr()
+    assert a.read_bytes() == b.read_bytes()
+
+
+def test_report_single_session(sessions_db, tmp_path, capsys):
+    out = tmp_path / "one.html"
+    rc = main(["report", "--sessions-db", str(sessions_db),
+               "--session", "sess-verified", "--out", str(out)])
+    assert rc == 0
+    html = out.read_text(encoding="utf-8")
+    assert "sess-verified" in html
+    assert "sess-disputed" not in html
+
+
+def test_report_missing_db_exits_two(tmp_path, capsys):
+    rc = main(["report", "--sessions-db", str(tmp_path / "gone.db")])
+    assert rc == 2
+    assert capsys.readouterr().err
+
+
+def test_report_unknown_session_exits_two(sessions_db, tmp_path, capsys):
+    rc = main(["report", "--sessions-db", str(sessions_db),
+               "--session", "nope", "--out", str(tmp_path / "x.html")])
+    assert rc == 2
+    assert "nope" in capsys.readouterr().err
