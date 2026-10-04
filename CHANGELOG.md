@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `ab-run` G3 harness (EV-5 v2) — preregistered A/B suite over a tasks
+  manifest dir (≥5 trigger + ≥3 control, `<evals>/tasks` or `--tasks`),
+  k attempts per arm (`--attempts`, min 3), seeded ABBA/BAAB
+  interleaving (`--seed`), budget caps (`--max-sessions`,
+  `--max-total-time`, `--session-timeout`) that abort the run and report
+  partials, per-attempt `shutil.copytree` workspace isolation under
+  `--work-dir`, and a `g3-report/0.1` report (`--out`) with aggregates +
+  session ids only. Verdicts: `regresses` / `improves` /
+  `no-detectable-effect` / `inconclusive` via Wilson CIs and a
+  fixed-seed 10k-draw bootstrap of per-task deltas (`g3stats.py`).
+  `--aa` runs an A/A calibration of the harness's false-positive rate;
+  `--calibration <report>` gates the `improves` verdict. Session labels
+  are `g3-ab:<task>:<variant>:<attempt>` for janitor. Task suites accept
+  an index `manifest.json` (the shipped `tasks/` pack) or per-task
+  `*.json` files; `--workspace-check` grades attempts by the task's own
+  deterministic check in the workspace copy (`_solution/` is never
+  copied into an attempt).
 - `devin-evals corpus generate|verify` (EV-3) — deterministic golden corpus
   of labeled synthetic defect sessions (D01–D09, devin-dream catalogue)
   plus matching eval cases with `expected_status`/`known_gap` metadata;
@@ -35,3 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `evals/` — three sample cases (pass, intentionally-fail, tool-call).
 - `docs/SPEC.md`, `STATUS.md`, real bilingual READMEs; 62 tests.
 - Initial scaffold from `devin-repo-template`.
+
+### Changed
+
+- `ab-run --task/--repo` is now the deprecated two-session "simple
+  mode"; the G3 suite harness is the default `ab-run` path (requires
+  `--evals`, tasks defaulting to `<evals>/tasks`).

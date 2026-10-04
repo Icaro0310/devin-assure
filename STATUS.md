@@ -43,6 +43,20 @@ table + check details.
   with per-case `expected_status`/`known_gap`; committed at `corpus/`
   (`evals/*.json` + `corpus.json`; `sessions*.db` regenerated, gitignored)
   and drift-gated by `tools/regen-corpus.py --check` in CI.
+- **EV-5/G3 v2** — `ab-run` is now the preregistered A/B suite harness:
+  tasks manifest (index `manifest.json` like the shipped `tasks/` pack,
+  or per-task `*.json`; ≥5 trigger + ≥3 control), k attempts per arm
+  (min 3), seeded ABBA/BAAB interleave, budget caps that abort and
+  report partials, per-attempt `shutil.copytree` isolation (`_solution/`
+  never copied), labels `g3-ab:<task>:<variant>:<attempt>`, and a
+  `g3-report/0.1` report whose `design` block freezes tasks/k/seed/caps/
+  thresholds *before* the first session. Verdicts come from
+  `g3stats.py` (Wilson CIs, fixed-seed 10k bootstrap of per-task
+  deltas): regresses / improves / no-detectable-effect / inconclusive.
+  `--aa` measures the harness false-positive rate; `--calibration`
+  gates `improves`. Session-running is injectable (`runner`/`grader`
+  callables) so every ordering/stat/isolation path is tested
+  bridge-free. `--task` keeps the deprecated two-session quick mode.
 
 ## Environment notes
 

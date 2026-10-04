@@ -216,11 +216,78 @@ respeita a policy) e o modelo free salvo `DEVIN_JUDGE_MODEL`. As sessões
 são rotuladas `judge:<case>` para o `devin-janitor` as limpar.
 
 
-`ab-run` (EV-5/G3, **opt-in**) corre uma tarefa em duas sessões novas via
-bridge (prefixos variante A vs B), depois avalia ambas com a mesma
-rubrica — o ciclo de prova com-skill/sem-skill. Consome tokens reais,
-fail-closed sem `DEVIN_BRIDGE_CMD`; as sessões são rotuladas
-`ab-run:<tag>:<variant>` para o janitor. `--dry-run` pré-visualiza grátis.
+`ab-run` (EV-5/G3, **opt-in**) é o gate A/B: uma suíte de tarefas corre
+em dois braços (prefixos A vs B), k tentativas por braço, avaliadas pelas
+mesmas rubricas determinísticas — o ciclo de prova com-skill/sem-skill.
+Consome tokens reais, fail-closed sem `DEVIN_BRIDGE_CMD`; as sessões são
+rotuladas `g3-ab:<task>:<variant>:<attempt>` para o janitor.
+
+```bash
+devin-evals ab-run --evals evals --tasks evals/tasks \
+  --attempts 5 --seed 73001 --max-sessions 80 --yes \
+  --sessions-db "$sessions_db" --out g3-report.json
+```
+
+A suíte fica num **diretório de manifestos** (padrão `<evals>/tasks`,
+caindo para `./tasks`, ou `--tasks DIR`). Dois layouts são aceitos: um
+`manifest.json` índice (lista de entradas `{"id", "kind", "type",
+"prompt", "dir"|"workspace"}`), ou um `*.json` por tarefa
+(`{"id", "kind": "bugfix|feature|refactor", "type": "trigger|control",
+"prompt", "workspace"}`). O repo traz um pack hermético de 8 tarefas em
+`tasks/` (5 trigger + 3 control — ver `tasks/README.md`). Uma corrida
+exige **≥5 trigger + ≥3 control**; as trigger medem o efeito, as control
+detectam regressões colaterais. Cada tentativa corre num
+`shutil.copytree` próprio do workspace sob `--work-dir` (padrão
+`<tmp>/g3-<ts>`) — os originais nunca são tocados e o `_solution/` de
+referência nunca é copiado para a tentativa. A ordem é determinística:
+tarefas embaralhadas por `--seed`, braços intercalados ABBA/BAAB entre
+tarefas para espalhar o drift temporal.
+
+Sucesso = todos os checks passam. O grader padrão repassa a sessão pelas
+rubricas (`--sessions-db`, autodetectado): o caso de eval com o id da
+tarefa, se existir, senão o pack do `kind` da tarefa. Para packs
+herméticos de workspace, `--workspace-check` roda o check
+determinístico da própria tarefa dentro da cópia (`pytest tests -q`,
+mais `check_structure.py` quando presente) — combinado com a rubrica de
+sessão quando um sessions.db resolve.
+
+Caps de orçamento (`--max-sessions`, `--max-total-time`,
+`--session-timeout`) abortam a corrida inteira e reportam o que correu;
+planos acima do cap exigem `--confirm` (interativo) ou `--yes`
+(headless). `--dry-run` imprime o plano completo de graça. Tentativas
+com timeout/falha contam como falhas, são registradas à parte e nunca
+são repetidas.
+
+**Pré-registro**: tarefas, k, seed, caps e todos os thresholds de
+veredicto são congelados no bloco `design` do relatório *antes* da
+primeira sessão (`preregistered: true`). O relatório (`g3-report/0.1`,
+`--out`) contém só agregados e ids de sessão — nunca conteúdo de sessão.
+
+**Veredictos** (intervalos de Wilson nas taxas dos braços; CI bootstrap
+da média dos Δ por tarefa = rate<sub>B</sub> − rate<sub>A</sub> nas
+trigger, 10k reamostragens com seed fixa):
+
+| veredicto | condição |
+|---|---|
+| `regresses` | CI do Δ inteiramente < 0, OU alguma control com Δ ≤ −0.4, OU segurança piora (`denials_b > denials_a` quando `denials_a == 0`) |
+| `improves` | CI do Δ nas trigger inteiramente > 0 E sem condição de regressão E calibração ok |
+| `no-detectable-effect` | CI do Δ contém 0 E largura ≤ 0.30 |
+| `inconclusive` | todo o resto: CI mais largo que 0.30, teto (≥95%) ou piso (≤5%) na baseline, >20% de aborts num braço, calibração ausente/falha quando necessária |
+
+**Calibração**: `improves` ainda exige uma calibração A/A válida — corra
+`ab-run --aa` (braço B usa o prefixo do braço A) para medir a taxa de
+falsos positivos do próprio harness, e aponte `--calibration
+relatorio-anterior.json` para ela. Sem isso, uma corrida que melhoraria
+é honestamente reportada `inconclusive`.
+
+**Nota honesta de poder estatístico**: com a suíte mínima (8 tarefas) em
+k=5 o CI do Δ fica em ~±0.22 — só efeitos ≥ ~0.25 são detectáveis. Este
+gate pega regressões grandes, não melhorias sutis; adicione tarefas, não
+tentativas, para estreitar o CI.
+
+Passar `--task` ainda corre o modo simples depreciado (exatamente duas
+sessões, rótulos `ab-run:<tag>:<variant>`) — mantido para smoke checks
+rápidos, não é um gate.
 
 ## Limitações
 
@@ -242,7 +309,7 @@ fail-closed sem `DEVIN_BRIDGE_CMD`; as sessões são rotuladas
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest     # 95 testes
+python -m pytest     # 177 testes
 ```
 
 ## Quando usar

@@ -217,11 +217,77 @@ and uses the free model unless `DEVIN_JUDGE_MODEL` overrides. Sessions
 are labelled `judge:<case>` so `devin-janitor` can reap the noise.
 
 
-`ab-run` (EV-5/G3, **opt-in**) runs one task in two fresh bridge sessions
-(variant A vs B prefixes), then grades both against the same rubric —
-the with-skill/without-skill proof loop. Consumes real tokens,
-fail-closed without `DEVIN_BRIDGE_CMD`; sessions are labelled
-`ab-run:<tag>:<variant>` for janitor. `--dry-run` previews for free.
+`ab-run` (EV-5/G3, **opt-in**) is the A/B gate: a suite of tasks run in
+two arms (variant prefixes A vs B), k attempts per arm, graded by the
+same deterministic rubrics — the with-skill/without-skill proof loop.
+Consumes real tokens, fail-closed without `DEVIN_BRIDGE_CMD`; sessions
+are labelled `g3-ab:<task>:<variant>:<attempt>` for janitor.
+
+```bash
+devin-evals ab-run --evals evals --tasks evals/tasks \
+  --attempts 5 --seed 73001 --max-sessions 80 --yes \
+  --sessions-db "$sessions_db" --out g3-report.json
+```
+
+The suite lives in a **tasks manifest dir** (default `<evals>/tasks`,
+falling back to `./tasks`, or `--tasks DIR`). Two layouts are accepted:
+an index `manifest.json` (a list of `{"id", "kind", "type", "prompt",
+"dir"|"workspace"}` entries), or one `*.json` per task
+(`{"id", "kind": "bugfix|feature|refactor", "type": "trigger|control",
+"prompt", "workspace"}`). The repo ships a hermetic 8-task pack under
+`tasks/` (5 trigger + 3 control — see `tasks/README.md`). A run requires
+**≥5 trigger + ≥3 control** tasks; trigger tasks measure the effect,
+control tasks detect collateral regressions. Each attempt runs in its
+own `shutil.copytree` of the task workspace under `--work-dir` (default
+`<tmp>/g3-<ts>`) — the originals are never touched and `_solution/`
+reference fixes are never copied into an attempt. Order is
+deterministic: tasks shuffled by `--seed`, arms interleaved ABBA/BAAB
+across tasks to spread temporal drift.
+
+Success = all checks pass. The default grader replays the session
+through the rubrics (`--sessions-db`, autodetected): the eval case
+matching the task id when present, else the pack matching the task
+`kind`. For hermetic workspace packs, `--workspace-check` instead runs
+the task's own deterministic check inside the attempt copy (`pytest
+tests -q`, plus `check_structure.py` when present) — combined with the
+session rubric when a sessions.db resolves.
+
+Budget caps (`--max-sessions`, `--max-total-time`, `--session-timeout`)
+abort the whole run when hit and report what ran; over-cap plans need
+`--confirm` (interactive) or `--yes` (headless). `--dry-run` prints the
+full session plan for free. Timed-out/failed attempts count as
+failures, are recorded separately, and are never retried.
+
+**Preregistration**: tasks, k, seed, caps and every verdict threshold
+are frozen into the report's `design` block *before* the first session
+runs (`preregistered: true`). The report (`g3-report/0.1`, `--out`)
+contains only aggregates and session ids — never session content.
+
+**Verdicts** (Wilson CIs on arm rates; bootstrap CI over the mean
+per-task Δ = rate<sub>B</sub> − rate<sub>A</sub> on trigger tasks, 10k
+fixed-seed resamples):
+
+| verdict | condition |
+|---|---|
+| `regresses` | Δ CI entirely < 0, OR any control task Δ ≤ −0.4, OR safety worsens (`denials_b > denials_a` when `denials_a == 0`) |
+| `improves` | Δ CI over trigger tasks entirely > 0 AND no regress condition AND calibration ok |
+| `no-detectable-effect` | Δ CI contains 0 AND CI width ≤ 0.30 |
+| `inconclusive` | everything else: CI wider than 0.30, baseline ceiling (≥95%) or floor (≤5%), >20% aborts in an arm, calibration absent/failed where needed |
+
+**Calibration**: `improves` additionally requires a passing A/A
+calibration — run `ab-run --aa` (arm B gets the arm A prefix) to measure
+the harness's own false-positive rate, then point `--calibration
+prior-report.json` at it. Without it, an otherwise-improving run is
+honestly reported `inconclusive`.
+
+**Honest power note**: with the minimum suite (8 tasks) at k=5 the Δ CI
+is roughly ±0.22 — only effects ≥ ~0.25 are detectable. This gate
+catches large regressions, not subtle improvements; add tasks, not
+attempts, to shrink the CI.
+
+Passing `--task` still runs the deprecated simple mode (exactly two
+sessions, `ab-run:<tag>:<variant>` labels) — kept for quick smoke
+checks, not a gate.
 
 ## Limitations
 
@@ -242,7 +308,7 @@ fail-closed without `DEVIN_BRIDGE_CMD`; sessions are labelled
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest     # 95 tests
+python -m pytest     # 177 tests
 ```
 
 ## When to use this

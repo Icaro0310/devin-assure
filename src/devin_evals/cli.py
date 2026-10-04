@@ -15,13 +15,25 @@ from devin_evals.runner import run_evals
 
 
 def _cmd_abrun(args: argparse.Namespace) -> int:
-    """EV-5: A/B two fresh sessions, then grade both with the rubric."""
+    """Dispatch: ``--task`` keeps the v1 two-session quick mode; the new
+    default is the G3 suite harness (``--tasks``/``<evals>/tasks``)."""
+    if args.task is not None:
+        return _cmd_abrun_v1(args)
+    return _cmd_abrun_v2(args)
+
+
+def _cmd_abrun_v1(args: argparse.Namespace) -> int:
+    """EV-5 (deprecated simple mode): two fresh sessions, grade both."""
     import json as _json
     from devin_evals.abrun import run_ab
     from devin_evals.runner import evaluate_case
     from devin_internals.parsers.sessions import SessionsStore
     from devin_evals.cases import load_cases
     from devin_evals.judge import judge_available
+    if not args.repo:
+        print("error: --repo is required for --task (simple mode)",
+              file=sys.stderr)
+        return _USAGE
     if args.dry_run:
         print(_json.dumps({
             "dry_run": True, "task": args.task,
@@ -65,6 +77,231 @@ def _cmd_abrun(args: argparse.Namespace) -> int:
                                "score": outcome["score"]}
     print(_json.dumps({"case": case.id, "scores": scores}, indent=2))
     return _OK
+
+
+def _default_sessions_db() -> Path | None:
+    """Autodetect Devin's sessions.db (Linux/macOS XDG, Windows APPDATA)."""
+    import os
+    if os.name == "nt":
+        base = os.environ.get("APPDATA")
+        cand = Path(base) / "devin" / "cli" / "sessions.db" if base else None
+    else:
+        base = os.environ.get("XDG_DATA_HOME") or str(
+            Path.home() / ".local" / "share")
+        cand = Path(base) / "devin" / "cli" / "sessions.db"
+    return cand if cand is not None and cand.is_file() else None
+
+
+def _make_g3_grader(cases, db_path, packs_dir):
+    """Grader closure for run_ab_v2: rubric checks + secondary metrics.
+
+    Task id → eval case when one exists in --evals; otherwise the task's
+    ``kind`` selects the matching built-in/custom rubric pack. Opens the
+    store per attempt so sessions created mid-run are visible.
+    """
+    from dataclasses import replace
+    from devin_evals.cases import EvalCase, _pack_checks
+    from devin_evals.runner import evaluate_case
+    from devin_internals.parsers.sessions import SessionsStore
+
+    by_id = {c.id: c for c in cases}
+    pd = Path(packs_dir) if packs_dir else None
+
+    def grade(unit, res):
+        sid = res.get("session_id")
+        if not sid:
+            return {"success": False, "error": True,
+                    "detail": "no session id captured"}
+        base = by_id.get(unit.task.id)
+        if base is not None:
+            case = replace(base, session_ref=sid)
+        else:
+            checks = _pack_checks(unit.task.kind, Path("<g3>"), pd)
+            case = EvalCase(
+                id=unit.task.id, description=unit.task.prompt[:80],
+                session_ref=sid, prompt_context=None,
+                checks=tuple(checks), source=f"pack:{unit.task.kind}")
+        with SessionsStore(db_path) as store:
+            outcome = evaluate_case(case, store)
+            tool_calls = duration_s = None
+            for s in store.sessions():
+                if s.id == sid:
+                    tool_calls = len(store.tool_call_state(sid))
+                    if s.created_at and s.last_activity_at:
+                        duration_s = (s.last_activity_at - s.created_at) / 1000
+                    break
+        return {
+            "success": outcome["status"] == "pass",
+            "error": outcome["status"] == "error",
+            "tool_calls": tool_calls,
+            "duration_s": duration_s,
+        }
+    return grade
+
+
+def _cmd_abrun_v2(args: argparse.Namespace) -> int:
+    """G3: preregistered A/B suite — tasks manifest, k attempts, stats."""
+    import json as _json
+    import tempfile
+    import time
+    from devin_evals import abrun
+    from devin_evals.judge import judge_available
+
+    if not args.evals:
+        print("error: --evals is required for the G3 suite mode "
+              "(rubric grading)", file=sys.stderr)
+        return _USAGE
+    if args.tasks:
+        tasks_dir = Path(args.tasks)
+    else:
+        # default: <evals>/tasks, falling back to ./tasks (the shipped pack)
+        tasks_dir = Path(args.evals) / "tasks"
+        if not tasks_dir.is_dir() and Path("tasks").is_dir():
+            tasks_dir = Path("tasks")
+    try:
+        tasks = abrun.load_tasks(tasks_dir)
+        trig, ctrl = abrun.validate_suite(tasks)
+        units = abrun.plan_units(tasks, args.attempts, args.seed)
+    except abrun.G3Error as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return _USAGE
+
+    caps = {"max_sessions": args.max_sessions,
+            "max_total_time": args.max_total_time,
+            "session_timeout": args.session_timeout}
+    plan = {
+        "tasks_dir": str(tasks_dir),
+        "tasks": len(tasks), "trigger": trig, "control": ctrl,
+        "attempts_per_arm": args.attempts,
+        "total_sessions": len(units),
+        "seed": args.seed, "aa": bool(args.aa),
+        "caps": caps,
+        "order": [f"{u.task.id}:{u.variant}:{u.attempt}" for u in units],
+    }
+    if args.dry_run:
+        print(_json.dumps({"dry_run": True, "plan": plan,
+                           "note": "real run consumes tokens; sessions are "
+                                   "labelled g3-ab:<task>:<variant>:<attempt>"},
+                          indent=2))
+        return _OK
+
+    over_cap = (args.max_sessions is not None
+                and len(units) > args.max_sessions)
+    if over_cap and not args.yes:
+        if args.confirm:
+            try:
+                ans = input(
+                    f"plan needs {len(units)} sessions > --max-sessions "
+                    f"{args.max_sessions}; the run will abort at the cap. "
+                    "proceed? [y/N] ")
+            except EOFError:
+                ans = ""
+            if ans.strip().lower() != "y":
+                print("aborted by user")
+                return _USAGE
+        else:
+            print(
+                f"error: plan needs {len(units)} sessions, exceeding "
+                f"--max-sessions {args.max_sessions} — rerun with "
+                "--confirm (interactive) or --yes (headless)",
+                file=sys.stderr)
+            return _USAGE
+
+    ok, msg = judge_available()
+    if not ok:
+        print(f"error: {msg}", file=sys.stderr)
+        return _USAGE
+
+    try:
+        cases = load_cases(args.evals, packs_dir=args.packs_dir)
+    except CaseError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return _USAGE
+
+    db_path = args.sessions_db or _default_sessions_db()
+    notes = []
+    grader = None
+    session_grader = None
+    if db_path is not None:
+        session_grader = _make_g3_grader(cases, db_path, args.packs_dir)
+    elif not args.workspace_check:
+        notes.append("no sessions.db — success falls back to "
+                     "session-completed (no rubric grading)")
+    if args.workspace_check:
+        ws_grader = abrun.make_workspace_check_grader()
+        if session_grader is not None:
+            def grader(unit, res, _w=ws_grader, _s=session_grader):
+                w, s = _w(unit, res), _s(unit, res)
+                merged = dict(s)
+                merged["success"] = bool(w.get("success")) and \
+                    bool(s.get("success"))
+                merged["error"] = bool(w.get("error")) or \
+                    bool(s.get("error"))
+                return merged
+        else:
+            grader = ws_grader
+            notes.append("workspace-check grading: task's own "
+                         "deterministic check decides success")
+    else:
+        grader = session_grader
+
+    calibration = None
+    if args.calibration:
+        try:
+            prior = _json.loads(Path(args.calibration).read_text(
+                encoding="utf-8"))
+            calibration = prior.get("calibration")
+            if isinstance(calibration, dict):
+                calibration = dict(calibration)
+                calibration["source"] = args.calibration
+        except (OSError, _json.JSONDecodeError) as exc:
+            print(f"error: cannot load --calibration: {exc}",
+                  file=sys.stderr)
+            return _USAGE
+
+    work_dir = (Path(args.work_dir) if args.work_dir
+                else Path(tempfile.gettempdir())
+                / f"g3-{int(time.time())}")
+    try:
+        candidate = abrun.candidate_block(
+            aa=args.aa,
+            prefix=args.variant_a if args.aa else args.variant_b,
+            candidate_file=args.candidate_file)
+    except abrun.G3Error as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return _USAGE
+
+    runner = abrun.make_bridge_runner(msg)
+    report = abrun.run_ab_v2(
+        tasks,
+        attempts=args.attempts, seed=args.seed,
+        variant_a=args.variant_a,
+        variant_b=args.variant_a if args.aa else args.variant_b,
+        aa=args.aa,
+        work_dir=work_dir,
+        runner=runner, grader=grader,
+        max_sessions=args.max_sessions,
+        max_total_time=args.max_total_time,
+        session_timeout=args.session_timeout,
+        calibration=calibration,
+        candidate=candidate,
+        environment=abrun.environment_block(),
+    )
+    if notes:
+        report["notes"] += " | " + " | ".join(notes)
+    out = Path(args.out)
+    out.write_text(_json.dumps(report, indent=2, ensure_ascii=False) + "\n",
+                   encoding="utf-8")
+    res = report["results"]
+    print(f"verdict: {report['verdict']}  "
+          f"(arm A {res['arm_a']['success_rate']}, "
+          f"arm B {res['arm_b']['success_rate']}, "
+          f"Δ trigger {res['delta_trigger']['mean']})")
+    print(f"sessions: {len(report['results']['attempts'])}/"
+          f"{len(units)} planned — report written to {out.resolve()}")
+    if "aborted early" in report["notes"]:
+        print(f"note: {report['notes'].split('|')[-1].strip()}")
+    return _FAILED if report["verdict"] == "regresses" else _OK
 
 
 def _cmd_judge(args: argparse.Namespace) -> int:
@@ -235,27 +472,65 @@ def build_parser() -> argparse.ArgumentParser:
 
     ab = sub.add_parser(
         "ab-run",
-        help="EV-5/G3: run a task in two fresh bridge sessions (variant A "
-        "vs B), then grade both — consumes real tokens, opt-in, "
-        "fail-closed without DEVIN_BRIDGE_CMD")
-    ab.add_argument("--task", required=True,
-                    help="the task prompt sent to both sessions")
+        help="EV-5/G3: preregistered A/B suite (tasks manifest, k attempts "
+        "per arm, seeded ABBA/BAAB interleave, budget caps, g3-report). "
+        "With --task it falls back to the deprecated two-session quick "
+        "mode. Consumes real tokens; fail-closed without DEVIN_BRIDGE_CMD")
+    ab.add_argument("--task",
+                    help="simple mode (deprecated): one task prompt sent "
+                    "to exactly two sessions")
     ab.add_argument("--variant-a", default="",
-                    help="prefix for session A (e.g. no-skill baseline)")
+                    help="prefix for arm A (e.g. no-skill baseline)")
     ab.add_argument("--variant-b", default="",
-                    help="prefix for session B (e.g. skill context)")
-    ab.add_argument("--repo", required=True,
-                    help="working dir for both sessions")
-    ab.add_argument("--tag", default="ab", help="label tag (default: ab)")
+                    help="prefix for arm B (e.g. skill context)")
+    ab.add_argument("--repo",
+                    help="working dir for both sessions (simple mode only)")
+    ab.add_argument("--tag", default="ab",
+                    help="label tag, simple mode (default: ab)")
     ab.add_argument("--evals", help="eval cases dir for post-run grading")
     ab.add_argument("--case", help="case id to grade (default: first case)")
     ab.add_argument("--packs-dir", help="directory of custom rubric packs")
     ab.add_argument("--sessions-db",
                     help="sessions.db for grading (default: autodetect)")
     ab.add_argument("--timeout", type=int, default=45 * 60,
-                    help="per-session timeout in seconds")
+                    help="per-session timeout in seconds (simple mode)")
+    ab.add_argument("--tasks",
+                    help="G3 tasks manifest dir (default: <evals>/tasks, "
+                    "falling back to ./tasks)")
+    ab.add_argument("--attempts", type=int, default=5,
+                    help="attempts per arm per task (default: 5, min: 3)")
+    ab.add_argument("--seed", type=int, default=73001,
+                    help="seed for the task order + bootstrap (default: 73001)")
+    ab.add_argument("--max-sessions", type=int,
+                    help="hard cap on total sessions; aborts the run when hit")
+    ab.add_argument("--max-total-time", type=float,
+                    help="hard cap on total wall-clock seconds")
+    ab.add_argument("--session-timeout", type=int, default=45 * 60,
+                    help="per-attempt timeout in seconds (default: 2700)")
+    ab.add_argument("--work-dir",
+                    help="run dir for per-attempt workspace copies "
+                    "(default: <tmp>/g3-<ts>)")
+    ab.add_argument("--confirm", action="store_true",
+                    help="interactively confirm when the plan exceeds "
+                    "--max-sessions")
+    ab.add_argument("--yes", action="store_true",
+                    help="headless confirmation of an over-cap plan")
+    ab.add_argument("--aa", action="store_true",
+                    help="A/A calibration mode: arm B uses the arm A prefix")
+    ab.add_argument("--workspace-check", action="store_true",
+                    help="grade each attempt by the task's own check in "
+                    "the workspace copy (pytest tests + check_structure.py "
+                    "when present) — the mode for hermetic packs; combined "
+                    "with session rubric grading when sessions.db resolves")
+    ab.add_argument("--calibration",
+                    help="prior g3-report.json whose calibration block "
+                    "gates the 'improves' verdict")
+    ab.add_argument("--candidate-file",
+                    help="file whose sha256 is pinned as candidate.sha256")
+    ab.add_argument("--out", default="g3-report.json",
+                    help="report path (default: g3-report.json)")
     ab.add_argument("--dry-run", action="store_true",
-                    help="print what would run; creates no sessions")
+                    help="print the session plan for free; creates nothing")
     ab.set_defaults(func=_cmd_abrun)
 
     co = sub.add_parser(
