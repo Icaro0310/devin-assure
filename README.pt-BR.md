@@ -147,6 +147,45 @@ pela `rubric` do próprio caso. Use `"packs": ["bugfix"]` no JSON do caso;
 os checks do pack rodam **antes** dos checks locais. Liste com
 `devin-evals packs`; sobrescreva ou adicione packs com `--packs-dir <dir>`.
 
+### Corpus golden (EV-3)
+
+`devin-evals corpus` materializa e faz replay de um corpus determinístico
+de **sessões sintéticas rotuladas** — nove classes de defeito (D01–D09, o
+mesmo catálogo do [devin-dream](https://github.com/Icaro0310/devin-dream)),
+cada uma com um veredito conhecido — mais os casos `evals/*.json`
+correspondentes, cujas rubricas codificam esses vereditos na forma que os
+graders conseguem expressar. É o gate de CI que prova que evals, fixtures
+e graders concordam:
+
+```bash
+devin-evals corpus generate --out .corpus   # sessions.db + evals/ + corpus.json
+devin-evals corpus verify  --corpus .corpus # esperado-vs-real por caso
+```
+
+`generate` importa `devin_dream.defects` quando o pacote é importável
+(`PYTHONPATH=../devin-dream/src`, ou `--generator dream` para exigi-lo);
+senão usa a cópia vendored em `devin_evals._vendored_dream` — ambos
+produzem corpora idênticos. `--generator vendored` força a cópia embutida.
+Tudo é determinístico dado `--seed` e **somente sintético**: o corpus
+nunca deve apontar para um `sessions.db` real.
+
+Cada caso carrega `expected_status` (o veredito que o caso *deveria*
+alcançar: `pass` para o controle limpo D03, `fail` onde um defeito deve
+ser detectado, `error` para o canário de drift D06, cujo db v18 é
+recusado na abertura). `verify` imprime `MATCH` / `GAP` / `MISMATCH` por
+caso e sai com 1 em qualquer mismatch não documentado; `--strict` também
+reprova gaps documentados.
+
+**Gaps conhecidos dos graders** (reportados, tolerados por padrão — esta
+lista alimenta o roadmap): D05 precisa de um grader de PII/privacidade
+(`no_secrets` cobre apenas formatos de segredo); D07 precisa de um grader
+que inspecione a *saída* de tool calls por instruções injetadas; D09
+precisa de junção de segredo entre payloads (uma chave dividida em duas
+saídas de tools escapa de todo padrão de texto único). A granularidade de
+veredito também é mais grossa que o catálogo de origem: UNVERIFIED e
+PARTIAL do qa-pack colapsam em `fail`, e o "quarantined" de D08 é avaliado
+por um proxy de transcrição (`not_contains` na política insegura).
+
 ## Limitações
 
 - **Só replay offline** (M1): avalia sessões gravadas, não lança novas.
@@ -167,7 +206,7 @@ os checks do pack rodam **antes** dos checks locais. Liste com
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest     # 62 testes
+python -m pytest     # 85 testes
 ```
 
 ## Quando usar

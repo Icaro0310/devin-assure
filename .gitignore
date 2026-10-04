@@ -12,3 +12,6 @@ build/
 *.db-wal
 .devin/
 eval-report/
+corpus/
+.corpus/
+verify-report/

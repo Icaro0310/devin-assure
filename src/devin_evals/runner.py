@@ -52,8 +52,12 @@ def _message_text(chat_message: str) -> str:
         data = json.loads(chat_message)
     except json.JSONDecodeError:
         return chat_message
-    if isinstance(data, dict) and isinstance(data.get("text"), str):
-        return data["text"]
+    if isinstance(data, dict):
+        # "text" is the CLI shape; "content" is the ACP/dream blob shape.
+        for key in ("text", "content"):
+            value = data.get(key)
+            if isinstance(value, str):
+                return value
     return chat_message
 
 

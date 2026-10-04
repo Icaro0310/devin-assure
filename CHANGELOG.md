@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `devin-evals corpus generate|verify` (EV-3) — deterministic golden corpus
+  of labeled synthetic defect sessions (D01–D09, devin-dream catalogue)
+  plus matching eval cases with `expected_status`/`known_gap` metadata;
+  `verify` is the CI gate comparing expected-vs-actual. Session specs come
+  from `devin_dream.defects` when importable, else the vendored copy in
+  `devin_evals._vendored_dream` (identical corpora either way).
+- `runner._message_text` now also reads the `content` key in
+  `chat_message` blobs (the ACP/dream shape), not only `text`.
 - `devin_evals.cases` — `evals/<name>.json` case format (JSON chosen over
   YAML to stay stdlib-only) with eager validation (`CaseError`).
 - `devin_evals.graders` — six deterministic graders over an `Evidence`

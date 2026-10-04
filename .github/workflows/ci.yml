@@ -25,6 +25,27 @@ jobs:
       - name: Test
         run: pytest -q
 
+  corpus:
+    # Golden-case gate (EV-3): generated fixtures only — never real sessions.
+    # devin_dream is not published/depended on, so this exercises the
+    # vendored generator; a local checkout can re-run with --generator dream.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Generate golden corpus (synthetic)
+        run: devin-evals corpus generate --out .corpus
+
+      - name: Verify corpus (expected-vs-actual)
+        run: devin-evals corpus verify --corpus .corpus
+
   secrets-scan:
     runs-on: ubuntu-latest
     steps:
