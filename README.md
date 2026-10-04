@@ -183,6 +183,11 @@ on Windows and `$XDG_DATA_HOME/devin/cli/sessions.db` on Linux (default
 also checked. macOS uses `~/Library/Application Support/devin/`. Pass
 `--sessions-db` to override.
 
+
+`--online` (QA-2, opt-in) enables live HEAD checks of deploy/URL claims
+("deployed to https://…"), and only against `--allow-domain` hosts —
+network is off by default and the audit is fully offline otherwise.
+
 ## Limitations
 
 - `chat_message` and `tool_call_*_json` payloads are **unstable** formats

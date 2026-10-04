@@ -25,8 +25,9 @@ COMMIT = "commit"
 FILE = "file"
 PUSH = "push"
 HTTP = "http"
+URL = "url"
 
-CLAIM_KINDS = (TESTS, COMMIT, FILE, PUSH, HTTP)
+CLAIM_KINDS = (TESTS, COMMIT, FILE, PUSH, HTTP, URL)
 
 _RUNNER_TOKENS = (
     "cargo test",
@@ -66,6 +67,8 @@ _PATH_TOKEN_RE = re.compile(
 
 # "the API returned 200" / "endpoint responded with 404" / "HTTP 500" /
 # "status code: 200" — the captured group is the claimed status code.
+_URL_RE = re.compile(r"https://[\w.-]+(?::\d+)?(?:/[\w./?%&=~#+-]*)?")
+
 _HTTP_CLAIM_RES = (
     re.compile(
         r"\b(?:returned|responded|replied|answered|came\s+back)\b"
@@ -163,6 +166,11 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
     for rx in _HTTP_CLAIM_RES:
         for m in rx.finditer(line):
             yield HTTP, m.group(1)
+    if re.search(
+        r"\b(?:deployed|live|hosted|available|published|running)\b", line, re.I
+    ):
+        for m in _URL_RE.finditer(line):
+            yield URL, m.group(0).rstrip(".,);'\"")
 
 
 def extract_claims(nodes: Iterable[MessageNode]) -> list[Claim]:

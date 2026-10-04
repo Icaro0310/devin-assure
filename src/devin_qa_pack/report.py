@@ -19,7 +19,7 @@ from typing import Any
 from devin_internals.parsers import SessionsStore
 from devin_internals.parsers.sessions import Session
 
-from devin_qa_pack.claims import extract_claims
+from devin_qa_pack.claims import URL, extract_claims
 from devin_qa_pack.verify import (
     DISPUTED,
     UNVERIFIABLE,
@@ -65,6 +65,9 @@ def audit_session(
     store: SessionsStore,
     session: Session,
     claim_limit: int | None = None,
+    *,
+    online: bool = False,
+    allow_domains: tuple[str, ...] = (),
 ) -> SessionAudit:
     nodes = store.message_nodes(session.id)
     states = store.tool_call_state(session.id)
@@ -73,7 +76,9 @@ def audit_session(
     if claim_limit is not None:
         claims = claims[: max(claim_limit, 0)]
     results = [
-        verify_claim(
+        _verify_url(c, online, allow_domains)
+        if c.kind == URL
+        else verify_claim(
             c,
             calls,
             session.working_directory,
@@ -90,8 +95,17 @@ def audit_session(
     )
 
 
-def audit_all(store: SessionsStore, limit: int | None = None) -> list[SessionAudit]:
-    return [audit_session(store, s) for s in store.sessions(limit=limit)]
+def audit_all(
+    store: SessionsStore,
+    limit: int | None = None,
+    *,
+    online: bool = False,
+    allow_domains: tuple[str, ...] = (),
+) -> list[SessionAudit]:
+    return [
+        audit_session(store, s, online=online, allow_domains=allow_domains)
+        for s in store.sessions(limit=limit)
+    ]
 
 
 def _claim_dict(r: VerifiedClaim) -> dict[str, Any]:

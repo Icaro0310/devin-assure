@@ -68,6 +68,14 @@ def _build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--limit", type=int, metavar="N",
                        help="max sessions with --all (most recent first)")
     audit.add_argument("--json", action="store_true", help="JSON output")
+    audit.add_argument(
+        "--online", action="store_true",
+        help="QA-2: allow live HEAD checks of claimed URLs — opt-in; "
+        "network is off by default")
+    audit.add_argument(
+        "--allow-domain", action="append", default=[], metavar="D",
+        help="domain allowed for --online checks (repeatable; required for "
+        "any live check)")
 
     report = sub.add_parser(
         "report", help="audit sessions and write a self-contained HTML report")
@@ -83,6 +91,12 @@ def _build_parser() -> argparse.ArgumentParser:
                         help="report one session (exact id or unique prefix)")
     report.add_argument("--limit", type=int, metavar="N",
                         help="max sessions (most recent first)")
+    report.add_argument(
+        "--online", action="store_true",
+        help="allow live HEAD checks of claimed URLs (opt-in)")
+    report.add_argument(
+        "--allow-domain", action="append", default=[], metavar="D",
+        help="domain allowed for --online checks (repeatable)")
 
     se = sub.add_parser(
         "session-end",
@@ -175,11 +189,14 @@ def _open_store(db_arg: str | None):
 
 def _audit_scope(store: SessionsStore, args: argparse.Namespace):
     """Audit ``--session`` or everything (``--all`` / report default)."""
+    kw = dict(online=getattr(args, "online", False),
+              allow_domains=tuple(getattr(args, "allow_domain", ())))
     session_arg = getattr(args, "session", None)
     if session_arg:
         session = _find_session(store, session_arg)
-        return None if session is None else [audit_session(store, session)]
-    return audit_all(store, limit=getattr(args, "limit", None))
+        return (None if session is None
+                else [audit_session(store, session, **kw)])
+    return audit_all(store, limit=getattr(args, "limit", None), **kw)
 
 
 def _cmd_audit(args: argparse.Namespace) -> int:
@@ -187,13 +204,15 @@ def _cmd_audit(args: argparse.Namespace) -> int:
     if store is None:
         return 2
     with store:
+        kw = dict(online=args.online,
+                  allow_domains=tuple(args.allow_domain))
         if args.all:
-            audits = audit_all(store, limit=args.limit)
+            audits = audit_all(store, limit=args.limit, **kw)
         else:
             session = _find_session(store, args.session)
             if session is None:
                 return 2
-            audits = [audit_session(store, session)]
+            audits = [audit_session(store, session, **kw)]
 
     if args.json:
         print(json.dumps(audits_payload(audits, db), indent=2))

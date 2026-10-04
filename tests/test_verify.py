@@ -223,3 +223,43 @@ def test_http_claim_ignores_call_state_not_http():
     calls = parse_tool_calls([exec_state("pytest -q")])
     result = verify_claim(claim(HTTP, "200"), calls, "/nonexistent")
     assert result.status == UNVERIFIABLE
+
+
+# -- QA-2: URL claims + --online opt-in --------------------------------------
+
+def _url_claim(url: str) -> Claim:
+    return Claim(kind="url", detail=url, session_id="s", node_id=1,
+                 excerpt=f"deployed to {url}")
+
+
+def test_url_claim_offline_is_unverifiable():
+    from devin_qa_pack.verify import _verify_url
+    r = _verify_url(_url_claim("https://example.com/x"), False, ("example.com",))
+    assert r.status == UNVERIFIABLE
+    assert "--online" in r.evidence
+
+
+def test_url_claim_not_allowlisted():
+    from devin_qa_pack.verify import _verify_url
+    r = _verify_url(_url_claim("https://evil.example/x"), True, ("good.com",))
+    assert r.status == UNVERIFIABLE
+    assert "not in --allow-domain" in r.evidence
+
+
+def test_url_allowlist_subdomain():
+    from devin_qa_pack.verify import _url_allowed
+    assert _url_allowed("https://app.example.com/x", ("example.com",))
+    assert not _url_allowed("https://notexample.com/x", ("example.com",))
+
+
+def test_url_claim_extracted_from_deploy_text():
+    from devin_internals.parsers.sessions import MessageNode
+    from devin_qa_pack.claims import extract_claims
+    node = MessageNode(
+        row_id=1, session_id="s", node_id=1, parent_node_id=None,
+        chat_message='{"role":"assistant","content":"Deployed to https://demo.example.com/app — it is live."}',
+        created_at=0, metadata=None,
+    )
+    claims = extract_claims([node])
+    urls = [c.detail for c in claims if c.kind == "url"]
+    assert urls == ["https://demo.example.com/app"]

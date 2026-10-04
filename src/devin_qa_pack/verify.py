@@ -26,6 +26,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
+import urllib.request
+from urllib.parse import urlparse
+
 from devin_internals.parsers.sessions import ToolCallState
 
 from devin_qa_pack.claims import COMMIT, FILE, HTTP, PUSH, TESTS, Claim
@@ -382,14 +385,62 @@ def verify_claim(
     )
 
 
+_ONLINE_TIMEOUT_S = 5
+
+
+def _url_allowed(url: str, allow: tuple[str, ...]) -> bool:
+    host = urlparse(url).hostname or ""
+    return any(host == d or host.endswith("." + d) for d in allow)
+
+
+def _verify_url(
+    claim: Claim, online: bool, allow: tuple[str, ...]
+) -> VerifiedClaim:
+    """QA-2: URL/deploy claims are offline-unverifiable by default; with
+    ``--online`` + an allow-listed domain a live HEAD corroborates."""
+    url = claim.detail
+    if not online:
+        return VerifiedClaim(
+            claim, UNVERIFIABLE,
+            "offline audit — pass --online and --allow-domain to check "
+            "the URL live",
+        )
+    if not _url_allowed(url, allow):
+        return VerifiedClaim(
+            claim, UNVERIFIABLE,
+            f"host not in --allow-domain ({urlparse(url).hostname})",
+        )
+    try:
+        req = urllib.request.Request(url, method="HEAD",
+                                     headers={"User-Agent": "devin-qa-pack"})
+        with urllib.request.urlopen(req, timeout=_ONLINE_TIMEOUT_S) as r:
+            status = r.status
+    except urllib.error.HTTPError as e:
+        status = e.code
+    except Exception as e:  # URLError, timeout — network is untrusted
+        return VerifiedClaim(claim, UNVERIFIABLE,
+                             f"live check failed: {e}")
+    if status < 400:
+        return VerifiedClaim(
+            claim, VERIFIED, f"live HEAD {url} → HTTP {status}")
+    return VerifiedClaim(
+        claim, DISPUTED, f"live HEAD {url} → HTTP {status}")
+
+
 def verify_claims(
     claims: Iterable[Claim],
     calls: list[ParsedToolCall],
     working_directory: str | None,
     *,
     raw_call_count: int | None = None,
+    online: bool = False,
+    allow_domains: tuple[str, ...] = (),
 ) -> list[VerifiedClaim]:
-    return [
-        verify_claim(c, calls, working_directory, raw_call_count=raw_call_count)
-        for c in claims
-    ]
+    out = []
+    for c in claims:
+        if c.kind == "url":
+            out.append(_verify_url(c, online, allow_domains))
+        else:
+            out.append(verify_claim(
+                c, calls, working_directory, raw_call_count=raw_call_count))
+    return out

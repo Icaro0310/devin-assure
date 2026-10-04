@@ -190,6 +190,12 @@ Testado em **Windows e Linux** (o CI corre em `windows-latest` +
 também é verificada. macOS usa `~/Library/Application Support/devin/`. Usa
 `--sessions-db` para sobrepor.
 
+
+`--online` (QA-2, opt-in) permite verificações HEAD ao vivo de claims de
+deploy/URL ("deployed to https://…"), e apenas em hosts de
+`--allow-domain` — a rede fica desligada por defeito e o audit é
+totalmente offline sem a flag.
+
 ## Limitações
 
 - Os payloads `chat_message` e `tool_call_*_json` são formatos
