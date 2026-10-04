@@ -1,6 +1,19 @@
 # STATUS — devin-qa-pack
 
-Updated: 2026-09-29 · Milestone: **M1 (done)** · Version: 0.1.0
+Updated: 2026-10-04 · Milestone: **M1 (done) + QA-1** · Version: 0.1.0
+
+## Done after M1
+
+- **QA-1 — `session-end` live audit** (`session_end.py` + `session-end`
+  CLI): audits only the session that just ended; session id resolves
+  from `--session-id` → stdin hook payload (`session_id`) →
+  `$DEVIN_SESSION_ID` → most recently active session. Verdict goes to a
+  JSON side file (`<data-dir>/qa/<session-id>.json`; `--out`/`--data-dir`
+  override) — never into a Devin store — plus a one-line summary.
+  `--limit` bounds claims verified. Fail-soft: exit 0 whenever it ran
+  (`SKIPPED` verdict when the session can't be resolved); non-zero only
+  on usage errors. hooks.json `SessionEnd` registration documented in
+  both READMEs.
 
 ## Done in M1
 

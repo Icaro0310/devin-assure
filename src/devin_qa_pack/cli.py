@@ -5,6 +5,10 @@ verifies deliverable claims against tool_call_state ground truth and
 prints a verdict per session. Read-only. Exit codes: 0 = every audited
 session PASS · 1 = audit ran, some session PARTIAL/UNVERIFIED · 2 = the
 audit could not run (missing/unknown store, unknown session).
+
+``devin-qa-pack session-end`` is the SessionEnd hook variant: it audits
+only the session that just ended, writes the verdict to a JSON side
+file and is fail-soft (always exit 0 once it ran; 2 on usage errors).
 """
 
 from __future__ import annotations

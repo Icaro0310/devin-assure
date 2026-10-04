@@ -76,11 +76,18 @@ disputas/mistos · `UNVERIFIED` = sem afirmações ou nada verificável.
 | Interface | Descrição |
 |---|---|
 | **Biblioteca** `devin_qa_pack` | `claims.extract_claims` · `verify.verify_claim(s)` · `report.audit_session/audit_all` |
-| **CLI** `devin-qa-pack` | `audit --sessions-db <path> --session <id|prefixo>` · `audit --all [--limit N]` · `--json` · auto-deteção de `<data dir>/cli/sessions.db` |
+| **CLI** `devin-qa-pack` | `audit --sessions-db <path> --session <id|prefixo>` · `audit --all [--limit N]` · `session-end [--session-id <id>] [--out <ficheiro>] [--data-dir <dir>] [--limit N]` (handler de hook SessionEnd) · `--json` · auto-deteção de `<data dir>/cli/sessions.db` |
 | **Docs** | `SPEC.md` (canónico) + `SPEC.pt-BR.md` |
 
 Exit codes: `0` todas as sessões `PASS` · `1` auditoria correu, alguma
 `PARTIAL`/`UNVERIFIED` · `2` auditoria não correu.
+
+`session-end` é fail-soft por contrato: sai sempre com `0` depois de
+correr — o veredito viaja no ficheiro lateral, por isso o hook nunca
+pode falhar a sessão hospedeira. Sessões não resolvidas produzem um
+veredito `SKIPPED` no ficheiro lateral (`{session_id, verdict:
+"SKIPPED", reason, claims: [], audited_at}`). Saídas não-zero só em
+erros de uso (`2`).
 
 ## 7. Fixtures e testes
 
