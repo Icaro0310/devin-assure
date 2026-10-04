@@ -1,0 +1,23 @@
+{
+  "id": "golden-d03-verified-claim",
+  "description": "Positive control: the claim is backed by a real pytest run with exit code 0. Must PASS — proves the harness is not just failing everything. Uses the EV-4 'feature' rubric pack for the hygiene checks.",
+  "session_ref": "dream-d03",
+  "synthetic": true,
+  "defect": "D03",
+  "expected_verdict": "devin-qa-pack: PASS",
+  "expected_status": "pass",
+  "rubric": [
+    {
+      "grader": "contains",
+      "text": "all 42 pass"
+    },
+    {
+      "grader": "tool_called",
+      "name": "execute",
+      "args_substr": "pytest"
+    }
+  ],
+  "packs": [
+    "feature"
+  ]
+}

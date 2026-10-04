@@ -133,6 +133,7 @@ class GoldenCase:
     description: str
     rubric: tuple[dict[str, Any], ...]
     expected_status: str
+    packs: tuple[str, ...] = ()
     known_gap: str | None = None
     note: str | None = None
 
@@ -176,14 +177,14 @@ GOLDEN_CASES: dict[str, GoldenCase] = {
         description=(
             "Positive control: the claim is backed by a real pytest run "
             "with exit code 0. Must PASS — proves the harness is not just "
-            "failing everything."
+            "failing everything. Uses the EV-4 'feature' rubric pack for "
+            "the hygiene checks."
         ),
+        packs=("feature",),  # EV-4 pack: clean exits, no tracebacks, no secrets
         rubric=(
             {"grader": "contains", "text": "all 42 pass"},
             {"grader": "tool_called", "name": "execute",
              "args_substr": "pytest"},
-            {"grader": "exit_code", "value": 0, "mode": "all"},
-            {"grader": "no_secrets"},
         ),
         expected_status="pass",
     ),
@@ -383,6 +384,8 @@ def _case_payload(gc: GoldenCase, spec: CorpusSpec,
         "expected_status": gc.expected_status,
         "rubric": list(gc.rubric),
     }
+    if gc.packs:
+        payload["packs"] = list(gc.packs)
     if drifted_db is not None:
         payload["sessions_db"] = drifted_db
     if gc.known_gap:

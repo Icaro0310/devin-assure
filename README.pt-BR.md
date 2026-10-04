@@ -169,6 +169,22 @@ produzem corpora idênticos. `--generator vendored` força a cópia embutida.
 Tudo é determinístico dado `--seed` e **somente sintético**: o corpus
 nunca deve apontar para um `sessions.db` real.
 
+O corpus também é **versionado** no repo: `corpus/evals/*.json` e
+`corpus/corpus.json` são committed, enquanto os `sessions*.db` são sempre
+regenerados no lugar (nunca commitados — `*.db` é gitignored).
+`tools/regen-corpus.py` reconstrói tudo deterministicamente e serve de
+gate de CI contra drift:
+
+```bash
+python tools/regen-corpus.py          # reconstrói corpus/ no lugar
+python tools/regen-corpus.py --check  # sai 1 se o corpus committed divergir
+python tools/regen-corpus.py --verify # reconstrói + replay das expectativas
+```
+
+`--check` reusa o `seed`/`generator` gravados em `corpus/corpus.json`
+(o corpus committed é pinado em `vendored`, logo o gate é reproduzível
+sem um checkout do devin-dream).
+
 Cada caso carrega `expected_status` (o veredito que o caso *deveria*
 alcançar: `pass` para o controle limpo D03, `fail` onde um defeito deve
 ser detectado, `error` para o canário de drift D06, cujo db v18 é
@@ -206,7 +222,7 @@ por um proxy de transcrição (`not_contains` na política insegura).
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest     # 85 testes
+python -m pytest     # 95 testes
 ```
 
 ## Quando usar

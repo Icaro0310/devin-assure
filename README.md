@@ -172,6 +172,22 @@ both produce identical corpora. `--generator vendored` forces the bundled
 copy. Everything is deterministic given `--seed` and **synthetic only**:
 the corpus must never point at a real `sessions.db`.
 
+The corpus is also **versioned** in the repo: `corpus/evals/*.json` and
+`corpus/corpus.json` are committed, while the `sessions*.db` files are
+always regenerated in place (never committed — `*.db` is gitignored).
+`tools/regen-corpus.py` rebuilds them deterministically and gates CI on
+drift:
+
+```bash
+python tools/regen-corpus.py          # rebuild corpus/ in place
+python tools/regen-corpus.py --check  # exit 1 if committed corpus diverges
+python tools/regen-corpus.py --verify # rebuild + replay expectations
+```
+
+`--check` reuses the `seed`/`generator` recorded in `corpus/corpus.json`
+(the committed corpus is pinned to `vendored`, so the gate is
+reproducible without a devin-dream checkout).
+
 Each case carries `expected_status` (the verdict the case *should* reach:
 `pass` for the clean control D03, `fail` where a defect must be caught,
 `error` for the D06 schema-drift canary whose v18 db is refused at open
@@ -206,7 +222,7 @@ graded by a transcript-level proxy (`not_contains` on the unsafe policy).
 
 ```bash
 pip install -e ".[dev]"
-python -m pytest     # 85 tests
+python -m pytest     # 95 tests
 ```
 
 ## When to use this

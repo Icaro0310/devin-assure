@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `verify` is the CI gate comparing expected-vs-actual. Session specs come
   from `devin_dream.defects` when importable, else the vendored copy in
   `devin_evals._vendored_dream` (identical corpora either way).
+- Committed golden corpus at `corpus/` (`evals/*.json` + `corpus.json`;
+  the generated `sessions*.db` stay gitignored) with
+  `tools/regen-corpus.py` rebuilding it deterministically — `--check`
+  fails CI when the committed corpus diverges from regenerated output.
 - `runner._message_text` now also reads the `content` key in
   `chat_message` blobs (the ACP/dream shape), not only `text`.
 - `devin_evals.cases` — `evals/<name>.json` case format (JSON chosen over
