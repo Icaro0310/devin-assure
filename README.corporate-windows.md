@@ -13,7 +13,7 @@ Corporate Windows is a local-only environment: no Devin VM, QwenPaw, Slack depen
 Install the isolated Python CLI:
 
 ```powershell
-uv tool install "https://github.com/Icaro0310/devin-evals/archive/1db5ce398a0dd5b2fcd068c86f88f1818d9000ac.tar.gz"
+uv tool install "https://github.com/Icaro0310/devin-evals/archive/7d14c086d865a2a37e58fa9e137ddfc32bceaef7.tar.gz"
 ```
 
 ## Devin paths
