@@ -42,6 +42,7 @@ from devin_qa_pack.report import (
     PASS,
     audit_all,
     audit_session,
+    audit_source,
     audits_payload,
     render_text,
 )
@@ -65,6 +66,18 @@ def _build_parser() -> argparse.ArgumentParser:
     scope.add_argument("--session", metavar="ID", help="audit one session "
                        "(exact id or unique prefix)")
     scope.add_argument("--all", action="store_true", help="audit all sessions")
+    scope.add_argument(
+        "--transcript", metavar="PATH",
+        help="audit a foreign transcript file instead of sessions.db "
+        "(--format selects the adapter; experimental)")
+    audit.add_argument(
+        "--format", choices=("aider", "claude-code"), metavar="FMT",
+        help="transcript format for --transcript: aider (.md history) or "
+        "claude-code (.jsonl); default: guess from the file extension")
+    audit.add_argument(
+        "--cwd", metavar="PATH",
+        help="working directory for git/file checks in --transcript mode "
+        "(default: the transcript's directory / transcript cwd field)")
     audit.add_argument("--limit", type=int, metavar="N",
                        help="max sessions with --all (most recent first)")
     audit.add_argument("--json", action="store_true", help="JSON output")
@@ -199,20 +212,61 @@ def _audit_scope(store: SessionsStore, args: argparse.Namespace):
     return audit_all(store, limit=getattr(args, "limit", None), **kw)
 
 
-def _cmd_audit(args: argparse.Namespace) -> int:
-    db, store = _open_store(args.sessions_db)
-    if store is None:
-        return 2
-    with store:
-        kw = dict(online=args.online,
-                  allow_domains=tuple(args.allow_domain))
-        if args.all:
-            audits = audit_all(store, limit=args.limit, **kw)
+def _load_transcript(path_arg: str, fmt: str | None, cwd: str | None):
+    """Resolve ``--transcript`` into a SourceSession via the adapters."""
+    from devin_qa_pack.adapters import aider, claude_code
+
+    p = Path(path_arg).expanduser()
+    if not p.is_file():
+        print(f"error: transcript not found: {p}", file=sys.stderr)
+        return None
+    if fmt is None:
+        if p.suffix == ".jsonl":
+            fmt = "claude-code"
+        elif p.suffix == ".md":
+            fmt = "aider"
         else:
-            session = _find_session(store, args.session)
-            if session is None:
-                return 2
-            audits = [audit_session(store, session, **kw)]
+            print(
+                "error: cannot guess transcript format — "
+                "pass --format aider|claude-code",
+                file=sys.stderr,
+            )
+            return None
+    loader = aider.load if fmt == "aider" else claude_code.load
+    try:
+        return loader(p, working_directory=cwd)
+    except OSError as exc:
+        print(f"error: cannot read {p}: {exc}", file=sys.stderr)
+        return None
+
+
+def _cmd_audit(args: argparse.Namespace) -> int:
+    if getattr(args, "transcript", None):
+        view = _load_transcript(args.transcript, args.format, args.cwd)
+        if view is None:
+            return 2
+        audits = [
+            audit_source(
+                view,
+                online=args.online,
+                allow_domains=tuple(args.allow_domain),
+            )
+        ]
+        db = Path(args.transcript).expanduser()
+    else:
+        db, store = _open_store(args.sessions_db)
+        if store is None:
+            return 2
+        with store:
+            kw = dict(online=args.online,
+                      allow_domains=tuple(args.allow_domain))
+            if args.all:
+                audits = audit_all(store, limit=args.limit, **kw)
+            else:
+                session = _find_session(store, args.session)
+                if session is None:
+                    return 2
+                audits = [audit_session(store, session, **kw)]
 
     if args.json:
         print(json.dumps(audits_payload(audits, db), indent=2))

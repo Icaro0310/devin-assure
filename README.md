@@ -59,10 +59,15 @@ by a run/execute call that ran a test runner and completed; "committed
 Python ≥ 3.10 and `pipx` are required. **Windows (PowerShell):** install `pipx` with `py -m pip install --user pipx`, run `py -m pipx ensurepath`, then reopen the terminal. **Linux (Debian/Ubuntu):** run `sudo apt install pipx python3-venv` and `pipx ensurepath`; reopen the terminal. Other Linux distributions should install `pipx` using their package manager.
 
 ```bash
+# one-liner installer (pipx preferred, pip --user fallback)
+curl -fsSL https://raw.githubusercontent.com/Icaro0310/devin-qa-pack/main/install.sh | sh
+
+# or directly
 pipx install "devin-qa-pack @ git+https://github.com/Icaro0310/devin-qa-pack.git"
 ```
 
-(PyPI publication is on the M2 roadmap.)
+[GitHub Releases](https://github.com/Icaro0310/devin-qa-pack/releases)
+ship the wheel, sdist and CycloneDX SBOM per tag.
 
 ## Usage
 
@@ -83,7 +88,29 @@ devin-qa-pack session-end
 
 # intent vs. coverage (QA-4): did the agent touch what the prompt named?
 devin-qa-pack intent <session> --sessions-db path/to/sessions.db
+
+# audit a foreign transcript instead of sessions.db (experimental)
+devin-qa-pack audit --transcript .aider.chat.history.md
+devin-qa-pack audit --transcript ~/.claude/projects/<slug>/<id>.jsonl
 ```
+
+Real output, on the synthetic fixture from the quick start:
+
+```text
+UNVERIFIED  sess-unverifiable  Mystery session — 1 claim(s): 0 verified, 0 disputed, 1 unverifiable
+  [unverifiable] file/docs/spec.pdf: no matching tool call and working dir not on disk
+PARTIAL  sess-disputed  Disputed session — 2 claim(s): 0 verified, 2 disputed, 0 unverifiable
+  [disputed    ] tests/tests: no execute call matching `tests` recorded
+  [disputed    ] commit/deadbee: no commit call recorded and no repo on disk to check
+PASS  sess-verified  Verified session — 4 claim(s): 4 verified, 0 disputed, 0 unverifiable
+  [verified    ] tests/pytest: `python -m pytest -q` completed (tc-pytest)
+  [verified    ] commit/a1b2c3d: `git commit -m fix` completed (tc-commit)
+  [verified    ] push/push: `git push origin main` completed (tc-push)
+  [verified    ] file/src/report.html: tool call tc-write completed
+```
+
+Recorded as an asciicast: [assets/demo.cast](assets/demo.cast) —
+`asciinema play demo.cast`.
 
 The `report` subcommand audits all sessions (or one with `--session`,
 bounded with `--limit`) and writes a single deterministic HTML file:
@@ -182,6 +209,24 @@ stdin and exports `DEVIN_SESSION_ID`):
 }
 ```
 
+## Auditing other agents (experimental)
+
+`audit --transcript` runs the same claim/evidence model over non-Devin
+transcripts via the adapters in `src/devin_qa_pack/adapters/`:
+
+- **`aider`** — `.aider.chat.history.md`. `> /run` and `> /test` records
+  become execute calls with `unknown` status (the history does not store
+  exit codes), so test claims resolve `unverifiable`; commit claims are
+  checked against `git log` in the working directory.
+- **`claude-code`** — session `.jsonl` transcripts. `Bash` → execute,
+  `Write`/`Edit`/`MultiEdit`/`NotebookEdit` → write, `tool_result`
+  blocks mark calls completed/failed.
+
+`--format` overrides extension-based detection; `--cwd` sets the
+directory used for git/file checks. These adapters are experimental —
+formats outside the recorded subsets degrade to `UNVERIFIED`, never to
+a false `PASS`.
+
 ## Works with Devin alone (Devin-only mode)
 
 devin-qa-pack is an offline, read-only audit of recorded Devin sessions. It
@@ -224,6 +269,11 @@ network is off by default and the audit is fully offline otherwise.
   includes reads and commands not just writes, and later user
   follow-ups are ignored — only the first user message sets intent.
   Treat `possibly_missed`/`scope_drift` as review hints, not verdicts.
+- The transcript adapters cover a subset of Aider/Claude Code formats:
+  aider's history cannot prove a `/run` succeeded (no exit codes), and
+  unrecognized tool names become `other` — still searchable evidence,
+  but weak. Real-world transcripts that differ degrade to
+  `UNVERIFIED`.
 - It verifies *that* actions happened, not that the work is good.
   Green tests in a tool call don't prove the fix is correct.
 - Read-only, offline; no real-time monitoring, no MCP server (M2).

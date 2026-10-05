@@ -24,7 +24,12 @@ jobs:
           python -m pytest -q
           python -m build
 
+      - name: Generate SBOM
+        run: pipx run --spec cyclonedx-bom cyclonedx-py environment
+          "$(which python)" --pyproject pyproject.toml --mc-type library
+          -o sbom.cdx.json
+
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ github.ref_name }}" dist/* --verify-tag --generate-notes
+        run: gh release create "${{ github.ref_name }}" dist/* sbom.cdx.json --verify-tag --generate-notes

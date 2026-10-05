@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Experimental transcript adapters (`audit --transcript`): `aider`
+  (`.aider.chat.history.md`) and `claude-code` (session `.jsonl`) feed
+  the same claim/evidence model through `adapters.SourceSession`;
+  `adapters/devin.py` wraps the native `sessions.db` source. `--format`
+  overrides extension detection; `--cwd` sets the git/file check root.
+- `install.sh` — one-liner installer (pipx preferred, `pip --user`
+  fallback, `DEVIN_QA_PACK_REF` to pin a tag).
+- The release workflow attaches a CycloneDX SBOM (`sbom.cdx.json`) to
+  GitHub Releases.
+
+### Fixed
+
+- `url` claims (e.g. "deployed to https://…") crashed `audit`/`report`
+  with a `NameError` — `_verify_url` was referenced but never imported.
+  Verification now routes through `verify_claims`.
+
 ## [0.1.0] - 2026-10-05
 
 ### Added

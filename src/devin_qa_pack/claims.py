@@ -173,6 +173,29 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
             yield URL, m.group(0).rstrip(".,);'\"")
 
 
+def _collect(
+    session_id: str,
+    node_id: int,
+    text: str,
+    claims: list[Claim],
+    seen: set[tuple[str, str]],
+) -> None:
+    for line in text.splitlines():
+        for kind, detail in _claims_in_line(line):
+            if not detail or (kind, detail) in seen:
+                continue
+            seen.add((kind, detail))
+            claims.append(
+                Claim(
+                    kind=kind,
+                    detail=detail,
+                    session_id=session_id,
+                    node_id=node_id,
+                    excerpt=_excerpt(line),
+                )
+            )
+
+
 def extract_claims(nodes: Iterable[MessageNode]) -> list[Claim]:
     """All claims across ``nodes``, deduplicated by ``(kind, detail)``."""
     claims: list[Claim] = []
@@ -181,18 +204,23 @@ def extract_claims(nodes: Iterable[MessageNode]) -> list[Claim]:
         role, text = _decode_message(node.chat_message)
         if role in _SKIP_ROLES:
             continue
-        for line in text.splitlines():
-            for kind, detail in _claims_in_line(line):
-                if not detail or (kind, detail) in seen:
-                    continue
-                seen.add((kind, detail))
-                claims.append(
-                    Claim(
-                        kind=kind,
-                        detail=detail,
-                        session_id=node.session_id,
-                        node_id=node.node_id,
-                        excerpt=_excerpt(line),
-                    )
-                )
+        _collect(node.session_id, node.node_id, text, claims, seen)
+    return claims
+
+
+def claims_from_pairs(
+    pairs: Iterable[tuple[str | None, str]],
+    session_id: str,
+) -> list[Claim]:
+    """Claims over pre-decoded ``(role, text)`` pairs — the adapter input.
+
+    ``node_id`` is synthesized per pair so excerpts remain traceable back
+    to their position in the transcript.
+    """
+    claims: list[Claim] = []
+    seen: set[tuple[str, str]] = set()
+    for node_id, (role, text) in enumerate(pairs, 1):
+        if role in _SKIP_ROLES:
+            continue
+        _collect(session_id, node_id, text, claims, seen)
     return claims

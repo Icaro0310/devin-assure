@@ -19,14 +19,14 @@ from typing import Any
 from devin_internals.parsers import SessionsStore
 from devin_internals.parsers.sessions import Session
 
-from devin_qa_pack.claims import URL, extract_claims
+from devin_qa_pack.adapters.base import SourceSession
+from devin_qa_pack.adapters.devin import session_view
 from devin_qa_pack.verify import (
     DISPUTED,
     UNVERIFIABLE,
     VERIFIED,
     VerifiedClaim,
-    parse_tool_calls,
-    verify_claim,
+    verify_claims,
 )
 
 PASS = "PASS"
@@ -61,6 +61,34 @@ def _verdict(results: list[VerifiedClaim]) -> str:
     return PARTIAL
 
 
+def audit_source(
+    source: SourceSession,
+    claim_limit: int | None = None,
+    *,
+    online: bool = False,
+    allow_domains: tuple[str, ...] = (),
+) -> SessionAudit:
+    """Audit any adapter-produced view — the source-agnostic core."""
+    claims = list(source.claims)
+    if claim_limit is not None:
+        claims = claims[: max(claim_limit, 0)]
+    results = verify_claims(
+        claims,
+        list(source.calls),
+        source.working_directory,
+        raw_call_count=source.raw_call_count,
+        online=online,
+        allow_domains=allow_domains,
+    )
+    return SessionAudit(
+        session_id=source.session_id,
+        title=source.title,
+        working_directory=source.working_directory,
+        verdict=_verdict(results),
+        results=results,
+    )
+
+
 def audit_session(
     store: SessionsStore,
     session: Session,
@@ -69,29 +97,11 @@ def audit_session(
     online: bool = False,
     allow_domains: tuple[str, ...] = (),
 ) -> SessionAudit:
-    nodes = store.message_nodes(session.id)
-    states = store.tool_call_state(session.id)
-    calls = parse_tool_calls(states)
-    claims = extract_claims(nodes)
-    if claim_limit is not None:
-        claims = claims[: max(claim_limit, 0)]
-    results = [
-        _verify_url(c, online, allow_domains)
-        if c.kind == URL
-        else verify_claim(
-            c,
-            calls,
-            session.working_directory,
-            raw_call_count=len(states),
-        )
-        for c in claims
-    ]
-    return SessionAudit(
-        session_id=session.id,
-        title=session.title,
-        working_directory=session.working_directory,
-        verdict=_verdict(results),
-        results=results,
+    return audit_source(
+        session_view(store, session),
+        claim_limit,
+        online=online,
+        allow_domains=allow_domains,
     )
 
 
