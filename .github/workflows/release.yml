@@ -29,7 +29,26 @@ jobs:
           "$(which python)" --pyproject pyproject.toml --mc-type library
           -o sbom.cdx.json
 
+      - name: Sign artifacts
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "GPG_PRIVATE_KEY not configured; skipping signing"
+            exit 0
+          fi
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          KEYID=$(printf '%s' "$GPG_PRIVATE_KEY" | \
+            gpg --batch --import --show-keys --with-colons | \
+            awk -F: '/^fpr/{print $10; exit}')
+          for f in dist/* sbom.cdx.json; do
+            gpg --batch --yes --pinentry-mode loopback \
+              --passphrase "$GPG_PASSPHRASE" \
+              --local-user "$KEYID" --armor --detach-sign "$f"
+          done
+
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ github.ref_name }}" dist/* sbom.cdx.json --verify-tag --generate-notes
+        run: gh release create "${{ github.ref_name }}" dist/* sbom.cdx.json* --verify-tag --generate-notes

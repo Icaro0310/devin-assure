@@ -1,0 +1,17 @@
+# Release signing key
+#
+# Artifacts on GitHub Releases are signed with this OpenPGP key.
+# Fingerprint: E224176EE96D21B2F8D4AD5DB9475711795E531E
+#
+# Verify: gpg --import KEYS && gpg --verify <asset>.asc <asset>
+#
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mDMEasPpehYJKwYBBAHaRw8BAQdA8rP7O52W09iKzoBH7s0rVirDxtinrw4rgDvn
+zezQdY60LkljYXJvMDMxMCA8aWNhcm8wMzEwQHVzZXJzLm5vcmVwbHkuZ2l0aHVi
+LmNvbT6IlgQTFgoAPhYhBOIkF27pbSGy+NStXblHVxF5XlMeBQJqw+l6AhsDBQkD
+wmcABQsJCAcCBhUKCQgLAgQWAgMBAh4BAheAAAoJELlHVxF5XlMeRPQA/235GG5n
+jcViOGJX44gDxlHUjq6mwVpDq21C5OoxnUedAPsHcy/0GF2AjQpyD1L0n9vtlGXv
+F7TeUEubF0J2v0k+Cg==
+=70CG
+-----END PGP PUBLIC KEY BLOCK-----
