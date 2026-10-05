@@ -12,7 +12,7 @@
 > **Unofficial community project.** Not affiliated with, endorsed by, or
 > sponsored by Cognition AI. "Devin" is a trademark of Cognition AI.
 
-**[Windows](README.windows.md)** · **[Linux](README.linux.md)** · English
+**[Linux](README.linux.md)** · **[Personal Windows](README.windows.md)** · **[Corporate Windows](README.corporate-windows.md)**
 
 Local-only metrics for your Devin usage: sessions per day/week, per-project
 and per-model rollups, context-size peaks, longest sessions, tool-call mix —
