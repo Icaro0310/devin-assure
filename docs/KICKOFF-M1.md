@@ -2,8 +2,8 @@
 
 You are the dedicated session for THIS repository. Scaffold from the
 ecosystem template — fill with real content. Rules: `docs/SPEC.md` EN
-canonical, bilingual READMEs (problem / prior art / Devin-native extra /
-limitations / install), logic in `src/devin_qa_pack/` + thin `cli.py`,
+canonical, shared README plus Windows/Linux guides (problem / prior art /
+Devin-native extra / limitations / install), logic in `src/devin_qa_pack/` + thin `cli.py`,
 small commits + Devin trailer, `git push`, STATUS.md + CHANGELOG.md.
 
 ## One sentence

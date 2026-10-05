@@ -13,7 +13,7 @@
 > **Unofficial community project.** Not affiliated with, endorsed by, or
 > sponsored by Cognition AI. "Devin" is a trademark of Cognition AI.
 
-**[Português (BR)](README.pt-BR.md)** · English
+**[Windows](README.windows.md)** · **[Linux](README.linux.md)** · English
 
 QA audit for Devin sessions: checks that what a session *claims* it
 delivered is backed by what its tool calls *actually did* — tests run,
@@ -93,7 +93,7 @@ evidence and the source excerpt for every checked claim.
 No Devin installed? Try it on a synthetic fixture:
 
 ```bash
-pipx install "git+https://github.com/Icaro0310/devin-internals-spec"
+pipx install "devin-internals-spec==0.3.0"
 devin-inspect make-fixture /tmp/fx
 devin-qa-pack audit --all --sessions-db /tmp/fx/cli/sessions.db
 ```
