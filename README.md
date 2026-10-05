@@ -2,8 +2,11 @@
 
 <img src="assets/banner.svg" alt="devin-qa-pack" width="100%"/>
 
-<a href="https://github.com/Icaro0310/devin-qa-pack/actions/workflows/tests.yml"><img src="https://github.com/Icaro0310/devin-qa-pack/actions/workflows/tests.yml/badge.svg" alt="tests"/></a>
+<a href="https://github.com/Icaro0310/devin-qa-pack/actions/workflows/ci.yml"><img src="https://github.com/Icaro0310/devin-qa-pack/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+<a href="https://github.com/Icaro0310/devin-qa-pack/releases"><img src="https://img.shields.io/github/v/release/Icaro0310/devin-qa-pack" alt="GitHub release"/></a>
 <a href="https://scorecard.dev/viewer/?uri=github.com/Icaro0310/devin-qa-pack"><img src="https://api.scorecard.dev/projects/github.com/Icaro0310/devin-qa-pack/badge" alt="OpenSSF Scorecard"/></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/></a>
+<img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"/>
 
 
 </div>
