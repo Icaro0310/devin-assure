@@ -14,6 +14,8 @@
 
 **[Linux](README.linux.md)** · **[Personal Windows](README.windows.md)** · **[Corporate Windows](README.corporate-windows.md)**
 
+Part of the [awesome-devin](https://github.com/Icaro0310/awesome-devin) ecosystem: the curated hub for the devin-* tools.
+
 An evaluation harness for agent work: define graded cases (session +
 rubric), replay them against recorded Devin sessions, and score quality
 over time — so "is the agent getting better?" has a number.
