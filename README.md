@@ -15,7 +15,9 @@
 
 **[Linux](README.linux.md)** · **[Personal Windows](README.windows.md)** · **[Corporate Windows](README.corporate-windows.md)**
 
-QA audit for Devin sessions: checks that what a session *claims* it
+Part of the [awesome-devin](https://github.com/Icaro0310/awesome-devin) ecosystem: the curated hub for the devin-* tools.
+
+Flagship QA audit for Devin sessions: checks that what a session *claims* it
 delivered is backed by what its tool calls *actually did* — tests run,
 commits created, files written, work pushed, HTTP statuses returned —
 and prints a verdict per session: `PASS` / `PARTIAL` / `UNVERIFIED`.
