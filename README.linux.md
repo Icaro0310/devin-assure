@@ -13,7 +13,7 @@ Linux uses the extended runtime: local execution plus optional Devin VM/QwenPaw 
 Install the isolated Python CLI:
 
 ```bash
-uv tool install 'https://github.com/Icaro0310/devin-metrics/archive/824d1ffa01d343db64b240113c39d9c256d6d444.tar.gz'
+uv tool install 'https://github.com/Icaro0310/devin-metrics/archive/ec43d50044046dc8af9598ac3c93baaeb5a5a83f.tar.gz'
 ```
 
 ## Devin paths
