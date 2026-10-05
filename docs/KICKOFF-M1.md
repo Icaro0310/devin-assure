@@ -2,7 +2,7 @@
 
 You are the dedicated session for THIS repository. Scaffold from the
 ecosystem template — fill with real content. Rules: `docs/SPEC.md` EN
-canonical, bilingual READMEs, logic in `src/devin_metrics/` + thin
+canonical, shared README plus Windows/Linux platform guides, logic in `src/devin_metrics/` + thin
 `cli.py`, small commits + Devin trailer, `git push`, STATUS.md + CHANGELOG.md.
 
 ## One sentence
