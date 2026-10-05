@@ -2,8 +2,8 @@
 
 Subcommands (read-only, no network, all accept ``--json``):
 
-- ``summary``   headline numbers + per-model table + top-5 longest/costliest
-- ``projects``  per-project (``working_directory``) cost/session table
+- ``summary``   headline numbers + per-model table + top-5 longest sessions
+- ``projects``  per-project (``working_directory``) session/activity table
 - ``daily``     per-day activity; ``--days N`` keeps the N most recent days
 
 Store locations default to the platform Devin data dir (``paths.py``);
@@ -193,7 +193,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("summary", parents=[common],
                    help="headline numbers").set_defaults(func=cmd_summary)
     sub.add_parser("projects", parents=[common],
-                   help="per-project cost/session table").set_defaults(func=cmd_projects)
+                   help="per-project session/activity table").set_defaults(func=cmd_projects)
     p_daily = sub.add_parser("daily", parents=[common],
                              help="activity over time")
     p_daily.add_argument(

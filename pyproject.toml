@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "devin-metrics"
 version = "0.2.0"
-description = "Token, cost and productivity metrics across Devin sessions — local-only, no telemetry."
+description = "Activity, context and session observability across Devin sessions — local-only, no telemetry."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"

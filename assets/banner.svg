@@ -19,5 +19,5 @@
   <circle cx="1010" cy="50" r="190" fill="url(#orb1)"/>
   <circle cx="170" cy="230" r="170" fill="url(#orb2)"/>
   <text x="600" y="118" text-anchor="middle" class="t">devin-<tspan class="a">metrics</tspan></text>
-  <text x="600" y="168" text-anchor="middle" class="s">Cost, tokens, sessions — local only</text>
+  <text x="600" y="168" text-anchor="middle" class="s">Activity, context, sessions — local only</text>
 </svg>

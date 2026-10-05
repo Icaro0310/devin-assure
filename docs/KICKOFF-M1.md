@@ -7,15 +7,15 @@ canonical, shared README plus Windows/Linux platform guides, logic in `src/devin
 
 ## One sentence
 
-Local-only metrics for your Devin usage: sessions per day/week, cost and
-token aggregates per project and model, longest sessions, tool-call mix —
-zero telemetry, JSON + markdown output.
+Local-only observability for your Devin usage: sessions per day/week,
+activity and context-size peaks per project and model, longest sessions,
+tool-call mix — zero telemetry, JSON + markdown output.
 
 ## Devin-native differentiator
 
-Reads Devin's real stores (`acp-messages` `messages` table carries
-model/cost fields) so metrics are grounded in ACP protocol data, not
-scraped text — and per-`working_directory` project attribution comes free.
+Reads Devin's real stores so metrics are grounded in persisted session data,
+not scraped text — and per-`working_directory` project attribution comes
+free. `docs/SCHEMA.md` verifies that cost fields are not persisted locally.
 
 Dependency:
 ```toml
@@ -25,17 +25,17 @@ Dependency:
 ## Scope (M1)
 
 `src/devin_metrics/`:
-- `collect.py` — pull session rows + acp-messages cost/model fields via
+- `collect.py` — pull session rows + persisted context/model fields via
   devin-internals parsers.
 - `aggregate.py` — rollups: per-day, per-project, per-model; totals and
-  averages (cost, messages, tool calls); top-N longest/most expensive.
+  averages (messages, tool calls); top-N longest sessions.
 - `render.py` — markdown tables + `--json` raw data.
 
 ## CLI
 
 - `devin-metrics summary [--sessions-db <db>] [--acp-dir <dir>] [--json]` —
   headline numbers.
-- `devin-metrics projects` — per-project cost/session table.
+- `devin-metrics projects` — per-project session/activity table.
 - `devin-metrics daily [--days N]` — activity over time.
 - Read-only, no network, ever.
 

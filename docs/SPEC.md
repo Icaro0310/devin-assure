@@ -2,11 +2,11 @@
 
 ## 1. Problem
 
-Devin users have no idea what their usage costs. Sessions, token spend and
-model mix accumulate inside local stores (`sessions.db`,
+Devin users have no local observability view of their agent usage. Sessions,
+context-size peaks and model mix accumulate inside local stores (`sessions.db`,
 `acp-messages/*.db`) but nothing reads them: there is no usage page, no
-export, no "what did I spend this week" answer. The data exists — it is just
-invisible.
+export, no "what did the agent actually do this week" answer. The persisted
+activity data exists; billing data does not.
 
 Evidence: `sessions.db` holds one row per session with `working_directory`,
 `model` and timestamps; `acp-messages/*.db` holds the per-session ACP message
@@ -24,8 +24,8 @@ attribution comes free because Devin records the cwd of every session.
   stores at all — the format is private and versioned (17 migrations).
 - **No-Devin:** remove Devin → no `sessions.db`, no `acp-messages/` → the
   tool has literally nothing to measure. The extra disappears.
-- **One sentence:** *"It reads Devin's own databases and tells you what your
-  sessions cost — locally, with nothing sent anywhere."*
+- **One sentence:** *"It reads Devin's own databases and shows local session
+  activity, context size and model mix — with nothing sent anywhere."*
 
 ## 3. Scope (M1)
 
@@ -33,8 +33,8 @@ attribution comes free because Devin records the cwd of every session.
   `devin_internals.parsers.SessionsStore`; per-session usage records from
   `acp-messages/*.db` via `AcpMessagesStore`.
 - `aggregate.py` — rollups: per-day, per-project, per-model; totals and
-  averages (cost, messages, tool calls, duration); top-N longest and most
-  expensive sessions.
+  averages (messages, tool calls, duration); top-N longest sessions. Cost
+  fields remain `float | None` if a future schema persists them.
 - `render.py` — GitHub-flavored markdown tables; `--json` emits the same
   data as raw JSON.
 - `cli.py` — thin argparse wrapper (all logic in the library).
@@ -94,7 +94,7 @@ CLI path resolution:
 
 | Risk | Mitigation |
 |---|---|
-| acp payload shape is guessed | Single adapter `extract_usage()`; SCHEMA.md marks it *unverified*; M2 fix = one function |
+| local stores omit cost fields | `docs/SCHEMA.md` records the verified absence; `cost_usd` renders `-`, never a fake zero |
 | sessions.db schema changes | `SessionsStore` already gates on `detect_schema_version` (v15–v17); newer versions fail loudly |
 | Row content is sensitive | Only counts/aggregates are emitted; no message text is read or printed |
 | Orphan acp dbs skew totals | Tracked as `orphan_dbs`; totals keep both figures |

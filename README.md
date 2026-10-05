@@ -14,6 +14,8 @@
 
 **[Linux](README.linux.md)** · **[Personal Windows](README.windows.md)** · **[Corporate Windows](README.corporate-windows.md)**
 
+Part of the [awesome-devin](https://github.com/Icaro0310/awesome-devin) ecosystem: the curated hub for the devin-* tools.
+
 Local-only metrics for your Devin usage: sessions per day/week, per-project
 and per-model rollups, context-size peaks, longest sessions, tool-call mix —
 zero telemetry, JSON + markdown output.
@@ -63,7 +65,7 @@ pipx install "devin-metrics @ git+https://github.com/Icaro0310/devin-metrics.git
 
 ```bash
 devin-metrics summary                  # headline numbers + top-5 lists
-devin-metrics projects                 # per-project cost/session table
+devin-metrics projects                 # per-project session/activity table
 devin-metrics daily --days 14          # activity over time
 devin-metrics dashboard --out usage.html
 
@@ -147,8 +149,8 @@ python -m pytest
 
 ## When to use this
 
-- You want to know what your Devin usage costs: totals per project, model,
-  or day, plus longest sessions and tool-call mix.
+- You want a local view of Devin activity: sessions per project, model,
+  or day, context-size peaks, longest sessions and tool-call mix.
 - You need a scriptable JSON feed of usage stats (`--json` on every command).
 - You want a standalone HTML dashboard of activity (`devin-metrics dashboard`
   or the `devin-dashboard` alias).
@@ -164,8 +166,9 @@ python -m pytest
 ## FAQ
 
 **What is devin-metrics?** A local CLI that reads Devin's own session
-databases and reports usage metrics: sessions per day/week, cost and token
-totals per project and model, longest sessions, and tool-call mix. It also
+databases and reports local observability metrics: sessions per day/week,
+activity and context-size peaks per project and model, longest sessions, and
+tool-call mix. It also
 ships a `devin-dashboard` alias that writes a standalone HTML dashboard.
 
 **How does devin-metrics get cost data?** Honest answer: it mostly
