@@ -1,7 +1,7 @@
 # KICKOFF M1 — devin-evals
 
 Dedicated session for THIS repo. Template scaffold — fill with real
-content. `docs/SPEC.md` EN, bilingual READMEs, logic in
+content. `docs/SPEC.md` EN, shared README plus Windows/Linux platform guides, logic in
 `src/devin_evals/` + thin `cli.py`, small commits + Devin trailer, push,
 STATUS.md + CHANGELOG.md.
 
