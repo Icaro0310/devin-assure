@@ -10,6 +10,7 @@ build/
 *.db
 *.db-shm
 *.db-wal
+!corpus/*.db
 .devin/
 eval-report/
 .corpus/
