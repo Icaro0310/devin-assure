@@ -9,6 +9,10 @@
 <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"/>
 
 
+<a href="https://github.com/Icaro0310/devin-qa-pack/stargazers"><img src="https://img.shields.io/github/stars/Icaro0310/devin-qa-pack" alt="GitHub stars"/></a>
+<a href="https://github.com/Icaro0310/devin-qa-pack/commits/main"><img src="https://img.shields.io/github/last-commit/Icaro0310/devin-qa-pack" alt="Last commit"/></a>
+<a href="https://github.com/Icaro0310/awesome-devin"><img src="https://img.shields.io/badge/part%20of-devin--*-ecosystem-7c3aed" alt="devin-* ecosystem"/></a>
+<a href="https://github.com/Icaro0310/devin-qa-pack/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome"/></a>
 </div>
 
 # devin-qa-pack
