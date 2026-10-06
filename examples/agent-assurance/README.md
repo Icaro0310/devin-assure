@@ -6,7 +6,7 @@ reproducible verdict comes out the other.
 ```bash
 git clone https://github.com/Icaro0310/devin-qa-pack
 cd devin-qa-pack/examples/agent-assurance
-./run.sh
+bash run.sh        # or ./run.sh once it is executable
 ```
 
 Windows (PowerShell):
