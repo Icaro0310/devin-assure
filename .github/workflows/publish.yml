@@ -1,7 +1,8 @@
 name: publish
 
 # Builds the package and publishes to PyPI via the reusable workflow in
-# devin-powerups. Uses repo secret PYPI_API_TOKEN.
+# devin-powerups. Uses repo secret PYPI_API_TOKEN (PyPI Trusted
+# Publishing via OIDC is used automatically when the secret is absent).
 # Triggers: publishing a GitHub Release, or manual Actions dispatch.
 
 on:
