@@ -7,6 +7,7 @@
 
 <a href="https://github.com/Icaro0310/devin-evals/actions/workflows/ci.yml"><img src="https://github.com/Icaro0310/devin-evals/actions/workflows/ci.yml/badge.svg" alt="ci"/></a>
 <a href="https://scorecard.dev/viewer/?uri=github.com/Icaro0310/devin-evals"><img src="https://api.scorecard.dev/projects/github.com/Icaro0310/devin-evals/badge" alt="OpenSSF Scorecard"/></a>
+<a href="https://deepwiki.com/Icaro0310/devin-evals"><img src="https://deepwiki.com/badge.svg" alt="DeepWiki"/></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/></a>
 <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"/></a>
 <a href="https://github.com/Icaro0310/devin-evals"><img src="https://img.shields.io/github/stars/Icaro0310/devin-evals" alt="GitHub stars"/></a>
