@@ -61,6 +61,32 @@ def test_update_json_overrides_call_status():
     assert parsed.status == "failed"
 
 
+def test_terminal_exit_code_overrides_completed_status():
+    # Real exec updates record status="completed" even when the command
+    # exits non-zero — the exit code lives in _meta.terminal_exit.
+    state = tstate(
+        "tc",
+        {"kind": "execute", "title": "Ran command",
+         "rawInput": {"command": "pytest"}},
+        {"toolCallId": "tc", "status": "completed",
+         "_meta": {"terminal_exit": {"exit_code": 1, "signal": None}}},
+    )
+    parsed = parse_tool_call(state)
+    assert parsed is not None
+    assert parsed.status == "failed"
+
+
+def test_terminal_exit_disputes_passing_tests_claim():
+    update = {"toolCallId": "tc", "status": "completed",
+              "_meta": {"terminal_exit": {"exit_code": 1, "signal": None}}}
+    calls = parse_tool_calls([
+        tstate("tc", {"kind": "execute", "title": "Ran command",
+                      "rawInput": {"command": "pytest"}}, update)
+    ])
+    result = verify_claim(claim(TESTS, TESTS), calls, "/nonexistent")
+    assert result.status == DISPUTED
+
+
 def test_null_payloads_parse_to_none():
     assert parse_tool_call(tstate("tc-null")) is None
 

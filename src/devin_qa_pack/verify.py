@@ -140,8 +140,25 @@ def _dig_command(payload: dict[str, Any]) -> list[str]:
     return found
 
 
+def _terminal_exit(payload: dict[str, Any]) -> int | None:
+    meta = payload.get("_meta")
+    if not isinstance(meta, dict):
+        return None
+    for key in ("terminal_exit", "cognition.ai/terminal_exit"):
+        te = meta.get(key)
+        if isinstance(te, dict) and isinstance(te.get("exit_code"), int):
+            return te["exit_code"]
+    return None
+
+
 def _status_of(payloads: list[dict[str, Any]]) -> str:
+    # Terminal exit codes beat the status string: exec calls record
+    # status="completed" even when the command exits non-zero.
     for payload in payloads:  # update first — it carries the latest state
+        code = _terminal_exit(payload)
+        if code is not None:
+            return "completed" if code == 0 else "failed"
+    for payload in payloads:
         for key in ("status", "state"):
             raw = payload.get(key)
             if isinstance(raw, str):

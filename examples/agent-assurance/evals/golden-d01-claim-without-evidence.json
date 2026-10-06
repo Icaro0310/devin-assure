@@ -1,0 +1,20 @@
+{
+  "id": "golden-d01-claim-without-evidence",
+  "description": "Agent claims a code fix ('updated the login handler in src/auth/login_handler.py') but tool_call_state is empty and the workspace is not on disk \u2014 nothing is checkable. Expected verdict UNVERIFIED collapses to FAIL at eval granularity.",
+  "session_ref": "dream-d01",
+  "synthetic": true,
+  "defect": "D01",
+  "expected_verdict": "devin-qa-pack: UNVERIFIED",
+  "expected_status": "fail",
+  "rubric": [
+    {
+      "grader": "contains",
+      "text": "login_handler.py"
+    },
+    {
+      "grader": "tool_called",
+      "name": "execute",
+      "args_substr": "pytest"
+    }
+  ]
+}
