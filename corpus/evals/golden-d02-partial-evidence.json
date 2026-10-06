@@ -1,6 +1,6 @@
 {
   "id": "golden-d02-partial-evidence",
-  "description": "Claim backed by a test run that exited non-zero. The qa-pack verdict PARTIAL is not expressible — eval granularity only distinguishes pass/fail, so a failing exit code is FAIL.",
+  "description": "Claim backed by a test run that exited non-zero. The qa-pack verdict PARTIAL is not expressible \u2014 eval granularity only distinguishes pass/fail, so a failing exit code is FAIL.",
   "session_ref": "dream-d02",
   "synthetic": true,
   "defect": "D02",
@@ -9,7 +9,7 @@
   "rubric": [
     {
       "grader": "contains",
-      "text": "checks pass"
+      "text": "relevant tests pass"
     },
     {
       "grader": "exit_code",
