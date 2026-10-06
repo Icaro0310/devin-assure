@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `audit --source mcp --session <id>` — audits **cloud sessions** through
+  the official Devin MCP `devin_session_events` stream
+  (`mcp.devin.ai`, `Bearer $DEVIN_API_KEY`, optional `DEVIN_ORG_ID` for
+  explicit org context). `shell_process_started`/`terminal_update`/
+  `shell_process_completed` events map onto `ParsedToolCall` with real
+  commands, base64 stdout and first-class exit codes; `file`/`git`/`mcp`/
+  `browser` categories map generically (kind from category, status from
+  the event-type suffix). Verified end-to-end against a live cloud
+  session (`PASS` on a file claim, evidence traced to the event stream).
 - Experimental transcript adapters (`audit --transcript`): `aider`
   (`.aider.chat.history.md`) and `claude-code` (session `.jsonl`) feed
   the same claim/evidence model through `adapters.SourceSession`;

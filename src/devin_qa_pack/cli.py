@@ -75,6 +75,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="transcript format for --transcript: aider (.md history) or "
         "claude-code (.jsonl); default: guess from the file extension")
     audit.add_argument(
+        "--source", choices=("local", "mcp"), default="local",
+        help="evidence source for --session: local sessions.db (default) "
+        "or the official Devin MCP events stream — cloud sessions; "
+        "requires $DEVIN_API_KEY (cog_ token)")
+    audit.add_argument(
         "--cwd", metavar="PATH",
         help="working directory for git/file checks in --transcript mode "
         "(default: the transcript's directory / transcript cwd field)")
@@ -241,7 +246,26 @@ def _load_transcript(path_arg: str, fmt: str | None, cwd: str | None):
 
 
 def _cmd_audit(args: argparse.Namespace) -> int:
-    if getattr(args, "transcript", None):
+    if getattr(args, "source", "local") == "mcp":
+        if not getattr(args, "session", None):
+            print("error: --source mcp needs --session <cloud session id>",
+                  file=sys.stderr)
+            return 2
+        from devin_qa_pack.adapters import mcp
+        try:
+            view = mcp.load(args.session)
+        except mcp.McpError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+        audits = [
+            audit_source(
+                view,
+                online=args.online,
+                allow_domains=tuple(args.allow_domain),
+            )
+        ]
+        db = f"mcp:{mcp.DEFAULT_MCP_URL}"
+    elif getattr(args, "transcript", None):
         view = _load_transcript(args.transcript, args.format, args.cwd)
         if view is None:
             return 2

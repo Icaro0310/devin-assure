@@ -104,6 +104,11 @@ devin-qa-pack intent <session> --sessions-db path/to/sessions.db
 # audit a foreign transcript instead of sessions.db (experimental)
 devin-qa-pack audit --transcript .aider.chat.history.md
 devin-qa-pack audit --transcript ~/.claude/projects/<slug>/<id>.jsonl
+
+# audit a CLOUD session via the official Devin MCP events stream
+# (needs $DEVIN_API_KEY — a cog_ service-user key or PAT)
+export DEVIN_API_KEY=cog_...
+devin-qa-pack audit --source mcp --session <cloud-session-id>
 ```
 
 Real output, on the synthetic fixture from the quick start:
@@ -238,6 +243,31 @@ transcripts via the adapters in `src/devin_qa_pack/adapters/`:
 directory used for git/file checks. These adapters are experimental —
 formats outside the recorded subsets degrade to `UNVERIFIED`, never to
 a false `PASS`.
+
+## Auditing cloud sessions (Devin MCP)
+
+`audit --source mcp --session <id>` audits sessions that ran in the Devin
+cloud — automations, API-created runs, anything in your org — using the
+official MCP server's `devin_session_events` stream
+(`https://mcp.devin.ai/mcp`, `Bearer` + `DEVIN_API_KEY`; set
+`DEVIN_ORG_ID` when the token needs explicit org context).
+
+The events stream is the cloud analog of `tool_call_state`:
+`shell_process_started` carries the full command plus a parsed sub-command
+chain, `terminal_update` streams base64 stdout, and
+`shell_process_completed` carries a first-class `exit_code` — so claims
+resolve with the same verified/disputed/unverifiable semantics as local
+audits, plus per-event timestamps the local store lacks. Verified live
+against a Pro-plan PAT (see devin-internals-spec's
+`docs/EVIDENCE-EQUIVALENCE.md` for the full surface study).
+
+Two honest degradations, by design:
+
+- Disk/git fallbacks have no anchor — the cloud VM's `starting_dir` is not
+  on your disk, so `file`/`commit` claims rely on event evidence only.
+- `file`/`mcp`/`git`/`browser` event `contents` are mapped generically
+  (kind from category, status from the event-type suffix); only `shell`
+  shapes are verified end-to-end so far.
 
 ## Works with Devin alone (Devin-only mode)
 

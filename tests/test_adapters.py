@@ -176,3 +176,141 @@ def test_cli_transcript_unknown_format_errors(tmp_path: Path, capsys) -> None:
 
     assert rc == 2
     assert "--format" in capsys.readouterr().err
+
+
+# --- Devin MCP adapter (cloud sessions) -------------------------------------
+
+IN, OUT = "<" * 3, ">" * 3
+
+MCP_LIST = f"""\
+Total: 5
+Showing 5
+No more results (last page).
+
+[event-aaa1] 2026-10-06 14:44:45 UTC {IN} initial_user_message (message): user: create the file src/marker.txt
+[event-aaa2] 2026-10-06 14:44:46 UTC {OUT} shell_process_started (shell): exec: echo hi; touch src/marker.txt (shell: s1)
+[event-aaa3] 2026-10-06 14:44:46 UTC {OUT} terminal_update (shell): terminal output update (shell: s1)
+[event-aaa4] 2026-10-06 14:44:47 UTC {OUT} shell_process_completed (shell): exit_code=0, output: hi
+[event-aaa5] 2026-10-06 14:44:48 UTC {OUT} devin_message (message): devin: I created src/marker.txt
+"""
+
+
+def _mcp_details(exit_code: str) -> str:
+    return f"""\
+Event details (5 events):
+
+--- event-aaa1 ---
+  type: initial_user_message (message)
+  direction: incoming
+  created_at: 2026-10-06 14:44:45 UTC
+  contents: {{
+  "type": "initial_user_message",
+  "message": "create the file src/marker.txt",
+  "timestamp": "2026-10-06T14:44:45.000000Z"
+}}
+
+--- event-aaa2 ---
+  type: shell_process_started (shell)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:46 UTC
+  contents: {{
+  "type": "shell_process_started",
+  "command": "echo hi; touch src/marker.txt",
+  "shell_id": "s1",
+  "process_id": "proc-1",
+  "starting_dir": "/home/ubuntu",
+  "is_major_action": true
+}}
+
+--- event-aaa3 ---
+  type: terminal_update (shell)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:46 UTC
+  contents: {{
+  "type": "terminal_update",
+  "contents": "aGkK",
+  "process_id": "proc-1"
+}}
+
+--- event-aaa4 ---
+  type: shell_process_completed (shell)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:47 UTC
+  contents: {{
+  "type": "shell_process_completed",
+  "exit_code": "{exit_code}",
+  "output_trunc": "hi\\n",
+  "process_id": "proc-1"
+}}
+
+--- event-aaa5 ---
+  type: devin_message (message)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:48 UTC
+  contents: {{
+  "type": "devin_message",
+  "message": "I created src/marker.txt",
+  "timestamp": "2026-10-06T14:44:48.000000Z"
+}}
+"""
+
+
+MCP_META = "Session abc:\n  session_id: abc\n  title: Marker Probe\n  status: running\n"
+
+
+def _fake_mcp_client(exit_code: str = "0"):
+    def client(name, args, *, api_key, base_url, _rid=None):
+        if name == "devin_session_interact":
+            return MCP_META
+        if args.get("action") == "list":
+            return MCP_LIST
+        return _mcp_details(exit_code)
+    return client
+
+
+def test_mcp_cloud_session_verifies(tmp_path: Path, monkeypatch) -> None:
+    from devin_qa_pack.adapters import mcp
+
+    monkeypatch.setenv("DEVIN_API_KEY", "cog_test")
+    view = mcp.load("abc", _client=_fake_mcp_client())
+
+    assert view.title == "Marker Probe"
+    assert len(view.calls) == 1
+    call = view.calls[0]
+    assert call.kind == "execute" and call.status == "completed"
+    assert any("touch src/marker.txt" in c for c in call.commands)
+    assert "hi" in call.search_text  # base64 terminal output decoded
+
+    audit = audit_source(view)
+    assert audit.verdict == PASS
+    file_claim = next(r for r in audit.results if r.claim.kind == "file")
+    assert file_claim.status == VERIFIED
+
+
+def test_mcp_failed_exit_disputes(monkeypatch) -> None:
+    from devin_qa_pack.adapters import mcp
+
+    monkeypatch.setenv("DEVIN_API_KEY", "cog_test")
+    view = mcp.load("abc", _client=_fake_mcp_client(exit_code="1"))
+
+    assert view.calls[0].status == "failed"
+    audit = audit_source(view)
+    assert audit.verdict == PARTIAL
+    assert audit.results[0].status != VERIFIED
+
+
+def test_mcp_missing_key_errors(monkeypatch) -> None:
+    from devin_qa_pack.adapters import mcp
+
+    monkeypatch.delenv("DEVIN_API_KEY", raising=False)
+    try:
+        mcp.load("abc", _client=_fake_mcp_client())
+        raise AssertionError("expected McpError")
+    except mcp.McpError as e:
+        assert "DEVIN_API_KEY" in str(e)
+
+
+def test_cli_source_mcp_needs_session(capsys) -> None:
+    rc = main(["audit", "--source", "mcp", "--all"])
+    assert rc == 2
+    assert "--session" in capsys.readouterr().err
