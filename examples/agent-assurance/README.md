@@ -32,7 +32,8 @@ download); seconds after the `uv` cache is warm.
 **Heads-up:** in step 4, the first two rubric lines read `FAIL` *on
 purpose* — the injected defect is real, and the grader catching it is
 the expected outcome, not a demo failure. The `RESULT` block at the end
-confirms every verdict matched its label.
+reports `3/3 QA verdicts` and `3/3 evaluation outcomes` matched; any
+unexpected verdict or eval outcome exits the script with code 1.
 
 ## What just happened
 
