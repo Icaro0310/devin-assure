@@ -1,0 +1,4 @@
+FROM gcr.io/oss-fuzz-base/base-builder-python:v1
+COPY . $SRC/devin-qa-pack
+WORKDIR devin-qa-pack
+COPY .clusterfuzzlite/build.sh $SRC/build.sh
