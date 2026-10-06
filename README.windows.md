@@ -13,7 +13,7 @@ Personal Windows uses the extended runtime: local execution plus optional Devin 
 Install the isolated Python CLI:
 
 ```powershell
-uv tool install "https://github.com/Icaro0310/devin-qa-pack/archive/f6947f373085b44bbaaddcab9ee7934d043ccf57.tar.gz"
+uv tool install "https://github.com/Icaro0310/devin-qa-pack/archive/refs/heads/main.tar.gz"
 ```
 
 ## Devin paths
