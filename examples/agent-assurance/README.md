@@ -3,6 +3,15 @@
 A deliberately flawed agent session goes in one end; a defensible,
 reproducible verdict comes out the other.
 
+<img src="demo.gif" alt="agent-assurance demo — UNVERIFIED, PARTIAL, PASS" width="100%"/>
+
+## Run it
+
+Requirements: `git` + `curl` (Linux/macOS) or PowerShell (Windows).
+`uv` is installed automatically if missing — no Devin, pipx or Python
+setup needed. The sessions are synthetic and deterministic; an existing
+Devin session is *not* required.
+
 ```bash
 git clone https://github.com/Icaro0310/devin-qa-pack
 cd devin-qa-pack/examples/agent-assurance
@@ -17,10 +26,13 @@ cd devin-qa-pack\examples\agent-assurance
 .\run.ps1
 ```
 
-**That's it.** No Devin install, no pipx, no Python setup — the script
-bootstraps `uv` if needed and runs each tool via `uvx` straight from GitHub.
-Requirements: `git` and `curl` (Linux/macOS) or PowerShell (Windows).
-First run downloads the tools once; reruns are instant.
+Expected runtime: under ~2 minutes on the first run (one-time tool
+download); seconds after the `uv` cache is warm.
+
+**Heads-up:** in step 4, the first two rubric lines read `FAIL` *on
+purpose* — the injected defect is real, and the grader catching it is
+the expected outcome, not a demo failure. The `RESULT` block at the end
+confirms every verdict matched its label.
 
 ## What just happened
 
@@ -57,6 +69,7 @@ That is the product.
 ```
 examples/agent-assurance/
 ├── README.md      this file
+├── demo.gif       the run above, animated
 ├── run.sh         Linux / macOS
 ├── run.ps1        Windows (PowerShell)
 └── evals/         rubric cases used in step 4

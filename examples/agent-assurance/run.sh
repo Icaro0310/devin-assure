@@ -73,14 +73,22 @@ for d in d01 d02 d03; do
 done
 
 # ── 4. evaluate ─────────────────────────────────────────────────────────────
+# The first two rubrics are SUPPOSED to fail: the defect is real, and the
+# grader detecting it is the expected outcome — not a demo failure.
 echo "  [4/4] Grading with a deterministic rubric    (devin-evals)"
 for d in d01 d02 d03; do
   mkdir -p "$OUT/evals-$d"
-  cp "$HERE"/evals/golden-"$d"-*.json "$OUT/evals-$d/"
-  $EVALS run --evals "$OUT/evals-$d" \
+  case_file=$(ls "$HERE"/evals/golden-"$d"-*.json)
+  cp "$case_file" "$OUT/evals-$d/"
+  exp_status=$(grep -o '"expected_status": *"[a-z]*"' "$case_file" \
+               | grep -o '[a-z]*"$' | tr -d '"')
+  line=$($EVALS run --evals "$OUT/evals-$d" \
     --sessions-db "$OUT/sessions/$d/sessions.db" \
-    --out "$OUT/reports/$d" 2>&1 | grep -E "PASS|FAIL" \
-    | sed "s/^/             /" || true
+    --out "$OUT/reports/$d" 2>/dev/null | grep -E "^(PASS|FAIL)" || true)
+  grade=$(echo "$line" | cut -d' ' -f1)
+  grade_low=$(echo "$grade" | tr 'A-Z' 'a-z')
+  mark="✗ MISMATCH"; [ "$grade_low" = "$exp_status" ] && mark="✓"
+  printf "        %s  %s  (rubric expected: %s)\n" "$mark" "$line" "$exp_status"
 done
 
 # ── result ──────────────────────────────────────────────────────────────────
@@ -100,9 +108,9 @@ echo "  The agent's narrative was confident in all three sessions."
 echo "  The tool-call record told a different story — and the stack"
 echo "  caught it. That is the product: claims vs evidence."
 echo
-echo "  Artifacts: $OUT"
-echo "    sessions/<d>/sessions.db + expected.json   generated fixtures"
-echo "    reports/<d>/                             eval grading reports"
+echo "  Artifacts:"
+echo "    $OUT/sessions/   generated sessions.db + expected.json per defect"
+echo "    $OUT/reports/    eval grading reports per defect"
 if [ "$mismatch" -eq 0 ]; then
   echo; echo "  ✓ Demo completed — all verdicts match the labels."
 else

@@ -74,6 +74,8 @@ ship the wheel, sdist and CycloneDX SBOM per tag.
 deliberately flawed agent session, then independently verifies what the
 agent actually did. No Devin install needed.
 
+<a href="examples/agent-assurance"><img src="examples/agent-assurance/demo.gif" alt="agent-assurance demo — UNVERIFIED, PARTIAL, PASS" width="80%"/></a>
+
 ## Usage
 
 ```bash

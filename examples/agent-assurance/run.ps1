@@ -59,14 +59,20 @@ foreach ($d in 'd01','d02','d03') {
   Write-Host ("        {0}  {1,-10} {2}" -f $mark, $d, $line)
 }
 
+# The first two rubrics are SUPPOSED to fail: the defect is real, and the
+# grader detecting it is the expected outcome — not a demo failure.
 Write-Host "  [4/4] Grading with a deterministic rubric    (devin-evals)"
 foreach ($d in 'd01','d02','d03') {
   New-Item -ItemType Directory -Force -Path "$Out\evals-$d" | Out-Null
-  Copy-Item "$Here\evals\golden-$d-*.json" "$Out\evals-$d\"
-  Uvx --from "git+$GH/devin-evals" devin-evals run --evals "$Out\evals-$d" `
+  $caseFile = Get-Item "$Here\evals\golden-$d-*.json"
+  Copy-Item $caseFile "$Out\evals-$d\"
+  $expStatus = (Get-Content $caseFile | ConvertFrom-Json).expected_status
+  $line = (Uvx --from "git+$GH/devin-evals" devin-evals run --evals "$Out\evals-$d" `
     --sessions-db "$Out\sessions\$d\sessions.db" `
-    --out "$Out\reports\$d" 2>&1 | Select-String "PASS|FAIL" |
-    ForEach-Object { "             " + $_ }
+    --out "$Out\reports\$d" 2>$null | Select-String "^(PASS|FAIL)" | Select-Object -First 1)
+  $grade = ("$line" -split ' ')[0].ToLower()
+  $mark = if ($grade -eq $expStatus) { "+" } else { "x MISMATCH" }
+  Write-Host ("        {0}  {1}  (rubric expected: {2})" -f $mark, "$line", $expStatus)
 }
 
 Write-Host ""
@@ -82,8 +88,8 @@ Write-Host "  The agent's narrative was confident in all three sessions."
 Write-Host "  The tool-call record told a different story — and the stack"
 Write-Host "  caught it. That is the product: claims vs evidence."
 Write-Host ""
-Write-Host "  Artifacts: $Out"
-Write-Host "    sessions\<d>\sessions.db + expected.json   generated fixtures"
-Write-Host "    reports\<d>\                             eval grading reports"
+Write-Host "  Artifacts:"
+Write-Host "    $Out\sessions\   generated sessions.db + expected.json per defect"
+Write-Host "    $Out\reports\    eval grading reports per defect"
 if ($mismatch) { Write-Host "`n  x A verdict mismatched its label — please open an issue."; exit 1 }
 Write-Host "`n  + Demo completed — all verdicts match the labels."
