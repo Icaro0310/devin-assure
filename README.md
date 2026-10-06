@@ -69,6 +69,10 @@ pipx install "devin-qa-pack @ git+https://github.com/Icaro0310/devin-qa-pack.git
 [GitHub Releases](https://github.com/Icaro0310/devin-qa-pack/releases)
 ship the wheel, sdist and CycloneDX SBOM per tag.
 
+No Devin install needed to try it — [`examples/agent-assurance`](examples/agent-assurance)
+generates labeled sessions with `devin-dream` and runs the full
+inspect → audit → eval loop end to end.
+
 ## Usage
 
 ```bash
