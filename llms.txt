@@ -20,4 +20,4 @@ devin-qa-pack reads the `tool_call_state` table in Devin's local `sessions.db` (
 - Not when: you need code-quality review (it verifies actions happened, not that the work is good); real-time monitoring (it is an offline audit); non-Devin agents beyond the experimental transcript adapters; phrasing outside its delivery-claim heuristics (unextracted claims report `UNVERIFIED`, never a false `PASS`).
 
 ## Related
-- [devin-ecosystem](https://icaro0310.github.io/): the 19-tool ecosystem this belongs to
+- [devin-ecosystem](https://icaro0310.github.io/): the tool ecosystem this belongs to
