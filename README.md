@@ -62,14 +62,16 @@ by a run/execute call that ran a test runner and completed; "committed
 
 ## Install
 
-Python ≥ 3.10 and `pipx` are required. **Windows (PowerShell):** install `pipx` with `py -m pip install --user pipx`, run `py -m pipx ensurepath`, then reopen the terminal. **Linux (Debian/Ubuntu):** run `sudo apt install pipx python3-venv` and `pipx ensurepath`; reopen the terminal. Other Linux distributions should install `pipx` using their package manager.
+Python ≥ 3.10 required; install with `uv` (recommended) or `pipx`.
 
 ```bash
+uv tool install devin-qa-pack
+
+# or with pipx (alternative)
+pipx install devin-qa-pack
+
 # one-liner installer (pipx preferred, pip --user fallback)
 curl -fsSL https://raw.githubusercontent.com/Icaro0310/devin-qa-pack/main/install.sh | sh
-
-# or directly
-pipx install "devin-qa-pack @ git+https://github.com/Icaro0310/devin-qa-pack.git"
 ```
 
 [GitHub Releases](https://github.com/Icaro0310/devin-qa-pack/releases)
@@ -143,7 +145,7 @@ evidence and the source excerpt for every checked claim.
 No Devin installed? Try it on a synthetic fixture:
 
 ```bash
-pipx install "devin-internals-spec==0.3.0"
+uv tool install devin-internals-spec
 devin-inspect make-fixture /tmp/fx
 devin-qa-pack audit --all --sessions-db /tmp/fx/cli/sessions.db
 ```
