@@ -38,12 +38,13 @@ unexpected verdict or eval outcome exits the script with code 1.
 ## What just happened
 
 ```
-devin-dream              devin-inspect           devin-qa-pack            devin-evals
+devin-evals dream        devin-inspect           devin-qa-pack            devin-evals
 synthetic sessions  ->   schema contract    ->   claims vs evidence  ->  rubric grading
 (known defects)          (parses, v17)           PASS/PARTIAL/UNVERIFIED   pass/fail
 ```
 
-1. **Generate** — `devin-dream` writes three real-shape `sessions.db`
+1. **Generate** — `devin-evals dream` (the absorbed `devin-dream`
+   generator) writes three real-shape `sessions.db`
    stores, each containing a session with a *labeled* defect and an
    `expected.json` verdict card.
 2. **Contract** — `devin-inspect` proves the generated store parses under
@@ -78,12 +79,12 @@ examples/agent-assurance/
 
 The `evals/` cases mirror the golden corpus in
 [`devin-evals/corpus/evals`](https://github.com/Icaro0310/devin-evals/tree/main/corpus/evals),
-which covers all nine `devin-dream` defect classes — secrets in tool
+which covers all nine `devin-evals dream` defect classes — secrets in tool
 output, PII in prompts, schema drift, injected instructions, memory
 poisoning.
 
 ## Where it goes next
 
 - Audit **your own** sessions: `devin-qa-pack audit --all`
-- More defect classes: `devin-dream unit --defect all`
-- A fleet for regression testing: `devin-dream fleet --sessions 1000`
+- More defect classes: `devin-evals dream unit --defect all`
+- A fleet for regression testing: `devin-evals dream fleet --sessions 1000`
