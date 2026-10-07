@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Install section now recommends pypi `uv tool install devin-qa-pack`; `install.sh` defaults to the PyPI package (`DEVIN_QA_PACK_REF` opts back into a git ref) as the primary route, with `pipx`/source installs documented as alternatives.
+- `examples/agent-assurance` — session generation now runs
+  `devin-evals dream unit` (`devin-dream` was absorbed into
+  `devin-evals`); the evals git pin moved to the post-merge commit.
 
 ### Added
 

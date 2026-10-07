@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Agent Assurance — 60-second demo of the devin-* assurance loop.
 #
-#   devin-dream  generates synthetic sessions with KNOWN defects
+#   devin-evals (dream)  generates synthetic sessions with KNOWN defects
 #   devin-inspect proves the generated store matches the schema contract
 #   devin-qa-pack audits the agent's claims against tool-call evidence
 #   devin-evals  grades the same sessions with a deterministic rubric
@@ -36,21 +36,22 @@ fi
 # Pinned tools: release tags where a release exists, commit SHAs otherwise
 # (qa-pack is pinned to a post-v0.1.0 SHA because v0.1.0 predates the
 # terminal_exit fix this demo relies on — move to the next tag when cut).
-DREAM="$UVX --from git+https://github.com/Icaro0310/devin-dream@4f0e6e0761d61fda33d89a4c98086bff53d9519c devin-dream"
+# devin-dream was absorbed into devin-evals — `devin-evals dream` is the
+# generator now, so the pin moved to the post-merge devin-evals commit.
 INSPECT="$UVX --from git+https://github.com/Icaro0310/devin-internals-spec@v0.3.0 devin-inspect"
 QA="$UVX --from git+https://github.com/Icaro0310/devin-qa-pack@9e4456c8366c6696524388544600945612f5bdc1 devin-qa-pack"
-EVALS="$UVX --from git+https://github.com/Icaro0310/devin-evals@d2355703723fbfc30738705d7eddd7b0ce0b26f2 devin-evals"
+EVALS="$UVX --from git+https://github.com/Icaro0310/devin-evals@6b48c92cb60855ede0986cb47d0ea649f1db71c0 devin-evals"
 
 # Warm the uv cache so first-build noise stays out of the demo output.
 echo "  [setup] fetching tools (one-time; uv cache)"
-for t in "$DREAM" "$INSPECT" "$QA" "$EVALS"; do
+for t in "$INSPECT" "$QA" "$EVALS"; do
   $t --help >/dev/null 2>&1 || { echo "  failed to fetch: $t" >&2; exit 127; }
 done
 echo "        ✓ tools ready"
 
 # ── 1. generate ─────────────────────────────────────────────────────────────
-echo "  [1/4] Generating labeled sessions            (devin-dream)"
-$DREAM unit --out "$OUT/sessions" --defect D01 D02 D03 >/dev/null
+echo "  [1/4] Generating labeled sessions            (devin-evals dream)"
+$EVALS dream unit --out "$OUT/sessions" --defect D01 D02 D03 >/dev/null
 echo "        ✓ d01: claims a fix, leaves no evidence"
 echo "        ✓ d02: claims tests pass, pytest exited 1"
 echo "        ✓ d03: claims tests pass, pytest exited 0"
