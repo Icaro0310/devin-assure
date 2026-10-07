@@ -12,7 +12,7 @@ devin-qa-pack reads the `tool_call_state` table in Devin's local `sessions.db` (
 - `devin-qa-pack audit --session <id> --sessions-db path/to/sessions.db`: audit one session (exact id or unique prefix)
 - `devin-qa-pack audit --all --limit 20 --json`: audit all sessions, most recent first, JSON output
 - `devin-qa-pack audit --transcript <file> --format aider|claude-code`: audit a foreign transcript (experimental adapters)
-- `sh install.sh` or `pipx install "devin-qa-pack @ git+https://github.com/Icaro0310/devin-qa-pack.git"`: install the CLI
+- `sh install.sh` or `uv tool install devin-qa-pack` (or `pipx install devin-qa-pack``: install the CLI
 - `python -m pytest`: run the test suite (dev install)
 
 ## When to use / when not
