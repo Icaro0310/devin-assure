@@ -26,6 +26,6 @@ devin-metrics answers "what did my Devin usage cost?" Devin sessions accumulate 
 
 ## Related
 
-- [devin-ecosystem](https://icaro0310.github.io/): the 20+ tool ecosystem this belongs to
+- [devin-ecosystem](https://icaro0310.github.io/): the tool ecosystem this belongs to
 - [devin-internals-spec](https://github.com/Icaro0310/devin-internals-spec): owns parsing and schema detection for Devin's stores
 - [devin-office](https://github.com/Icaro0310/devin-office): live session dashboard (real-time vs historical metrics)
