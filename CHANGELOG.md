@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `labeler.yml` is now a thin caller of the shared reusable workflow in `devin-powerups` (`@v1`); PR labeling behavior is unchanged.
+
 - `llms.txt` no longer states a hard-coded ecosystem size; the registry owns the count.
 - README install section replaced by a generated `DIST-STATUS` banner stating the tool is source-only (no PyPI release yet) and offering both `pipx` and `uv` source installs.
 
