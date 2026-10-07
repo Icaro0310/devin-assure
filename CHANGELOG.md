@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- `llms.txt` no longer states a hard-coded ecosystem size; the registry owns the count.
+
 ## 0.2.0
 
 - Absorbed the `devin-dashboard` project: its collect/render/cli now live in
