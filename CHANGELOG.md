@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with a `NameError` — `_verify_url` was referenced but never imported.
   Verification now routes through `verify_claims`.
 
+### Changed
+
+- `llms.txt` no longer states a hard-coded ecosystem size; the registry owns the count.
+
 ## [0.1.0] - 2026-10-05
 
 ### Added
