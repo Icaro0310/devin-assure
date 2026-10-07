@@ -66,11 +66,17 @@ Python ≥ 3.10 required; install with `uv` (recommended) or `pipx`.
 
 ```bash
 uv tool install devin-qa-pack
+```
 
-# or with pipx (alternative)
+or with `pipx` (alternative):
+
+```bash
 pipx install devin-qa-pack
+```
 
-# one-liner installer (pipx preferred, pip --user fallback)
+one-liner installer (pipx preferred, pip --user fallback):
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/Icaro0310/devin-qa-pack/main/install.sh | sh
 ```
 

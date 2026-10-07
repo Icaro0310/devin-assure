@@ -8,7 +8,11 @@
 set -eu
 
 REF="${DEVIN_QA_PACK_REF:-}"
-PKG="git+https://github.com/Icaro0310/devin-qa-pack.git${REF:+@$REF}"
+if [ -n "$REF" ]; then
+    PKG="git+https://github.com/Icaro0310/devin-qa-pack.git@$REF"
+else
+    PKG="devin-qa-pack"
+fi
 
 if command -v pipx >/dev/null 2>&1; then
     pipx install "$PKG"
