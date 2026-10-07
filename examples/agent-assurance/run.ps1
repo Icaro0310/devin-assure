@@ -43,7 +43,7 @@ $GH = "https://github.com/Icaro0310"
 # generator now, so the pin moved to the post-merge devin-evals commit.
 $INSPECT = @("--from", "git+$GH/devin-internals-spec@v0.3.0", "devin-inspect")
 $QA      = @("--from", "git+$GH/devin-qa-pack@9e4456c8366c6696524388544600945612f5bdc1", "devin-qa-pack")
-$EVALS   = @("--from", "git+$GH/devin-evals@6b48c92cb60855ede0986cb47d0ea649f1db71c0", "devin-evals")
+$EVALS   = @("--from", "git+$GH/devin-evals@12f261ae5c1c46602cbfd929b4ba8e52da54c7af", "devin-evals")
 
 # Warm the uv cache so first-build noise stays out of the demo output.
 Write-Host "  [setup] fetching tools (one-time; uv cache)"
