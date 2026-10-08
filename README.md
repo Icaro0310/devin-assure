@@ -17,8 +17,9 @@
 <!-- DEVIN-ECO:BEGIN -->
 > **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**  
 > Track: Verify · Nature: product  
-> For: QA engineers, operations  
-> Interface: CLI / dashboard
+> For: QA engineers, Operations  
+> Interface: CLI / Dashboard  
+> Path: Operations · step 4/4 — after `devin-janitor`
 <!-- DEVIN-ECO:END -->
 
 
