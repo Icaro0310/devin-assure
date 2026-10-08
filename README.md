@@ -18,9 +18,9 @@
 </div>
 
 <!-- DEVIN-ECO:BEGIN -->
-> **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**
-> Track: Verify · Nature: product
-> For: QA engineers, developers
+> **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**  
+> Track: Verify · Nature: product  
+> For: QA engineers, developers  
 > Interface: CLI
 <!-- DEVIN-ECO:END -->
 
