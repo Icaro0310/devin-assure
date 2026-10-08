@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `devin-metrics` is now published on PyPI: README install section recommends `uv tool install devin-metrics` (DIST-STATUS banner removed, `distribution_status` is `published`).
+
 - `labeler.yml` is now a thin caller of the shared reusable workflow in `devin-powerups` (`@v1`); PR labeling behavior is unchanged.
 
 - `llms.txt` no longer states a hard-coded ecosystem size; the registry owns the count.
