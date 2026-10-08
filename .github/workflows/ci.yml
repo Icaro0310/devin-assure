@@ -1,4 +1,7 @@
 name: ci
+# Intentionally NOT a thin caller: Python matrix 3.10/3.11/3.12 plus different action pins.
+# See Icaro0310/devin-powerups .github/workflows/VARIANTS.md.
+
 
 on:
   push:
