@@ -33,16 +33,6 @@ jobs:
         run: pytest -q
 
   secrets-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Scan for secret-looking strings
-        run: |
-          set -e
-          PATTERNS='(ghp_[A-Za-z0-9]{36}|gho_[A-Za-z0-9]{36}|sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----|api[_-]?key["'"'"']?\s*[:=]\s*["'"'"'][A-Za-z0-9_-]{16,})'
-          if grep -rInE "$PATTERNS" --exclude-dir=.git --exclude-dir=fixtures --exclude-dir=node_modules .; then
-            echo "::error::Secret-looking content found. Sanitize before merging."
-            exit 1
-          fi
-          echo "No secret-looking content found."
+    permissions:
+      contents: read
+    uses: Icaro0310/devin-powerups/.github/workflows/secrets-scan.yml@v1
