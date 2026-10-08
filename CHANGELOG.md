@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- README gains the generated `Part of the DEVIN ecosystem` block
+  (track/nature/audience/interface rendered from the registry).
+
 - `labeler.yml` is now a thin caller of the shared reusable workflow in `devin-powerups` (`@v1`); PR labeling behavior is unchanged.
 
 - Install section now recommends pypi `uv tool install devin-qa-pack`; `install.sh` defaults to the PyPI package (`DEVIN_QA_PACK_REF` opts back into a git ref) as the primary route, with `pipx`/source installs documented as alternatives.
