@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (track/nature/audience/interface rendered from the registry).
 
 - `labeler.yml` is now a thin caller of the shared reusable workflow in `devin-powerups` (`@v1`); PR labeling behavior is unchanged.
+- The inline `secrets-scan` job now calls the shared reusable workflow, which switches fixture handling from a blanket `fixtures` directory exclusion to hash-pinned `.secrets-scan-allow` entries.
 
 - Install section now recommends pypi `uv tool install devin-qa-pack`; `install.sh` defaults to the PyPI package (`DEVIN_QA_PACK_REF` opts back into a git ref) as the primary route, with `pipx`/source installs documented as alternatives.
 - `examples/agent-assurance` — session generation now runs
