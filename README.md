@@ -14,6 +14,14 @@
 <a href="https://github.com/Icaro0310/devin-metrics/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome"/></a>
 </div>
 
+<!-- DEVIN-ECO:BEGIN -->
+> **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**  
+> Track: Verify · Nature: product  
+> For: QA engineers, operations  
+> Interface: CLI / dashboard
+<!-- DEVIN-ECO:END -->
+
+
 # devin-metrics
 
 > **Unofficial community project.** Not affiliated with, endorsed by, or
