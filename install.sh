@@ -1,7 +1,7 @@
 #!/bin/sh
 # Install devin-qa-pack — pipx preferred, pip --user as fallback.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Icaro0310/devin-qa-pack/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/Icaro0310/devin-assure/main/install.sh | sh
 #
 # Set DEVIN_QA_PACK_REF to install a specific tag instead of main:
 #   DEVIN_QA_PACK_REF=v0.1.0 sh install.sh
@@ -9,7 +9,7 @@ set -eu
 
 REF="${DEVIN_QA_PACK_REF:-}"
 if [ -n "$REF" ]; then
-    PKG="git+https://github.com/Icaro0310/devin-qa-pack.git@$REF"
+    PKG="git+https://github.com/Icaro0310/devin-assure.git@$REF"
 else
     PKG="devin-qa-pack"
 fi

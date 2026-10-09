@@ -2,19 +2,19 @@
 
 <img src="assets/banner.svg" alt="devin-qa-pack" width="100%"/>
 
-<a href="https://github.com/Icaro0310/devin-qa-pack/actions/workflows/ci.yml"><img src="https://github.com/Icaro0310/devin-qa-pack/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
-<a href="https://github.com/Icaro0310/devin-qa-pack/releases"><img src="https://img.shields.io/github/v/release/Icaro0310/devin-qa-pack" alt="GitHub release"/></a>
+<a href="https://github.com/Icaro0310/devin-assure/actions/workflows/ci.yml"><img src="https://github.com/Icaro0310/devin-assure/actions/workflows/ci.yml/badge.svg" alt="CI"/></a>
+<a href="https://github.com/Icaro0310/devin-assure/releases"><img src="https://img.shields.io/github/v/release/Icaro0310/devin-assure" alt="GitHub release"/></a>
 <a href="https://pypi.org/project/devin-qa-pack/"><img src="https://img.shields.io/pypi/v/devin-qa-pack" alt="PyPI"/></a>
-<a href="https://scorecard.dev/viewer/?uri=github.com/Icaro0310/devin-qa-pack"><img src="https://api.scorecard.dev/projects/github.com/Icaro0310/devin-qa-pack/badge" alt="OpenSSF Scorecard"/></a>
-<a href="https://deepwiki.com/Icaro0310/devin-qa-pack"><img src="https://deepwiki.com/badge.svg" alt="DeepWiki"/></a>
+<a href="https://scorecard.dev/viewer/?uri=github.com/Icaro0310/devin-assure"><img src="https://api.scorecard.dev/projects/github.com/Icaro0310/devin-assure/badge" alt="OpenSSF Scorecard"/></a>
+<a href="https://deepwiki.com/Icaro0310/devin-assure"><img src="https://deepwiki.com/badge.svg" alt="DeepWiki"/></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/></a>
 <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"/>
 
 
-<a href="https://github.com/Icaro0310/devin-qa-pack"><img src="https://img.shields.io/github/stars/Icaro0310/devin-qa-pack" alt="GitHub stars"/></a>
-<a href="https://github.com/Icaro0310/devin-qa-pack/commits/main"><img src="https://img.shields.io/github/last-commit/Icaro0310/devin-qa-pack" alt="Last commit"/></a>
+<a href="https://github.com/Icaro0310/devin-assure"><img src="https://img.shields.io/github/stars/Icaro0310/devin-assure" alt="GitHub stars"/></a>
+<a href="https://github.com/Icaro0310/devin-assure/commits/main"><img src="https://img.shields.io/github/last-commit/Icaro0310/devin-assure" alt="Last commit"/></a>
 <a href="https://github.com/Icaro0310/awesome-devin"><img src="https://img.shields.io/badge/part%20of-devin--*-ecosystem-7c3aed" alt="devin-* ecosystem"/></a>
-<a href="https://github.com/Icaro0310/devin-qa-pack/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome"/></a>
+<a href="https://github.com/Icaro0310/devin-assure/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome"/></a>
 </div>
 
 <!-- DEVIN-ECO:BEGIN -->
@@ -27,6 +27,8 @@
 
 
 # devin-qa-pack
+
+> **Renamed (Oct 2026):** this repository moved from `Icaro0310/devin-qa-pack` to `Icaro0310/devin-assure`. The PyPI package and console script stay `devin-qa-pack`; stars, issues and history are preserved by the redirect.
 
 > **Unofficial community project.** Not affiliated with, endorsed by, or
 > sponsored by Cognition AI. "Devin" is a trademark of Cognition AI.
@@ -86,10 +88,10 @@ pipx install devin-qa-pack
 one-liner installer (pipx preferred, pip --user fallback):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Icaro0310/devin-qa-pack/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Icaro0310/devin-assure/main/install.sh | sh
 ```
 
-[GitHub Releases](https://github.com/Icaro0310/devin-qa-pack/releases)
+[GitHub Releases](https://github.com/Icaro0310/devin-assure/releases)
 ship the wheel, sdist and CycloneDX SBOM per tag.
 
 **See it in action** — run the reproducible
