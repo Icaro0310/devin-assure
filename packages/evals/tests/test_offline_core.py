@@ -27,10 +27,8 @@ import socket
 from pathlib import Path
 
 import pytest
-
-from devin_evals.runner import run_evals
-
 from conftest import SESSION_TITLE, write_eval
+from devin_evals.runner import run_evals
 
 
 class OfflineCoreError(RuntimeError):

@@ -165,7 +165,7 @@ def evaluate_case(case: EvalCase, store: SessionsStore) -> dict[str, Any]:
     for c in case.checks:
         try:
             r = grade_check(c.grader, c.params, evidence)
-        except Exception as exc:  # UnknownGraderError shouldn't happen post-load
+        except Exception as exc:  # noqa: BLE001 - UnknownGraderError shouldn't happen post-load
             r = None
             had_error = True
             checks.append(
@@ -208,7 +208,7 @@ def render_markdown(report: dict[str, Any]) -> str:
     if s["score"] is None:
         score_line = "- score: no cases"
     else:
-        pct = int(round(100 * s["score"]))
+        pct = round(100 * s["score"])
         score_line = f"- score: {s['passed']}/{s['total']} cases passed ({pct}%)"
     lines = [
         "# devin-evals report",
@@ -226,7 +226,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         checks_cell = f"{n_ok}/{n}" if n else "—"
         lines.append(
             f"| {c['id']} | {c['status'].upper()} | {checks_cell} "
-            f"| {int(round(100 * c['score']))}% |"
+            f"| {round(100 * c['score'])}% |"
         )
     lines.append("")
     for c in report["cases"]:

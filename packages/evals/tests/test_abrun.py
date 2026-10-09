@@ -2,8 +2,6 @@
 import json
 from pathlib import Path
 
-import pytest
-
 from devin_evals.cli import main
 
 

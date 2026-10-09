@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 
-from devin_evals.cli import main
-
 from conftest import SESSION_TITLE, write_eval
+from devin_evals.cli import main
 
 PASS_CASE = {
     "id": "cli-ok",

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Iterable, Sequence
+from collections.abc import Iterable, Sequence
 
 # Preregistered thresholds — changing these changes the gate; they are
 # recorded verbatim in every report's design.thresholds block.

@@ -23,9 +23,10 @@ Grader corpus contract (what each one "sees"):
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from devin_redact.patterns import PATTERNS as REDACT_PATTERNS
 from devin_redact.patterns import SECRET_CATEGORIES

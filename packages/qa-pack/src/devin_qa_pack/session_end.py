@@ -140,8 +140,8 @@ def _resolve_session(
     if len(matches) > 1:
         return (
             None,
-            f"session prefix '{session_id}' is ambiguous "
-            f"({len(matches)} matches)",
+            (f"session prefix '{session_id}' is ambiguous "
+             f"({len(matches)} matches)"),
         )
     return None, f"unknown session '{session_id}'"
 
@@ -226,7 +226,7 @@ def run_session_end(
                             store.message_nodes(session.id),
                             store.tool_call_state(session.id),
                         )
-                    except Exception:
+                    except Exception:  # noqa: BLE001 - fail-soft; side field is optional
                         intent = None  # fail-soft — side field is optional
         except (SchemaError, OSError) as exc:
             reason = f"cannot open {db}: {exc}"

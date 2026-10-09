@@ -22,11 +22,11 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import urllib.request
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
-
-import urllib.request
+from typing import Any
 from urllib.parse import urlparse
 
 from devin_internals.parsers.sessions import ToolCallState
@@ -234,7 +234,7 @@ def parse_tool_calls(states: Iterable[ToolCallState]) -> list[ParsedToolCall]:
 def _git(args: list[str], cwd: Path) -> subprocess.CompletedProcess | None:
     try:
         return subprocess.run(
-            ["git", *args],
+            ["git", *args], check=False,
             cwd=cwd,
             capture_output=True,
             text=True,
@@ -434,7 +434,7 @@ def _verify_url(
             status = r.status
     except urllib.error.HTTPError as e:
         status = e.code
-    except Exception as e:  # URLError, timeout — network is untrusted
+    except Exception as e:  # noqa: BLE001 - URLError, timeout; network is untrusted
         return VerifiedClaim(claim, UNVERIFIABLE,
                              f"live check failed: {e}")
     if status < 400:

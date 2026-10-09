@@ -183,8 +183,8 @@ def render_html(audits: list[SessionAudit], sessions_db: str | Path) -> str:
     parts = [
         _PAGE_HEAD.replace("__CSS__", _CSS.strip()),
         "<header><h1>devin-qa-pack — audit report</h1>",
-        f'<p class="sub">{_e(sessions_db)} · '
-        f"{len(audits)} session(s) audited</p></header>",
+        (f'<p class="sub">{_e(sessions_db)} · '
+         f"{len(audits)} session(s) audited</p></header>"),
         _summary_cards(audits),
         _sessions_table(audits),
     ]

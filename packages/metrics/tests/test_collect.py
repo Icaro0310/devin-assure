@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 from devin_internals.schema import SchemaError
-
 from devin_metrics.collect import collect
 
 

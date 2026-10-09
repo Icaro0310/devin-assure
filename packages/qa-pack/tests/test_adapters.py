@@ -11,7 +11,6 @@ from devin_qa_pack.cli import main
 from devin_qa_pack.report import PARTIAL, PASS, UNVERIFIED, audit_source
 from devin_qa_pack.verify import UNVERIFIABLE, VERIFIED
 
-
 AIDER_HISTORY = """\
 # aider chat started at 2026-01-01 10:00:00
 

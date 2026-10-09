@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from devin_metrics.aggregate import by_day, by_model, by_project, summarize
 from devin_metrics.collect import collect
 from devin_metrics.render import (

@@ -27,7 +27,6 @@ import json
 import socket
 
 import pytest
-
 from devin_metrics.cli import main
 
 

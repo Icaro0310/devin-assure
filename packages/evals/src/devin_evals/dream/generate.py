@@ -19,9 +19,9 @@ from devin_internals.fixtures import (
     _BASE_TS_MS,
     _FUTURE_MIGRATION_DATE,
     _MIGRATION_APPLIED_ON,
+    LATEST_KNOWN_SCHEMA,
     SESSIONS_DB_DDL_V17,
     STATE_VSCDB_DDL,
-    LATEST_KNOWN_SCHEMA,
 )
 
 from devin_evals.dream.defects import SessionSpec, ToolCallSpec, _exec_call
@@ -276,8 +276,8 @@ def _failed_attempt(rng: random.Random, sid: str, i: int) -> SessionSpec:
     pairs = [("user", f"attempt to fix the build, try {a}")
              for a in range(1, attempts + 1)]
     pairs.append(("assistant",
-                  "The suite still fails after the last attempt — "
-                  "leaving notes instead of forcing it."))
+                  ("The suite still fails after the last attempt — "
+                   "leaving notes instead of forcing it.")))
     tcs = tuple(
         _exec_call(f"call_{sid}_{t}", "pytest -x",
                    f"FAILED test_core.py::case_{t}", exit_code=1)

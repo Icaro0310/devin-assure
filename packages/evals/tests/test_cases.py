@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import pytest
-
-from devin_evals.cases import CaseError, load_cases
-
 from conftest import write_eval
+from devin_evals.cases import CaseError, load_cases
 
 VALID = {
     "id": "case-a",

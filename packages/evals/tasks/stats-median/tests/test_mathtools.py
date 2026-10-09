@@ -1,5 +1,4 @@
 import pytest
-
 from mathtools import mean, median
 
 

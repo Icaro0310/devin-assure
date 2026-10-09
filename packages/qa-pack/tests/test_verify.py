@@ -1,10 +1,8 @@
 """verify.py — cross-checking claims against tool_call_state + git log."""
 
 import json
-from pathlib import Path
 
 from devin_internals.parsers.sessions import ToolCallState
-
 from devin_qa_pack.claims import COMMIT, FILE, HTTP, PUSH, TESTS, Claim
 from devin_qa_pack.verify import (
     DISPUTED,
@@ -122,7 +120,7 @@ def test_tests_claim_disputed_when_no_calls_at_all():
 
 
 def test_tests_claim_unverifiable_when_ground_truth_unreadable():
-    calls = parse_tool_calls([tstate("tc-null")])  # NULL payloads → dropped
+    parse_tool_calls([tstate("tc-null")])  # NULL payloads → dropped
     # an unparseable row means ground truth exists but can't be read
     states = [tstate("tc-null")]
     result = verify_claim(claim(TESTS, "tests"), parse_tool_calls(states),

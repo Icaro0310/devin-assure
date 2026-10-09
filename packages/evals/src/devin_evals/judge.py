@@ -56,6 +56,7 @@ def run_judge(prompt: str, *, cwd: str, case_id: str,
     try:
         proc = subprocess.run(
             argv, capture_output=True, text=True, timeout=timeout_s,
+            check=False,
         )
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": f"judge timed out after {timeout_s}s"}

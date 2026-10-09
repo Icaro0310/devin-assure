@@ -1,7 +1,6 @@
 """html_report.py — self-contained static HTML rendering of audits."""
 
 from devin_internals.parsers import SessionsStore
-
 from devin_qa_pack.html_report import render_html
 from devin_qa_pack.report import audit_all, audit_session
 

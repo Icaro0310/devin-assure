@@ -207,8 +207,8 @@ def _open_store(db_arg: str | None):
 
 def _audit_scope(store: SessionsStore, args: argparse.Namespace):
     """Audit ``--session`` or everything (``--all`` / report default)."""
-    kw = dict(online=getattr(args, "online", False),
-              allow_domains=tuple(getattr(args, "allow_domain", ())))
+    kw = {"online": getattr(args, "online", False),
+          "allow_domains": tuple(getattr(args, "allow_domain", ()))}
     session_arg = getattr(args, "session", None)
     if session_arg:
         session = _find_session(store, session_arg)
@@ -282,8 +282,8 @@ def _cmd_audit(args: argparse.Namespace) -> int:
         if store is None:
             return 2
         with store:
-            kw = dict(online=args.online,
-                      allow_domains=tuple(args.allow_domain))
+            kw = {"online": args.online,
+                  "allow_domains": tuple(args.allow_domain)}
             if args.all:
                 audits = audit_all(store, limit=args.limit, **kw)
             else:
@@ -319,7 +319,7 @@ def _cmd_report(args: argparse.Namespace) -> int:
 
 def _cmd_intent(args: argparse.Namespace) -> int:
     """QA-4 — 0 aligned · 1 flagged/not computable · 2 could not run."""
-    db, store = _open_store(args.sessions_db)
+    _db, store = _open_store(args.sessions_db)
     if store is None:
         return 2
     with store:
@@ -353,7 +353,7 @@ def _cmd_session_end(args: argparse.Namespace) -> int:
             out=args.out,
             claim_limit=args.limit,
         )
-    except Exception as exc:  # fail-soft — a hook must never break the host
+    except Exception as exc:  # noqa: BLE001 - fail-soft; a hook must never break the host
         print(f"qa session-end: SKIPPED - — internal error: {exc}")
         return 0
     print(summary_line(result))

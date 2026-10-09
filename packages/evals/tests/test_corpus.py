@@ -6,15 +6,11 @@ a real sessions.db.
 
 from __future__ import annotations
 
-import importlib.util
 import json
 import sqlite3
 from pathlib import Path
 
 import pytest
-from devin_internals.schema import UnknownSchemaVersionError
-from devin_internals.parsers.sessions import SessionsStore
-
 from devin_evals.cases import load_cases
 from devin_evals.cli import main
 from devin_evals.corpus import (
@@ -26,6 +22,8 @@ from devin_evals.corpus import (
 )
 from devin_evals.graders import _SECRET_PATTERNS
 from devin_evals.runner import _message_text, run_evals
+from devin_internals.parsers.sessions import SessionsStore
+from devin_internals.schema import UnknownSchemaVersionError
 
 EXPECTED_MATCHES = {"D01", "D02", "D03", "D04", "D05", "D06", "D07",
                     "D08", "D09", "D10"}

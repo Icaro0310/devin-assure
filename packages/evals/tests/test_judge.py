@@ -1,7 +1,4 @@
 """EV-1: opt-in LLM judge — fail-closed, labelled, non-deterministic."""
-import json
-import os
-import stat
 
 from devin_evals.judge import build_prompt, judge_available, run_judge
 

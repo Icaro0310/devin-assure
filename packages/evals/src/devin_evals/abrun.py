@@ -27,9 +27,10 @@ import re
 import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from devin_evals import g3stats
 from devin_evals.judge import judge_available
@@ -46,7 +47,7 @@ def _bridge_prompt(bridge: str, repo: str, prompt: str, label: str,
     t0 = time.monotonic()
     try:
         proc = subprocess.run(
-            argv, capture_output=True, text=True, timeout=timeout_s + 30)
+            argv, capture_output=True, text=True, timeout=timeout_s + 30, check=False)
     except subprocess.TimeoutExpired:
         return {"ok": False, "error": "bridge prompt timed out",
                 "duration_s": time.monotonic() - t0, "raw": ""}
@@ -329,7 +330,7 @@ def make_workspace_check_grader(
             try:
                 proc = subprocess.run(
                     argv, cwd=ws, capture_output=True, text=True,
-                    timeout=timeout_s)
+                    timeout=timeout_s, check=False)
             except (OSError, subprocess.TimeoutExpired) as exc:
                 return {"success": False, "error": True,
                         "detail": f"workspace check failed to run: {exc}"}
@@ -368,7 +369,7 @@ def environment_block() -> dict[str, Any]:
         try:
             proc = subprocess.run(
                 ["devin", "--version"], capture_output=True, text=True,
-                timeout=5)
+                timeout=5, check=False)
             if proc.returncode == 0 and proc.stdout.strip():
                 devin_version = proc.stdout.strip()
         except (OSError, subprocess.TimeoutExpired):
@@ -501,7 +502,7 @@ def run_ab_v2(
         label = f"g3-ab:{unit.task.id}:{unit.variant}:{unit.attempt}"
         try:
             res = runner(unit, dest, prompt, label, session_timeout)
-        except Exception as exc:  # a crashing runner must not kill the suite
+        except Exception as exc:  # noqa: BLE001 - a crashing runner must not kill the suite
             res = {"ok": False, "error": f"runner raised: {exc}"}
         if not isinstance(res, dict):
             res = {"ok": False, "error": "runner returned a non-dict result"}
@@ -518,7 +519,7 @@ def run_ab_v2(
         else:
             try:
                 g = grader(unit, res) if grader is not None else {"success": True}
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - bad grader = failed grade, not crash
                 g = {"success": False, "error": True}
                 rec["error"] = f"grader raised: {exc}"
             if g.get("error"):
@@ -620,8 +621,8 @@ def run_ab_v2(
         calibration_block = None
 
     notes = [
-        "sessions labelled g3-ab:<task>:<variant>:<attempt> — janitor can "
-        "reap them; this consumed real tokens",
+        ("sessions labelled g3-ab:<task>:<variant>:<attempt> — janitor can "
+         "reap them; this consumed real tokens"),
         f"work_dir={work_dir}",
     ]
     if aa:

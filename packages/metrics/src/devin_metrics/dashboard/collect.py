@@ -18,13 +18,12 @@ Attribution rules (identical to devin-metrics):
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
-import sys
+from collections.abc import Iterable
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Iterable
 from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
 from devin_internals.parsers import AcpMessagesStore, SessionsStore
 from devin_internals.schema import SchemaError
@@ -32,10 +31,11 @@ from devin_internals.schema import SchemaError
 from devin_metrics.dashboard import __version__
 from devin_metrics.paths import (
     acp_messages_dir,
-    default_data_dir as _default_data_dir,
     sessions_db_path,
 )
-
+from devin_metrics.paths import (
+    default_data_dir as _default_data_dir,
+)
 
 # -- store locations ---------------------------------------------------------
 
@@ -351,9 +351,8 @@ def collect_stats(
         for node in store.message_nodes():
             msg_counts[node.session_id] = msg_counts.get(node.session_id, 0) + 1
             ntp = _metadata_tokens(node.metadata)
-            if ntp is not None:
-                if ntp > ctx_peak.get(node.session_id, -1):
-                    ctx_peak[node.session_id] = ntp
+            if ntp is not None and ntp > ctx_peak.get(node.session_id, -1):
+                ctx_peak[node.session_id] = ntp
         tool_counts: dict[str, int] = {}
         for tc in store.tool_call_state():
             tool_counts[tc.session_id] = tool_counts.get(tc.session_id, 0) + 1

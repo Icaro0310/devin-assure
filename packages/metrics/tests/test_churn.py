@@ -1,6 +1,5 @@
 """ME-4: churn report over a synthetic graph.db."""
 
-import json
 import sqlite3
 import sys
 from pathlib import Path
