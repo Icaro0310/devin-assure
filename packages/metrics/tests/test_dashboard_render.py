@@ -4,8 +4,24 @@ from __future__ import annotations
 
 import json
 import re
+from html.parser import HTMLParser
 
 from devin_metrics.dashboard.render import render_html
+
+
+class _ExternalAssets(HTMLParser):
+    """Collects tags that would pull external resources."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.violations: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        names = {name for name, _ in attrs}
+        if (tag == "script" and "src" in names) or (
+            tag in {"link", "img"} and {"href", "src"} & names
+        ):
+            self.violations.append(tag)
 
 
 def test_is_single_file_html(stats):
@@ -38,13 +54,9 @@ def test_no_external_urls(stats):
 
 
 def test_no_script_src_or_link_href(stats):
-    html = render_html(stats)
-    for tag in re.findall(r"<script[^>]*>", html):
-        assert "src" not in tag
-    for tag in re.findall(r"<link[^>]*>", html):
-        assert "href" not in tag  # no stylesheets/fonts
-    for tag in re.findall(r"<img[^>]*>", html):
-        assert "src" not in tag
+    parser = _ExternalAssets()
+    parser.feed(render_html(stats))
+    assert parser.violations == []  # no scripts/stylesheets/images from outside
 
 
 def test_charts_rendered_by_vanilla_js(stats):
