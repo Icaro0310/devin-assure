@@ -3,8 +3,9 @@
 <!-- DEVIN-ECO:BEGIN -->
 > **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**  
 > Track: Verify · Nature: product  
-> For: QA engineers, Developers, AI engineers  
-> Interface: CLI / Python library / dashboard
+> For: QA engineers, Developers  
+> Interface: CLI  
+> Path: QA engineers · step 1/3 — before `devin-evals`
 <!-- DEVIN-ECO:END -->
 
 Verification for Devin sessions: audit deliverable claims against
