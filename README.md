@@ -1,6 +1,17 @@
 # devin-assure
 
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15338/badge)](https://www.bestpractices.dev/projects/15338)
+<div align="center">
+
+<a href="https://github.com/Icaro0310/devin-assure/actions/workflows/ci.yml"><img src="https://github.com/Icaro0310/devin-assure/actions/workflows/ci.yml/badge.svg" alt="ci"/></a>
+<a href="https://www.bestpractices.dev/projects/15338"><img src="https://www.bestpractices.dev/projects/15338/badge" alt="OpenSSF Best Practices"/></a>
+<a href="https://scorecard.dev/viewer/?uri=github.com/Icaro0310/devin-assure"><img src="https://api.scorecard.dev/projects/github.com/Icaro0310/devin-assure/badge" alt="OpenSSF Scorecard"/></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/></a>
+<a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"/></a>
+<a href="https://github.com/Icaro0310/devin-assure"><img src="https://img.shields.io/github/stars/Icaro0310/devin-assure" alt="GitHub stars"/></a>
+<a href="https://github.com/Icaro0310/devin-assure/commits/main"><img src="https://img.shields.io/github/last-commit/Icaro0310/devin-assure" alt="Last commit"/></a>
+<a href="https://github.com/Icaro0310/awesome-devin"><img src="https://img.shields.io/badge/part%20of-devin--*-ecosystem-7c3aed" alt="devin-* ecosystem"/></a>
+<a href="https://github.com/Icaro0310/devin-assure/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome"/></a>
+</div>
 
 <!-- DEVIN-ECO:BEGIN -->
 > **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**  
@@ -27,9 +38,9 @@ and observe local activity without telemetry.
 
 | Package | PyPI | What it does |
 |---|---|---|
-| [`packages/qa-pack`](packages/qa-pack) | `devin-qa-pack` | QA audit of session claims (tests, commits, files, pushes) vs `tool_call_state` |
-| [`packages/evals`](packages/evals) | `devin-evals` | Deterministic eval harness: replay sessions against rubric graders (includes `dream` synthetic-session generator) |
-| [`packages/metrics`](packages/metrics) | `devin-metrics` | Local-only session observability: activity, context size, token peaks |
+| [`packages/qa-pack`](packages/qa-pack) | [![devin-qa-pack](https://img.shields.io/pypi/v/devin-qa-pack)](https://pypi.org/project/devin-qa-pack/) | QA audit of session claims (tests, commits, files, pushes) vs `tool_call_state` |
+| [`packages/evals`](packages/evals) | [![devin-evals](https://img.shields.io/pypi/v/devin-evals)](https://pypi.org/project/devin-evals/) | Deterministic eval harness: replay sessions against rubric graders (includes `dream` synthetic-session generator) |
+| [`packages/metrics`](packages/metrics) | [![devin-metrics](https://img.shields.io/pypi/v/devin-metrics)](https://pypi.org/project/devin-metrics/) | Local-only session observability: activity, context size, token peaks |
 
 > **Renamed (Oct 2026):** this repository moved from `Icaro0310/devin-qa-pack` to `Icaro0310/devin-assure` when it became the `devin-assure` product workspace. PyPI packages and console scripts keep their names; stars, issues and history are preserved by the redirect.
 
