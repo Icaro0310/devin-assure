@@ -1,0 +1,23 @@
+name: test-qa-pack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/qa-pack/**'
+      - '.github/workflows/test-qa-pack.yml'
+  pull_request:
+    paths:
+      - 'packages/qa-pack/**'
+      - '.github/workflows/test-qa-pack.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    permissions:
+      contents: read
+    uses: Icaro0310/devin-powerups/.github/workflows/python-test.yml@v1
+    with:
+      package-dir: packages/qa-pack
