@@ -5,8 +5,8 @@ title: devin-metrics
 authors:
   - family-names: Galvao
     given-names: Icaro
-url: "https://github.com/Icaro0310/devin-metrics"
-repository-code: "https://github.com/Icaro0310/devin-metrics"
+url: "https://github.com/Icaro0310/devin-assure"
+repository-code: "https://github.com/Icaro0310/devin-assure"
 license: MIT
 abstract: "Local-only metrics for Devin usage: sessions, cost and token aggregates per project and model, plus a standalone HTML dashboard, with zero telemetry."
 keywords: [devin, metrics, cost-tracking, analytics, tokens, cli]

@@ -78,7 +78,7 @@ examples/agent-assurance/
 ```
 
 The `evals/` cases mirror the golden corpus in
-[`devin-evals/corpus/evals`](https://github.com/Icaro0310/devin-evals/tree/main/corpus/evals),
+[`devin-evals/corpus/evals`](https://github.com/Icaro0310/devin-assure/tree/main/packages/evals/corpus/evals),
 which covers all nine `devin-evals dream` defect classes — secrets in tool
 output, PII in prompts, schema drift, injected instructions, memory
 poisoning.
