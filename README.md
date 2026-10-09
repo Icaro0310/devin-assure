@@ -10,6 +10,17 @@
 > Path: QA engineers · step 1/3 — before `devin-evals`
 <!-- DEVIN-ECO:END -->
 
+<!-- DEVIN-WHERE:BEGIN -->
+## Where this fits
+
+- **Job:** Verify
+- **Product:** [`devin-assure`](https://github.com/Icaro0310/devin-assure)
+- **Packages:** `qa-pack` · `evals` · `metrics`
+- **Mode:** read-only
+- **Foundation:** [`devin-internals-spec`](https://github.com/Icaro0310/devin-internals-spec)
+- **Ecosystem:** [`awesome-devin`](https://github.com/Icaro0310/awesome-devin) · registry: [`devin-powerups`](https://github.com/Icaro0310/devin-powerups)
+<!-- DEVIN-WHERE:END -->
+
 Verification for Devin sessions: audit deliverable claims against
 tool-call ground truth, replay recorded sessions against rubric graders,
 and observe local activity without telemetry.
