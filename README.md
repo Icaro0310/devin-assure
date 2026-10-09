@@ -1,5 +1,7 @@
 # devin-assure
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/15338/badge)](https://www.bestpractices.dev/projects/15338)
+
 <!-- DEVIN-ECO:BEGIN -->
 > **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**  
 > Track: Verify · Nature: product  
