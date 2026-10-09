@@ -1,0 +1,61 @@
+name: ci
+# Intentionally NOT a thin caller: extra corpus gate job (EV-3).
+# secrets-scan calls the shared reusable like every other repo.
+# See Icaro0310/devin-powerups .github/workflows/VARIANTS.md.
+
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Test
+        run: pytest -q
+
+  corpus:
+    # Golden-case gate (EV-3): generated fixtures only — never real sessions.
+    # The generator is devin_evals.dream (devin-dream absorbed in P4).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Check committed corpus is in sync
+        run: python tools/regen-corpus.py --check
+
+      - name: Materialize corpus dbs (synthetic)
+        run: devin-evals corpus generate --out corpus
+
+      - name: Verify corpus (expected-vs-actual)
+        run: devin-evals corpus verify --corpus corpus
+
+  secrets-scan:
+    permissions:
+      contents: read
+    uses: Icaro0310/devin-powerups/.github/workflows/secrets-scan.yml@v1

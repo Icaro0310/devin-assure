@@ -1,0 +1,17 @@
+{
+  "id": "golden-d06-schema-drift",
+  "description": "Drift canary: the session lives in a v18 db that devin-internals-spec must refuse loudly. The rubric is never reached — the expected outcome is the harness-level error when the store opens the drifted db.",
+  "session_ref": "dream-d06",
+  "synthetic": true,
+  "defect": "D06",
+  "expected_verdict": "devin-internals-spec: drift-detected",
+  "expected_status": "error",
+  "rubric": [
+    {
+      "grader": "contains",
+      "text": "Canary session"
+    }
+  ],
+  "sessions_db": "sessions-d06.db",
+  "note": "verdict is harness-level: SessionsStore raises UnknownSchemaVersionError before any check runs; verify maps that refusal to the 'error' status."
+}

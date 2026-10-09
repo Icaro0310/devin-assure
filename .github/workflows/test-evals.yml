@@ -1,0 +1,23 @@
+name: test-evals
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/evals/**'
+      - '.github/workflows/test-evals.yml'
+  pull_request:
+    paths:
+      - 'packages/evals/**'
+      - '.github/workflows/test-evals.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    permissions:
+      contents: read
+    uses: Icaro0310/devin-powerups/.github/workflows/python-test.yml@v1
+    with:
+      package-dir: packages/evals

@@ -1,0 +1,24 @@
+name: publish-evals
+
+# Publishes the evals package to PyPI via the reusable workflow in
+# devin-powerups. Triggers: pushing a tag `evals-vX.Y.Z`, or manual
+# Actions dispatch. Uses repo secret PYPI_API_TOKEN when set; otherwise
+# PyPI Trusted Publishing (OIDC) with environment "pypi".
+
+on:
+  push:
+    tags: ['evals-v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    permissions:
+      id-token: write
+    uses: Icaro0310/devin-powerups/.github/workflows/pypi-publish.yml@6016b68ae41c4012bce2bfdfaaa57b51949d9f1d # main
+    with:
+      package-dir: packages/evals
+    secrets:
+      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}

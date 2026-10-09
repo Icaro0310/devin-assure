@@ -1,0 +1,9 @@
+{
+  "id": "refactor",
+  "description": "Hygiene base for a refactor session: the recorded commands still exit clean (behaviour preserved), no tracebacks, no secrets. Cases should pin the refactor evidence — e.g. the touched files and the test suite run.",
+  "rubric": [
+    { "grader": "exit_code", "value": 0, "mode": "all" },
+    { "grader": "not_contains", "text": "Traceback (most recent call last)" },
+    { "grader": "no_secrets" }
+  ]
+}

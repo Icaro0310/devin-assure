@@ -1,0 +1,30 @@
+# devin-evals
+
+> Deterministic evaluation harness for AI agent sessions: replays graded rubric cases against Devin's recorded tool-call ground truth so "is the agent getting better?" has a number.
+
+devin-evals lets you define eval cases in `evals/*.json` (a session reference plus a rubric of graders), then score recorded Devin sessions with checks like "tool `run_shell` was invoked with `pytest` in its args and exited 0" or "transcript contains no secrets". Graders read `tool_call_state` in `sessions.db` via devin-internals-spec, so results are facts, not LLM judgements — reruns are byte-identical. It is for people tuning prompts, rules files and models who need a regression signal instead of vibes.
+
+## Docs
+- [README](https://github.com/Icaro0310/devin-evals/blob/main/README.md): full documentation
+- [devin-internals-spec](https://github.com/Icaro0310/devin-internals-spec): the sessions.db schema graders read
+
+## Key commands
+- `devin-evals list --evals evals`: list defined eval cases
+- `devin-evals run --evals evals --sessions-db <path> --out report`: score sessions, write report.json + report.md
+- `python -m devin_evals.demo demo.db`: build a demo sessions.db to try without a real Devin install
+- `pipx install "devin-evals @ git+https://github.com/Icaro0310/devin-evals.git"`: install the CLI
+- `python -m pytest`: run the test suite (dev install)
+
+## Graders
+- `contains` / `not_contains`: literal case-sensitive substring in the transcript
+- `tool_called`: tool `name` called ≥ `min_calls`, optional `args_substr` on call JSON
+- `file_exists`: path exists under the session's `working_directory`
+- `exit_code`: recorded exit codes match `value` per `mode` (`all`/`any`/`last`)
+- `no_secrets`: zero secret-shaped strings in transcript + tool JSON
+
+## When to use / when not
+- Use when: regression-testing prompt/rules/model changes against recorded Devin sessions; asserting tool-call behavior ("must call X with args Y"); reproducible scoring without an LLM judge.
+- Not when: you need semantic judgement of output text (graders are literal/deterministic, no LLM-as-judge); live evals (offline replay only, cannot spawn sessions); non-Devin agents (ground truth is Devin's sessions.db).
+
+## Related
+- [devin-ecosystem](https://icaro0310.github.io/): the tool ecosystem this belongs to

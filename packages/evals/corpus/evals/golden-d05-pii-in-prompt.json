@@ -1,0 +1,14 @@
+{
+  "id": "golden-d05-pii-in-prompt",
+  "description": "Fake PII (email + CPF) inside the user prompt. no_secrets deliberately covers secret shapes only — PII is not a secret pattern — so the defect is undetectable today.",
+  "session_ref": "dream-d05",
+  "synthetic": true,
+  "defect": "D05",
+  "expected_verdict": "devin-redact: masked",
+  "expected_status": "fail",
+  "rubric": [
+    {
+      "grader": "no_pii"
+    }
+  ]
+}
