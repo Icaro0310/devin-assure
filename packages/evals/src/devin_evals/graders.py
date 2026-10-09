@@ -27,60 +27,24 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from devin_redact.patterns import PATTERNS as REDACT_PATTERNS
+from devin_redact.patterns import SECRET_CATEGORIES
+
 # ---------------------------------------------------------------------------
-# Secret patterns — vendored from devin-redact's patterns.py (MIT, same author)
-# so this package does not depend on devin-redact. Only the SECRET categories
-# are vendored; PII/hygiene patterns (email, absolute_path) are not secrets and
-# are intentionally absent.
+# Secret patterns come from devin-redact (the ecosystem's single source of
+# truth for secret-shaped regexes). Only the SECRET categories are used;
+# PII/hygiene categories (email, absolute_path) are not secrets and are
+# intentionally absent here.
 # ---------------------------------------------------------------------------
 
 _SECRET_PATTERNS: dict[str, list[re.Pattern[str]]] = {
-    "api_key": [
-        re.compile(r"\bsk-(?:proj-)?[A-Za-z0-9_-]{16,}\b"),
-        re.compile(r"\bsk_live_[A-Za-z0-9]{16,}\b"),
-        re.compile(r"\brk_live_[A-Za-z0-9]{16,}\b"),
-        re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b"),
-        re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b"),
-        re.compile(r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b"),
-    ],
-    "bearer_token": [
-        re.compile(r"[Bb]earer\s+([A-Za-z0-9._~+/=-]{16,})"),
-        re.compile(
-            r"\b(eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,})\b"
-        ),
-    ],
-    "github_token": [
-        re.compile(r"\bgh[pousr]_[A-Za-z0-9]{20,}\b"),
-        re.compile(r"\bgithub_pat_[A-Za-z0-9_]{22,}\b"),
-    ],
-    "private_key": [
-        re.compile(
-            r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----",
-            re.DOTALL,
-        ),
-    ],
-    "env_assignment": [
-        re.compile(
-            r"(?m)^\s*(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*"
-            r"(?:KEY|SECRET|TOKEN|PASSWORD|PASSWD|CREDENTIAL)[A-Za-z0-9_]*"
-            r"\s*=\s*\S[^\n]*"
-        ),
-    ],
-    "devin_pairing_code": [
-        re.compile(
-            r"(?i)(?:pairing|pair)[ -]?code\s*[:=]?\s*"
-            r"([A-Z0-9]{4}(?:-[A-Z0-9]{4}){1,3})"
-        ),
-    ],
+    category: REDACT_PATTERNS[category] for category in SECRET_CATEGORIES
 }
 
-# PII patterns — same vendoring rule as secrets (devin-redact is the source;
-# secrets are deliberately absent here). Covers what the golden corpus
-# exercises: email addresses and Brazilian CPFs.
+# PII patterns — email is sourced from devin-redact; Brazilian CPFs are
+# local to the golden corpus and absent upstream.
 _PII_PATTERNS: dict[str, list[re.Pattern[str]]] = {
-    "email": [
-        re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
-    ],
+    "email": REDACT_PATTERNS["email"],
     "cpf": [
         re.compile(r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b"),
         re.compile(r"(?<!\d)\d{9}-\d{2}(?!\d)"),

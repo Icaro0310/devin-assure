@@ -5,6 +5,8 @@ requires-python = ">=3.10"
 [manifest]
 members = [
     "devin-assure",
+    "devin-evals",
+    "devin-metrics",
     "devin-qa-pack",
 ]
 
@@ -33,6 +35,28 @@ dev = [
 dev = [{ name = "pytest", specifier = ">=8" }]
 
 [[package]]
+name = "devin-evals"
+version = "0.2.0"
+source = { editable = "packages/evals" }
+dependencies = [
+    { name = "devin-internals-spec" },
+    { name = "devin-redact" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "devin-internals-spec", specifier = ">=0.3.0,<0.4.0" },
+    { name = "devin-redact", specifier = ">=0.2.0,<0.3.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "devin-internals-spec"
 version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -40,6 +64,26 @@ sdist = { url = "https://files.pythonhosted.org/packages/e1/4b/1c62babfacfa2e046
 wheels = [
     { url = "https://files.pythonhosted.org/packages/41/96/ad8d979466f8fc2e85852c4e075dff14f8c36082324f0ccf76980fd9b110/devin_internals_spec-0.3.0-py3-none-any.whl", hash = "sha256:97f0835278274d8dd107746ba3ff8bb712ea145eb388f9d2b10dded38441494c", size = 30041, upload-time = "2026-10-04T17:55:47.974Z" },
 ]
+
+[[package]]
+name = "devin-metrics"
+version = "0.2.0"
+source = { editable = "packages/metrics" }
+dependencies = [
+    { name = "devin-internals-spec" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "devin-internals-spec", specifier = ">=0.3.0,<0.4.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "devin-qa-pack"
@@ -60,6 +104,15 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "devin-redact"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/b4/40b15291561575660ceceab947ef041eedeea1a48109135d4748840279dc/devin_redact-0.2.0.tar.gz", hash = "sha256:6ef1c906f2e8f6632701d454be0db0f1a85c4154262af9a8cd6eb241c0ceaac0", size = 53652, upload-time = "2026-10-04T17:56:54.476Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/18/59/d20a2cb839a15ca6857945b06105d05e5770f7cf500db92f52e08635dbe6/devin_redact-0.2.0-py3-none-any.whl", hash = "sha256:3d633d0a1ebf123d1333fa56b68f966c8d9a50c0d673d840ddea892d08d4e916", size = 35584, upload-time = "2026-10-04T17:56:53.451Z" },
+]
 
 [[package]]
 name = "exceptiongroup"
