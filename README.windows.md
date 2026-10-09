@@ -1,4 +1,4 @@
-# devin-qa-pack — Personal Windows guide
+# devin-assure — Personal Windows guide
 
 This guide covers unrestricted Windows setup. For restricted machines, see [README.corporate-windows.md](README.corporate-windows.md); for features, shared commands, limitations, and the safety model, see [README.md](README.md).
 
