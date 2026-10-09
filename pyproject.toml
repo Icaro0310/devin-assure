@@ -1,27 +1,22 @@
+# Workspace root — not itself a published package. Members live in
+# packages/* (qa-pack, evals, metrics).
+
+[project]
+name = "devin-assure"
+version = "0.0.0"
+description = "Monorepo workspace for the devin-assure product: qa-pack, evals, metrics."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
-
-[project]
-name = "devin-qa-pack"
-version = "0.1.0"
-description = "QA audit for Devin sessions: verifies deliverable claims (tests, commits, files, pushes) against tool_call_state ground truth."
-readme = "README.md"
-license = { text = "MIT" }
-requires-python = ">=3.10"
-authors = [{ name = "Icaro0310" }]
-dependencies = [
-  "devin-internals-spec>=0.3.0,<0.4.0",
-]
-
-[project.optional-dependencies]
-dev = ["pytest>=8"]
-
-[project.scripts]
-devin-qa-pack = "devin_qa_pack.cli:main"
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
