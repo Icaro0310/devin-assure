@@ -39,7 +39,7 @@ fi
 # devin-dream was absorbed into devin-evals — `devin-evals dream` is the
 # generator now, so the pin moved to the post-merge devin-evals commit.
 INSPECT="$UVX --from git+https://github.com/Icaro0310/devin-internals-spec@v0.3.0 devin-inspect"
-QA="$UVX --from git+https://github.com/Icaro0310/devin-qa-pack@9e4456c8366c6696524388544600945612f5bdc1 devin-qa-pack"
+QA="$UVX --from git+https://github.com/Icaro0310/devin-assure@9e4456c8366c6696524388544600945612f5bdc1 devin-qa-pack"
 EVALS="$UVX --from git+https://github.com/Icaro0310/devin-evals@12f261ae5c1c46602cbfd929b4ba8e52da54c7af devin-evals"
 
 # Warm the uv cache so first-build noise stays out of the demo output.

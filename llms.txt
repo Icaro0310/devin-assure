@@ -5,7 +5,7 @@
 devin-qa-pack reads the `tool_call_state` table in Devin's local `sessions.db` (via the devin-internals-spec schema), extracts delivery claims from session transcripts, and checks each claim against ground truth. It prints a verdict per session: `PASS`, `PARTIAL`, or `UNVERIFIED`. It is built for teams adopting agent workflows who need a cheap, repeatable answer to "did this session actually do what it says?" — offline, read-only, no LLM calls.
 
 ## Docs
-- [README](https://github.com/Icaro0310/devin-qa-pack/blob/main/README.md): full documentation
+- [README](https://github.com/Icaro0310/devin-assure/blob/main/README.md): full documentation
 - [devin-internals-spec](https://github.com/Icaro0310/devin-internals-spec): the sessions.db schema this tool reads
 
 ## Key commands

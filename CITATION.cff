@@ -5,8 +5,8 @@ title: devin-qa-pack
 authors:
   - family-names: Galvao
     given-names: Icaro
-url: "https://github.com/Icaro0310/devin-qa-pack"
-repository-code: "https://github.com/Icaro0310/devin-qa-pack"
+url: "https://github.com/Icaro0310/devin-assure"
+repository-code: "https://github.com/Icaro0310/devin-assure"
 license: MIT
 abstract: "QA audit for Devin sessions: verifies an AI agent's deliverable claims against its recorded tool-call ground truth."
 keywords:
