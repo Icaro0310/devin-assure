@@ -1,0 +1,66 @@
+[
+  {
+    "id": "api-error-wrap",
+    "kind": "bugfix",
+    "type": "trigger",
+    "dir": "tasks/api-error-wrap",
+    "prompt": "miniapi.py is a tiny request handler. Right now handle_request('u9') leaks a KeyError for unknown users. Make missing users surface the error type this module uses for API failures, with code 'user_not_found' and HTTP status 404. Verify with: python -m pytest tests -q",
+    "grading": "cd tasks/api-error-wrap && python -m pytest tests -q; pass iff exit code 0"
+  },
+  {
+    "id": "money-rounding",
+    "kind": "bugfix",
+    "type": "trigger",
+    "dir": "tasks/money-rounding",
+    "prompt": "pricing.py computes order totals. total_with_tax(0.125, 0.0) returns 0.12 but the business needs half-up cent rounding everywhere, matching how the rest of the module rounds money. Fix it. Verify with: python -m pytest tests -q",
+    "grading": "cd tasks/money-rounding && python -m pytest tests -q; pass iff exit code 0"
+  },
+  {
+    "id": "stats-median",
+    "kind": "bugfix",
+    "type": "control",
+    "dir": "tasks/stats-median",
+    "prompt": "mathtools.py has a bug: median([4, 1, 3, 2]) returns 3 instead of 2.5. For even-length inputs it should average the two middle values. Fix median (empty input must still raise ValueError). Verify with: python -m pytest tests -q",
+    "grading": "cd tasks/stats-median && python -m pytest tests -q; pass iff exit code 0"
+  },
+  {
+    "id": "confkit-merge",
+    "kind": "feature",
+    "type": "trigger",
+    "dir": "tasks/confkit-merge",
+    "prompt": "confkit is a small settings package. Add merge_settings(base, override) that deep-merges two dicts: scalar values in override win, nested dicts merge recursively, and neither input may be mutated. Expose it the same way the package exposes its other functions. Verify with: python -m pytest tests -q",
+    "grading": "cd tasks/confkit-merge && python -m pytest tests -q; pass iff exit code 0"
+  },
+  {
+    "id": "iter-users",
+    "kind": "feature",
+    "type": "trigger",
+    "dir": "tasks/iter-users",
+    "prompt": "store.py keeps user dicts like {'id': 'u1', 'name': 'Ana', 'active': True}. Add a helper that yields only the users whose 'active' flag is true, following the module's existing conventions for read helpers. Verify with: python -m pytest tests -q",
+    "grading": "cd tasks/iter-users && python -m pytest tests -q; pass iff exit code 0"
+  },
+  {
+    "id": "snake-case",
+    "kind": "feature",
+    "type": "control",
+    "dir": "tasks/snake-case",
+    "prompt": "Implement snake_to_camel(name) in texttools.py: 'foo_bar' becomes 'fooBar'. The first word stays as-is, each following word is capitalized, underscores are removed. Verify with: python -m pytest tests -q",
+    "grading": "cd tasks/snake-case && python -m pytest tests -q; pass iff exit code 0"
+  },
+  {
+    "id": "report-split",
+    "kind": "refactor",
+    "type": "trigger",
+    "dir": "tasks/report-split",
+    "prompt": "calcreport.py renders a sales report but keeps its private formatting helpers in the same file. Move them to where this project keeps formatting internals (see CONVENTIONS.md) without changing render_report's output. Both 'python -m pytest tests -q' and 'python check_structure.py' must pass.",
+    "grading": "cd tasks/report-split && python -m pytest tests -q && python check_structure.py; pass iff both exit 0 (tests guard behavior, check_structure.py asserts the required layout)"
+  },
+  {
+    "id": "cart-dedup",
+    "kind": "refactor",
+    "type": "control",
+    "dir": "tasks/cart-dedup",
+    "prompt": "cart.py duplicates the item['price'] * item['qty'] line-total math in all three public functions. Extract it into a private helper _line_total(item) used by each of them, without changing behavior. Both 'python -m pytest tests -q' and 'python check_structure.py' must pass.",
+    "grading": "cd tasks/cart-dedup && python -m pytest tests -q && python check_structure.py; pass iff both exit 0 (tests guard behavior, check_structure.py asserts the extraction happened)"
+  }
+]

@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: devin-evals
+authors:
+  - family-names: Galvao
+    given-names: Icaro
+url: "https://github.com/Icaro0310/devin-evals"
+repository-code: "https://github.com/Icaro0310/devin-evals"
+license: MIT
+abstract: "Deterministic evaluation harness for Devin agent sessions: replays rubric cases against recorded tool-call ground truth."
+keywords:
+  - ai-agents
+  - devin
+  - evaluation
+  - rubric-graders
+  - regression-testing
+  - tool-calls

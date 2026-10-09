@@ -1,0 +1,9 @@
+{
+  "id": "feature",
+  "description": "Hygiene base for a feature session: clean exits, no tracebacks, no secrets. Cases should add the feature-specific evidence — file_exists on new files, tool_called for the edit/test tools, contains the acceptance criteria.",
+  "rubric": [
+    { "grader": "exit_code", "value": 0, "mode": "all" },
+    { "grader": "not_contains", "text": "Traceback (most recent call last)" },
+    { "grader": "no_secrets" }
+  ]
+}
