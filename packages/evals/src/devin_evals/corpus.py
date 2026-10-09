@@ -33,12 +33,12 @@ from pathlib import Path
 from typing import Any
 
 from devin_internals.fixtures import create_sessions_db
-from devin_internals.schema import SchemaError
 from devin_internals.parsers.sessions import SessionsStore
+from devin_internals.schema import SchemaError
 
 from devin_evals import __version__
-from devin_evals.dream.defects import DEFECTS as DREAM_DEFECTS
 from devin_evals.cases import load_cases
+from devin_evals.dream.defects import DEFECTS as DREAM_DEFECTS
 from devin_evals.runner import evaluate_case
 
 

@@ -54,7 +54,7 @@ def _copy_task(entry: dict, dest_parent: Path) -> Path:
 
 def _run(args: list[str], cwd: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
-        args, cwd=cwd, capture_output=True, text=True, timeout=180)
+        args, cwd=cwd, capture_output=True, text=True, timeout=180, check=False)
 
 
 def _pytest(task_copy: Path) -> subprocess.CompletedProcess:

@@ -19,8 +19,8 @@ import argparse
 import json
 import sqlite3
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from devin_internals.schema import SchemaError
 

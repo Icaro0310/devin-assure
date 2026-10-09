@@ -42,8 +42,9 @@ from __future__ import annotations
 import json
 import posixpath
 import re
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 from devin_internals.parsers.sessions import MessageNode, ToolCallState
 
@@ -60,12 +61,7 @@ _MAX_EXCERPT = 160
 # (file-grade) reference. Mirrors devin-graph's extract.py list plus
 # common additions.
 _KNOWN_EXTS = frozenset(
-    "py pyi js jsx ts tsx mjs cjs json toml yaml yml md txt rst rs go c h "
-    "cc cpp cxx hpp java kt kts rb sh bash zsh fish bat ps1 sql html htm "
-    "css scss less sass xml csv tsv cfg ini env lock ipynb pdf png jpg jpeg "
-    "gif svg webp ico mp4 mov zip gz tar whl jar gradle properties proto "
-    "thrift lua pl pm php swift dart scala clj ex exs erl hs ml fs vb cs "
-    "tf tfvars hcl dockerfile mk cmake vue svelte jsx".split()
+    ["py", "pyi", "js", "jsx", "ts", "tsx", "mjs", "cjs", "json", "toml", "yaml", "yml", "md", "txt", "rst", "rs", "go", "c", "h", "cc", "cpp", "cxx", "hpp", "java", "kt", "kts", "rb", "sh", "bash", "zsh", "fish", "bat", "ps1", "sql", "html", "htm", "css", "scss", "less", "sass", "xml", "csv", "tsv", "cfg", "ini", "env", "lock", "ipynb", "pdf", "png", "jpg", "jpeg", "gif", "svg", "webp", "ico", "mp4", "mov", "zip", "gz", "tar", "whl", "jar", "gradle", "properties", "proto", "thrift", "lua", "pl", "pm", "php", "swift", "dart", "scala", "clj", "ex", "exs", "erl", "hs", "ml", "fs", "vb", "cs", "tf", "tfvars", "hcl", "dockerfile", "mk", "cmake", "vue", "svelte", "jsx"]
 )
 
 # Well-known extensionless filenames.
@@ -429,10 +425,9 @@ def _in_scope(
     names: set[str],
 ) -> bool:
     segs = touched_path.split("/")
-    if cwd:
+    if cwd and (touched_path == cwd or cwd.startswith(touched_path + "/")):
         # the project root itself or anything above it is never drift
-        if touched_path == cwd or cwd.startswith(touched_path + "/"):
-            return True
+        return True
     if segs and segs[-1] in names:
         return True
     return any(_subseq(segs, list(d)) for d in dirs)

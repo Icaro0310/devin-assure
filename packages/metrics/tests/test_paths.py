@@ -1,4 +1,3 @@
-from pathlib import Path
 
 from devin_metrics.paths import (
     default_acp_messages_dir,

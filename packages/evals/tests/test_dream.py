@@ -1,12 +1,10 @@
 """devin-evals dream: generated DBs must parse + carry the labeled verdict."""
 
 import json
-from pathlib import Path
 
 import pytest
-
 from devin_evals.dream.cli import main
-from devin_evals.dream.defects import DEFECTS, FAKE_AWS_KEY, UNIT_IDS
+from devin_evals.dream.defects import FAKE_AWS_KEY, UNIT_IDS
 from devin_evals.dream.generate import ARCHETYPES
 from devin_internals.commits import commit_references
 from devin_internals.parsers import SessionsStore, StateVscdbStore

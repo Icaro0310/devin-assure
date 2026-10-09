@@ -13,6 +13,13 @@ permissions:
   contents: read
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/ruff-action@f35c5c32a8461f24b3da8b2747c800d8ddc7d3c7 # v3
+        with:
+          args: check .
   secrets-scan:
     permissions:
       contents: read

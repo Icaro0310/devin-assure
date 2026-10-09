@@ -7,7 +7,8 @@ return strings. ``None`` renders as ``-`` (unknown is never shown as zero).
 from __future__ import annotations
 
 import json
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 
 def dumps_json(payload: Any) -> str:

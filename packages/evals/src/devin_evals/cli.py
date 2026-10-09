@@ -25,11 +25,13 @@ def _cmd_abrun(args: argparse.Namespace) -> int:
 def _cmd_abrun_v1(args: argparse.Namespace) -> int:
     """EV-5 (deprecated simple mode): two fresh sessions, grade both."""
     import json as _json
-    from devin_evals.abrun import run_ab
-    from devin_evals.runner import evaluate_case
+
     from devin_internals.parsers.sessions import SessionsStore
+
+    from devin_evals.abrun import run_ab
     from devin_evals.cases import load_cases
     from devin_evals.judge import judge_available
+    from devin_evals.runner import evaluate_case
     if not args.repo:
         print("error: --repo is required for --task (simple mode)",
               file=sys.stderr)
@@ -100,9 +102,11 @@ def _make_g3_grader(cases, db_path, packs_dir):
     store per attempt so sessions created mid-run are visible.
     """
     from dataclasses import replace
+
+    from devin_internals.parsers.sessions import SessionsStore
+
     from devin_evals.cases import EvalCase, _pack_checks
     from devin_evals.runner import evaluate_case
-    from devin_internals.parsers.sessions import SessionsStore
 
     by_id = {c.id: c for c in cases}
     pd = Path(packs_dir) if packs_dir else None
@@ -144,6 +148,7 @@ def _cmd_abrun_v2(args: argparse.Namespace) -> int:
     import json as _json
     import tempfile
     import time
+
     from devin_evals import abrun
     from devin_evals.judge import judge_available
 
@@ -307,6 +312,7 @@ def _cmd_abrun_v2(args: argparse.Namespace) -> int:
 def _cmd_judge(args: argparse.Namespace) -> int:
     """EV-1: opt-in LLM judge — fail-closed without DEVIN_BRIDGE_CMD."""
     import json as _json
+
     from devin_evals.judge import build_prompt, judge_available, run_judge
     ok, msg = judge_available()
     if not ok:

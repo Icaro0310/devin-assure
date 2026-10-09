@@ -15,8 +15,9 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Iterable
+from typing import Any
 
 from devin_internals.parsers.sessions import MessageNode
 
@@ -167,7 +168,7 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
         for m in rx.finditer(line):
             yield HTTP, m.group(1)
     if re.search(
-        r"\b(?:deployed|live|hosted|available|published|running)\b", line, re.I
+        r"\b(?:deployed|live|hosted|available|published|running)\b", line, re.IGNORECASE
     ):
         for m in _URL_RE.finditer(line):
             yield URL, m.group(0).rstrip(".,);'\"")

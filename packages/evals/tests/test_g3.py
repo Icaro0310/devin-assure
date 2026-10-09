@@ -7,11 +7,10 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import ClassVar
 
 import pytest
-
 from devin_evals import abrun, g3stats
-
 
 # ---------------------------------------------------------------------------
 # fixtures / helpers
@@ -112,9 +111,9 @@ class TestBootstrap:
 class TestVerdict:
     """Truth table — every branch of the preregistered rule."""
 
-    BASE = dict(delta_ci=(-0.1, 0.1), control_deltas=(), denials_a=0,
-                denials_b=0, baseline_rate=0.5, abort_rate_a=0.0,
-                abort_rate_b=0.0, calibration_ok=True)
+    BASE: ClassVar[dict] = {"delta_ci": (-0.1, 0.1), "control_deltas": (), "denials_a": 0,
+            "denials_b": 0, "baseline_rate": 0.5, "abort_rate_a": 0.0,
+            "abort_rate_b": 0.0, "calibration_ok": True}
 
     def test_regresses_when_ci_below_zero(self):
         assert g3stats.verdict(**{**self.BASE, "delta_ci": (-0.5, -0.1)}) \

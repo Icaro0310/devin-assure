@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import json
 
-from devin_evals.runner import run_evals
-
 from conftest import SESSION_ID, SESSION_TITLE, write_eval
+from devin_evals.runner import run_evals
 
 PASS_CASE = {
     "id": "ok",
@@ -154,10 +153,11 @@ def test_case_score_is_fraction_of_checks(evals_dir, sessions_db):
 # -- EV-2: session_ref selectors ---------------------------------------------
 
 def test_session_ref_latest_and_project_and_window(tmp_path):
+    import sqlite3
+
+    from devin_evals.runner import _find_session
     from devin_internals.fixtures import create_sessions_db
     from devin_internals.parsers.sessions import SessionsStore
-    from devin_evals.runner import _find_session
-    import sqlite3, json
 
     db = create_sessions_db(tmp_path / "sessions.db")
     con = sqlite3.connect(db)

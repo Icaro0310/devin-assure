@@ -4,7 +4,6 @@ import json
 
 from devin_internals.parsers import SessionsStore
 from devin_internals.parsers.sessions import MessageNode
-
 from devin_qa_pack.claims import (
     COMMIT,
     FILE,

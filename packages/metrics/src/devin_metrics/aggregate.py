@@ -12,10 +12,11 @@ Attribution rules:
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Any, Iterable
+from typing import Any
 
-from devin_metrics.collect import MetricsSnapshot, SessionMetrics, UsageRecord
+from devin_metrics.collect import MetricsSnapshot, SessionMetrics
 
 
 def _day(ms: int) -> str:

@@ -153,11 +153,11 @@ def render_audit(audit: SessionAudit) -> str:
     counts = audit.counts()
     title = f"  {audit.title}" if audit.title else ""
     lines = [
-        f"{audit.verdict}  {audit.session_id}{title} — "
-        f"{len(audit.results)} claim(s): "
-        f"{counts[VERIFIED]} verified, "
-        f"{counts[DISPUTED]} disputed, "
-        f"{counts[UNVERIFIABLE]} unverifiable"
+        (f"{audit.verdict}  {audit.session_id}{title} — "
+         f"{len(audit.results)} claim(s): "
+         f"{counts[VERIFIED]} verified, "
+         f"{counts[DISPUTED]} disputed, "
+         f"{counts[UNVERIFIABLE]} unverifiable")
     ]
     for r in audit.results:
         detail = r.claim.detail or "-"

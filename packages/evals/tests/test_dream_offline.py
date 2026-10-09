@@ -23,12 +23,10 @@ from __future__ import annotations
 
 import json
 import socket
-from pathlib import Path
 
 import pytest
-
-from devin_evals.dream.cli import main  # noqa: E402
-from devin_internals.parsers import SessionsStore  # noqa: E402
+from devin_evals.dream.cli import main
+from devin_internals.parsers import SessionsStore
 
 
 class OfflineCoreError(RuntimeError):

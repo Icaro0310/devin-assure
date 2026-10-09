@@ -20,7 +20,6 @@ import types
 import pytest
 from devin_internals.fixtures import _BASE_TS_MS, create_sessions_db
 from devin_internals.parsers.sessions import MessageNode, ToolCallState
-
 from devin_qa_pack.cli import main
 from devin_qa_pack.intent import (
     ALIGNED,
@@ -33,7 +32,6 @@ from devin_qa_pack.intent import (
     intent_dict,
     render_intent,
 )
-
 
 # -- fixture ------------------------------------------------------------------
 

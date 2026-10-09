@@ -1,5 +1,4 @@
 import pytest
-
 from miniapi import ApiError, handle_request
 
 

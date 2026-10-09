@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-
+from conftest import FAKE_API_KEY, FAKE_GH_TOKEN
 from devin_evals.graders import (
     GRADERS,
     Evidence,
@@ -12,15 +12,14 @@ from devin_evals.graders import (
     grade_check,
 )
 
-from conftest import FAKE_API_KEY, FAKE_GH_TOKEN
-
 
 def make_evidence(**kw) -> Evidence:
-    defaults = dict(
-        session_id="s1",
-        working_directory=None,
-        transcript="user: run tests\nagent: all tests pass; report published",
-        tool_calls=(
+    defaults = {
+
+        "session_id": "s1",
+        "working_directory": None,
+        "transcript": "user: run tests\nagent: all tests pass; report published",
+        "tool_calls": (
             ToolCall(
                 "tc-1",
                 "run_shell",
@@ -34,7 +33,7 @@ def make_evidence(**kw) -> Evidence:
                 '{"status": "finished", "exit_code": 0}',
             ),
         ),
-    )
+    }
     defaults.update(kw)
     return Evidence(**defaults)
 

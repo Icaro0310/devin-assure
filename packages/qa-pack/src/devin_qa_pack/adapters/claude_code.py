@@ -15,8 +15,9 @@ directory for git/file checks when no override is given.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from devin_qa_pack.adapters.base import SourceSession
 from devin_qa_pack.claims import claims_from_pairs

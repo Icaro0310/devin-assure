@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from devin_metrics.aggregate import (
     by_day,
     by_model,

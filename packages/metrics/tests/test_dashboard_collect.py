@@ -6,9 +6,8 @@ import json
 from datetime import datetime, timezone
 
 import pytest
-
-from devin_metrics.dashboard.collect import collect_stats
 from devin_internals.schema import SchemaError
+from devin_metrics.dashboard.collect import collect_stats
 
 from tests.conftest import DAY_MS, T0
 

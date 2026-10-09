@@ -32,7 +32,7 @@ SRC = REPO_ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from devin_evals.corpus import (  # noqa: E402
+from devin_evals.corpus import (
     DEFAULT_SEED,
     EVALS_DIRNAME,
     MANIFEST_NAME,
@@ -93,8 +93,8 @@ def check(corpus_dir: Path, seed: int) -> list[str]:
     """Diff committed text artifacts against a fresh regeneration."""
     committed = _text_artifacts(corpus_dir)
     if not committed:
-        return [f"{corpus_dir}: no committed corpus found — "
-                f"run {Path(__file__).name} first"]
+        return [(f"{corpus_dir}: no committed corpus found — "
+                 f"run {Path(__file__).name} first")]
     with tempfile.TemporaryDirectory(prefix="devin-evals-corpus-") as tmp:
         generate_corpus(tmp, seed=seed)
         regenerated = _text_artifacts(Path(tmp))

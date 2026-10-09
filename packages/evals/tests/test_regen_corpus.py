@@ -24,6 +24,7 @@ def _run(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(SCRIPT), *args],
         capture_output=True,
+        check=False,
         text=True,
         cwd=REPO,
     )
