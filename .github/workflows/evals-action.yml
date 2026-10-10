@@ -32,17 +32,13 @@ jobs:
           cp -r packages/evals/corpus .smoke-tampered
           python3 - <<'PY'
           import json
-          m = json.load(open(".smoke-tampered/corpus.json"))
-          # flip one case's expectation → guaranteed MISMATCH on replay
-          for c in m["cases"]:
-              if c["expected_status"] == "pass":
-                  c["expected_status"] = "fail"
-                  break
-          else:
-              c = m["cases"][0]
-              c["expected_status"] = (
-                  "pass" if c["expected_status"] == "fail" else "pass")
-          json.dump(m, open(".smoke-tampered/corpus.json", "w"), indent=2)
+          # expected_status lives in each evals/*.json case file, not the
+          # manifest — flip golden-d03's pass → fail to force a MISMATCH
+          f = ".smoke-tampered/evals/golden-d03-verified-claim.json"
+          c = json.load(open(f))
+          assert c["expected_status"] == "pass"
+          c["expected_status"] = "fail"
+          json.dump(c, open(f, "w"), indent=2)
           PY
 
       - name: real corpus → expect pass
