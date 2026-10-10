@@ -79,15 +79,35 @@ def test_server_entrypoint_in_pyproject():
 
 
 def test_build_server_registers_tool():
+    """The registered tool must reach the MCP surface under its published
+    name — a helper-based registration or a decorator rename would leave
+    the skill calling a tool that does not exist."""
     pytest.importorskip("mcp")
+    import asyncio
+    import inspect
+
     from devin_evals.mcp_server import build_server
+
     server = build_server()
-    assert server is not None
+    list_tools = getattr(server, "list_tools", None)
+    if callable(list_tools):
+        tools = list_tools()
+        if inspect.isawaitable(tools):
+            tools = asyncio.run(tools)
+        names = {getattr(t, "name", t) for t in tools}
+    else:  # tool-manager internals differ across SDK versions
+        manager = getattr(server, "_tool_manager", None) or getattr(
+            server, "tools", None)
+        assert manager is not None
+        names = set(getattr(manager, "_tools", manager))
+    assert "evals_run" in names
 
 
 def _registered_tool_names() -> set[str]:
     """Tools the MCP server registers — derived statically so this test
-    runs without the optional ``mcp`` extra installed."""
+    runs without the optional ``mcp`` extra installed. The pin covers the
+    decorated function names; the published tool name is verified live by
+    ``test_build_server_registers_tool``."""
     import ast
     from pathlib import Path
 
