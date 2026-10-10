@@ -5,7 +5,7 @@ on:
       - "packages/*/Dockerfile"
       - ".github/workflows/docker-publish.yml"
   workflow_run:
-    workflows: ["pypi-publish"]
+    workflows: ["publish"]
     types: [completed]
   workflow_dispatch:
 
@@ -26,8 +26,16 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Resolve package version
         id: v
+        # On PRs the pyproject may hold a not-yet-published bump
+        # (chicken-and-egg), so the smoke resolves the latest published
+        # wheel from PyPI. On publish/dispatch the pyproject pin is
+        # authoritative and equals the just-released version.
         run: |
-          ver=$(sed -n 's/^version = "\(.*\)"/\1/p' "packages/${{ matrix.pkg }}/pyproject.toml")
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ver=$(curl -sf "https://pypi.org/pypi/devin-${{ matrix.pkg }}/json" | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
+          else
+            ver=$(sed -n 's/^version = "\(.*\)"/\1/p' "packages/${{ matrix.pkg }}/pyproject.toml")
+          fi
           test -n "$ver"
           echo "version=$ver" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
