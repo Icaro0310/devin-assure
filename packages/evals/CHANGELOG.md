@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-10
+
+### Fixed
+
+- `devin_evals.__version__` / `--version` now report the real release —
+  the constant drifted at 0.2.0 while the wheel published as 0.3.0.
+
+## [0.3.0] - 2026-10-10
+
+### Added
+
+- `regex` grader — tenth deterministic grader, matching tool output JSON
+  against a pattern (`{"grader": "regex", "text": "...", "present": bool}`).
+  Already used by the golden corpus (`golden-d03-verified-claim`), so the
+  corpus previously could not verify against the published wheel — this
+  release closes that gap (the `devin-evals-action` satellite depends on
+  it).
+
 ### Changed
 
 - README now prescribes the PyPI install (`uv tool install devin-evals` /
@@ -21,6 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 First PyPI release. `pip install devin-evals`.
 
 ### Added
+
+- Read-only adapters: Devin skill and `adapters/` plugin root for
+  `devin-evals` and `devin-metrics` MCP servers (`mcp` extra,
+  `devin-evals-mcp`/`devin-metrics-mcp` entry points); setup documented
+  in the OS guides.
+
 
 - README gains the generated `Part of the DEVIN ecosystem` block
   (track/nature/audience/interface rendered from the registry).

@@ -1,0 +1,42 @@
+name: devin-evals regression
+description: Replay the eval corpus against a sessions.db and fail on regressions.
+author: Icaro0310
+branding:
+  icon: check-circle
+  color: blue
+inputs:
+  evals-dir:
+    description: Directory of eval case JSONs
+    required: true
+  sessions-db:
+    description: Path to sessions.db
+    required: true
+  packs-dir:
+    description: Optional packs dir
+    required: false
+    default: ""
+  python-version:
+    description: Python used to install the harness
+    required: false
+    default: "3.12"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install devin-evals
+      shell: bash
+      env:
+        ACTION_SRC: ${{ github.action_path }}
+      run: pip install "$ACTION_SRC"
+    - name: Run evals
+      shell: bash
+      env:
+        EVALS_DIR: ${{ inputs.evals-dir }}
+        SESSIONS_DB: ${{ inputs.sessions-db }}
+        PACKS_DIR: ${{ inputs.packs-dir }}
+      run: |
+        args=(run --evals "$EVALS_DIR" --sessions-db "$SESSIONS_DB")
+        [ -n "$PACKS_DIR" ] && args+=(--packs-dir "$PACKS_DIR")
+        devin-evals "${args[@]}"

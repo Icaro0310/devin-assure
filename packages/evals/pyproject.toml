@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devin-evals"
-version = "0.2.0"
+version = "0.3.1"
 description = "Evaluation harness: replay session prompts against graders to measure agent quality over time."
 readme = "README.md"
 license = { text = "MIT" }
@@ -16,10 +16,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "mcp>=1.2"]
+mcp = ["mcp>=1.2"]
 
 [project.scripts]
 devin-evals = "devin_evals.cli:main"
+devin-evals-mcp = "devin_evals.mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

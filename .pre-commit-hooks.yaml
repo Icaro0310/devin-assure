@@ -1,0 +1,8 @@
+- id: qa-pack-audit
+  name: devin-qa-pack session audit
+  description: Audit the most recent Devin session's deliverable claims against tool-call evidence; fails on non-PASS verdicts.
+  entry: devin-qa-pack audit --all --limit 1
+  language: system
+  pass_filenames: false
+  always_run: true
+  verbose: true

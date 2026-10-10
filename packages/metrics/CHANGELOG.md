@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Read-only adapters: `devin_metrics.mcp_server` MCP server
+  (`metrics_query`, `devin-metrics-mcp` entry point, `mcp` extra),
+  Devin skill and `adapters/` plugin root; setup documented in the OS
+  guides. `metrics_query`'s `daily` default now matches the CLI
+  (`days=0` returns all activity days).
+
+
 - `devin-metrics` is now published on PyPI: README install section recommends `uv tool install devin-metrics` (DIST-STATUS banner removed, `distribution_status` is `published`).
 
 - `labeler.yml` is now a thin caller of the shared reusable workflow in `devin-powerups` (`@v1`); PR labeling behavior is unchanged.

@@ -16,9 +16,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+mcp = ["mcp>=1.2"]
 
 [project.scripts]
 devin-metrics = "devin_metrics.cli:main"
+devin-metrics-mcp = "devin_metrics.mcp_server:main"
 devin-dashboard = "devin_metrics.dashboard.cli:main"
 
 [tool.setuptools.packages.find]
