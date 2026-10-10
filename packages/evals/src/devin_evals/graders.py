@@ -297,7 +297,7 @@ GRADERS: dict[str, GraderSpec] = {
     ),
     "no_secrets": GraderSpec(
         _no_secrets,
-        doc="no secret-shaped strings (vendored devin-redact patterns) anywhere",
+        doc="no secret-shaped strings (devin-redact pinned patterns) anywhere",
     ),
     "no_pii": GraderSpec(
         _no_pii,
