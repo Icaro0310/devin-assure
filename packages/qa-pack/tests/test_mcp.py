@@ -45,6 +45,18 @@ def test_do_audit_missing_db(tmp_path):
     assert out["error"] == "no_store"
 
 
+def test_do_audit_conflicting_scope_is_error(sessions_db):
+    out = do_audit(
+        session_id="sess-verified", audit_all_sessions=True,
+        sessions_db=str(sessions_db))
+    assert out["error"] == "conflicting_scope"
+
+
+def test_do_audit_default_limit_covers_all(sessions_db):
+    out = do_audit(audit_all_sessions=True, sessions_db=str(sessions_db))
+    assert len(out["sessions"]) >= 3
+
+
 def test_do_audit_mcp_source_needs_session_id():
     out = do_audit(source="mcp")
     assert out["error"] == "usage"

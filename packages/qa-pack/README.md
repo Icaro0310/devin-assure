@@ -337,7 +337,9 @@ network is off by default and the audit is fully offline otherwise.
   `UNVERIFIED`.
 - It verifies *that* actions happened, not that the work is good.
   Green tests in a tool call don't prove the fix is correct.
-- Read-only, offline; no real-time monitoring, no MCP server (M2).
+- Read-only, offline; no real-time monitoring. A read-only MCP server
+  (`devin-qa-pack-mcp`, `mcp` extra) exposes `qa_audit` — the same
+  payload as `audit --json`; applying nothing mutating.
 
 ## Development
 

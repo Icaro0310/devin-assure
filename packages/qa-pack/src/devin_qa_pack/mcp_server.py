@@ -41,7 +41,7 @@ def _find_session(store: SessionsStore, session_arg: str):
 def do_audit(
     session_id: str = "",
     audit_all_sessions: bool = False,
-    limit: int = 20,
+    limit: int = 0,
     sessions_db: str = "",
     source: str = "local",
     online: bool = False,
@@ -80,15 +80,19 @@ def do_audit(
         store = SessionsStore(db)
     except (SchemaError, OSError) as exc:
         return {"error": "bad_store", "detail": f"cannot open {db}: {exc}"}
+    if session_id and audit_all_sessions:
+        return {"error": "conflicting_scope",
+                "detail": "session_id and audit_all_sessions are mutually "
+                "exclusive (CLI: --session / --all)"}
     with store:
-        if session_id and not audit_all_sessions:
+        if session_id:
             session = _find_session(store, session_id)
             if session is None:
                 return {"error": "unknown_session",
                         "detail": f"unknown session '{session_id}'"}
             audits = [audit_session(store, session, claim_limit, **kw)]
         else:
-            audits = audit_all(store, limit=limit, **kw)
+            audits = audit_all(store, limit=limit or None, **kw)
     return audits_payload(audits, db)
 
 
@@ -125,7 +129,7 @@ def build_server():
     def qa_audit(
         session_id: str = "",
         audit_all_sessions: bool = False,
-        limit: int = 20,
+        limit: int = 0,
         sessions_db: str = "",
         source: str = "local",
         online: bool = False,
