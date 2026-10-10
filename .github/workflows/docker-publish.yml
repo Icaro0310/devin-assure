@@ -30,6 +30,10 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha || github.ref }}
       - name: Resolve package version
         id: v
+        env:
+          # head_branch goes through env, never inline interpolation —
+          # a crafted tag name would otherwise be parsed as shell.
+          REL: ${{ github.event.workflow_run.head_branch }}
         # On PRs the pyproject may hold a not-yet-published bump
         # (chicken-and-egg), so the smoke resolves the latest published
         # wheel from PyPI. On publish/dispatch the pyproject pin is
@@ -38,12 +42,14 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             ver=$(curl -sf "https://pypi.org/pypi/devin-${{ matrix.pkg }}/json" | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
           else
-            # A tag-triggered release (head_branch = '<pkg>-v<ver>')
-            # publishes exactly one package; sibling legs would just
-            # repush :latest, so skip them outright. Dispatch-triggered
-            # publishes have no tag — fall through to the 404 check.
-            rel="${{ github.event.workflow_run.head_branch }}"
-            if [ "${{ github.event_name }}" = "workflow_run" ] && [ "${rel%-v*}" != "$rel" ]; then
+            # Only a tag PUSH carries '<pkg>-v<ver>' as head_branch —
+            # a dispatch from a tag-like branch name must not skip legs.
+            # Such a release publishes exactly one package, so sibling
+            # legs would just repush :latest; skip them outright.
+            rel="$REL"
+            if [ "${{ github.event_name }}" = "workflow_run" ] && \
+               [ "${{ github.event.workflow_run.event }}" = "push" ] && \
+               [ "${rel%-v*}" != "$rel" ]; then
               if [ "${rel%%-v*}" != "${{ matrix.pkg }}" ]; then
                 echo "skip=true" >> "$GITHUB_OUTPUT"
                 echo "::notice::release tag $rel is for ${rel%%-v*}; skipping ${{ matrix.pkg }}"
