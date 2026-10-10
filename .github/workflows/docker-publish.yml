@@ -1,0 +1,106 @@
+name: docker-publish
+on:
+  pull_request:
+    paths:
+      - "packages/*/Dockerfile"
+      - ".github/workflows/docker-publish.yml"
+  workflow_run:
+    workflows: ["publish"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pkg: [qa-pack, evals]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          # workflow_run carries the released commit in head_sha; checking
+          # out the default branch there could build the wrong revision.
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+      - name: Resolve package version
+        id: v
+        env:
+          # head_branch goes through env, never inline interpolation —
+          # a crafted tag name would otherwise be parsed as shell.
+          REL: ${{ github.event.workflow_run.head_branch }}
+        # On PRs the pyproject may hold a not-yet-published bump
+        # (chicken-and-egg), so the smoke resolves the latest published
+        # wheel from PyPI. On publish/dispatch the pyproject pin is
+        # authoritative and equals the just-released version.
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ver=$(curl -sf "https://pypi.org/pypi/devin-${{ matrix.pkg }}/json" | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
+          else
+            # Only a tag PUSH carries '<pkg>-v<ver>' as head_branch —
+            # a dispatch from a tag-like branch name must not skip legs.
+            # Such a release publishes exactly one package, so sibling
+            # legs would just repush :latest; skip them outright.
+            rel="$REL"
+            if [ "${{ github.event_name }}" = "workflow_run" ] && \
+               [ "${{ github.event.workflow_run.event }}" = "push" ] && \
+               [ "${rel%-v*}" != "$rel" ]; then
+              if [ "${rel%%-v*}" != "${{ matrix.pkg }}" ]; then
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+                echo "::notice::release tag $rel is for ${rel%%-v*}; skipping ${{ matrix.pkg }}"
+                exit 0
+              fi
+            fi
+            ver=$(sed -n 's/^version = "\(.*\)"/\1/p' "packages/${{ matrix.pkg }}/pyproject.toml")
+            # A release publishes one package at a time; skip sibling
+            # legs whose pinned version is not on PyPI yet instead of
+            # failing the whole matrix. Only a 404 means unpublished:
+            # transient PyPI errors must fail the leg, not skip it.
+            if [ -n "$ver" ]; then
+              code=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/devin-${{ matrix.pkg }}/${ver}/json")
+              if [ "$code" = "404" ]; then
+                echo "version=$ver" >> "$GITHUB_OUTPUT"
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              elif [ "$code" != "200" ]; then
+                echo "PyPI version check failed (HTTP $code)" >&2
+                exit 1
+              fi
+            fi
+          fi
+          test -n "$ver"
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        if: github.event_name != 'pull_request' && steps.v.outputs.skip != 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image
+        if: steps.v.outputs.skip != 'true'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          file: packages/${{ matrix.pkg }}/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          build-args: VERSION=${{ steps.v.outputs.version }}
+          tags: |
+            ghcr.io/icaro0310/devin-${{ matrix.pkg }}:${{ steps.v.outputs.version }}
+            ghcr.io/icaro0310/devin-${{ matrix.pkg }}:latest
+      - name: Smoke
+        if: steps.v.outputs.skip != 'true'
+        run: docker run --rm ghcr.io/icaro0310/devin-${{ matrix.pkg }}:latest --help
+      - name: Functional smoke (evals)
+        if: steps.v.outputs.skip != 'true' && matrix.pkg == 'evals'
+        run: |
+          mkdir -p "$RUNNER_TEMP/empty-corpus"
+          docker run --rm -v "$RUNNER_TEMP/empty-corpus:/work" \
+            ghcr.io/icaro0310/devin-evals:latest list --evals /work
