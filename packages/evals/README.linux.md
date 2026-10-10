@@ -54,8 +54,11 @@ Equivalent `systemd --user` timer works too; enable lingering if it must run wit
 - Devin plugin + skill: `devin plugins install
   Icaro0310/devin-assure#packages/evals/adapters`. The manifest
   launches the server through `uvx --from 'devin-evals[mcp]' devin-evals-mcp`, which
-  resolves once the next PyPI release ships — until then install from
-  source (`pip install -e 'packages/evals[mcp]'` from a checkout).
+  resolves once the next PyPI release ships. Until then, an
+  editable install does not change what `uvx --from` resolves —
+  either run the source-installed `devin-evals-mcp` directly, or
+  point a local manifest copy at the checkout:
+  `uvx --from './packages/evals[mcp]' devin-evals-mcp`.
 
 ## Troubleshooting
 

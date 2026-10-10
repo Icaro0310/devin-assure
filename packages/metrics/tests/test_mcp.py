@@ -54,6 +54,31 @@ def test_do_query_daily_days_zero_means_all(sessions_db, acp_dir, capsys):
     assert out == expected
 
 
+def test_do_query_daily_omitted_days_beyond_thirty(tmp_path, acp_dir,
+                                                  capsys):
+    """Regression for the omitted-``days`` default: 35 distinct
+    activity days must all come back — a hidden 30-day cap would
+    truncate the result."""
+    import sqlite3
+
+    from conftest import DAY_MS, T0, _add_session
+    from devin_internals.fixtures import create_sessions_db
+
+    db = create_sessions_db(tmp_path / "sessions.db")
+    con = sqlite3.connect(db)
+    with con:
+        con.execute("DELETE FROM sessions")
+        for i in range(35):
+            _add_session(con, f"day-{i}", (
+                "/work/wide", "swe-2-high", f"day {i}",
+                T0 + i * DAY_MS, T0 + i * DAY_MS + 600_000, 2, 1))
+    expected = _cli_json(capsys, [
+        "daily", "--sessions-db", str(db), "--acp-dir", str(acp_dir)])
+    out = do_query("daily", sessions_db=str(db), acp_dir=str(acp_dir))
+    assert out == expected
+    assert len(out) == 35
+
+
 def test_do_query_missing_acp_degrades(sessions_db, tmp_path):
     out = do_query("summary", sessions_db=str(sessions_db),
                    acp_dir=str(tmp_path / "no-acp"))
