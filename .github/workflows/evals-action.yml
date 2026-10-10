@@ -1,0 +1,86 @@
+name: evals-action (satellite smoke)
+
+# End-to-end proof for the devin-evals-action satellite (D-2026-10-10d
+# rollout). Asserts failure *classification*, not just failure: a
+# tampered corpus must fail as regression (mismatches populated), a
+# missing corpus must fail as precondition (no mismatches), and the
+# real corpus must pass clean.
+
+on:
+  pull_request:
+    paths:
+      - 'packages/evals/**'
+      - '.github/workflows/evals-action.yml'
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare tampered corpus fixture
+        run: |
+          cp -r packages/evals/corpus .smoke-tampered
+          python3 - <<'PY'
+          import json
+          m = json.load(open(".smoke-tampered/corpus.json"))
+          # flip one case's expectation → guaranteed MISMATCH on replay
+          for c in m["cases"]:
+              if c["expected_status"] == "pass":
+                  c["expected_status"] = "fail"
+                  break
+          else:
+              c = m["cases"][0]
+              c["expected_status"] = (
+                  "pass" if c["expected_status"] == "fail" else "pass")
+          json.dump(m, open(".smoke-tampered/corpus.json", "w"), indent=2)
+          PY
+
+      - name: real corpus → expect pass
+        id: healthy
+        uses: Icaro0310/devin-evals-action@v1
+        with:
+          corpus: packages/evals/corpus
+
+      - name: assert real corpus passed
+        run: |
+          test "${{ steps.healthy.outcome }}" = "success"
+          test "${{ steps.healthy.outputs.ok }}" = "true"
+          echo "golden corpus verified clean (${{ steps.healthy.outputs.matched }} matched)"
+
+      - name: tampered corpus → expect regression failure
+        id: tampered
+        uses: Icaro0310/devin-evals-action@v1
+        continue-on-error: true
+        with:
+          corpus: .smoke-tampered
+
+      - name: assert regression classification fired
+        run: |
+          test "${{ steps.tampered.outcome }}" = "failure"
+          test "${{ steps.tampered.outputs.ok }}" = "false"
+          mismatches="${{ steps.tampered.outputs.mismatched }}"
+          test -n "$mismatches" && test "$mismatches" -ge 1
+          echo "tampered corpus failed as regression ($mismatches mismatch(es))"
+
+      - name: missing corpus → expect precondition failure
+        id: missing
+        uses: Icaro0310/devin-evals-action@v1
+        continue-on-error: true
+        with:
+          corpus: /tmp/no-such-corpus
+
+      - name: assert precondition classification (no mismatches)
+        run: |
+          test "${{ steps.missing.outcome }}" = "failure"
+          test -z "${{ steps.missing.outputs.mismatched }}"
+          echo "missing corpus failed as precondition, not regression"
