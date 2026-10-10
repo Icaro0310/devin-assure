@@ -38,6 +38,18 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             ver=$(curl -sf "https://pypi.org/pypi/devin-${{ matrix.pkg }}/json" | python3 -c "import json,sys; print(json.load(sys.stdin)['info']['version'])")
           else
+            # A tag-triggered release (head_branch = '<pkg>-v<ver>')
+            # publishes exactly one package; sibling legs would just
+            # repush :latest, so skip them outright. Dispatch-triggered
+            # publishes have no tag — fall through to the 404 check.
+            rel="${{ github.event.workflow_run.head_branch }}"
+            if [ "${{ github.event_name }}" = "workflow_run" ] && [ "${rel%-v*}" != "$rel" ]; then
+              if [ "${rel%%-v*}" != "${{ matrix.pkg }}" ]; then
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+                echo "::notice::release tag $rel is for ${rel%%-v*}; skipping ${{ matrix.pkg }}"
+                exit 0
+              fi
+            fi
             ver=$(sed -n 's/^version = "\(.*\)"/\1/p' "packages/${{ matrix.pkg }}/pyproject.toml")
             # A release publishes one package at a time; skip sibling
             # legs whose pinned version is not on PyPI yet instead of
