@@ -83,3 +83,33 @@ def test_build_server_registers_tool():
     from devin_evals.mcp_server import build_server
     server = build_server()
     assert server is not None
+
+
+def _registered_tool_names() -> set[str]:
+    """Tools the MCP server registers — derived statically so this test
+    runs without the optional ``mcp`` extra installed."""
+    import ast
+    from pathlib import Path
+
+    src = (
+        Path(__file__).parents[1] / "src" / "devin_evals" / "mcp_server.py"
+    )
+    tree = ast.parse(src.read_text(encoding="utf-8"))
+    return {
+        node.name
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and any(
+            isinstance(dec, ast.Call)
+            and isinstance(dec.func, ast.Attribute)
+            and dec.func.attr == "tool"
+            for dec in node.decorator_list
+        )
+    }
+
+
+def test_mcp_tool_surface_is_pinned():
+    """Regression contract: the AI surface is exactly this set. A new
+    tool only lands after a deliberate edit here — check it stays
+    read-only before widening."""
+    assert _registered_tool_names() == {"evals_run"}
