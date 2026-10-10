@@ -76,6 +76,7 @@ jobs:
           test -n "$ver"
           echo "version=$ver" >> "$GITHUB_OUTPUT"
           echo "skip=false" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
         if: github.event_name != 'pull_request' && steps.v.outputs.skip != 'true'
@@ -89,6 +90,9 @@ jobs:
         with:
           context: .
           file: packages/${{ matrix.pkg }}/Dockerfile
+          # Multi-arch on push; PR legs build native-only because the
+          # docker driver cannot --load a multi-platform manifest list.
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
           push: ${{ github.event_name != 'pull_request' }}
           load: ${{ github.event_name == 'pull_request' }}
           build-args: VERSION=${{ steps.v.outputs.version }}
