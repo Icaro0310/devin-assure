@@ -41,11 +41,18 @@ jobs:
             ver=$(sed -n 's/^version = "\(.*\)"/\1/p' "packages/${{ matrix.pkg }}/pyproject.toml")
             # A release publishes one package at a time; skip sibling
             # legs whose pinned version is not on PyPI yet instead of
-            # failing the whole matrix.
-            if [ -n "$ver" ] && ! curl -sf "https://pypi.org/pypi/devin-${{ matrix.pkg }}/${ver}/json" >/dev/null; then
-              echo "version=$ver" >> "$GITHUB_OUTPUT"
-              echo "skip=true" >> "$GITHUB_OUTPUT"
-              exit 0
+            # failing the whole matrix. Only a 404 means unpublished:
+            # transient PyPI errors must fail the leg, not skip it.
+            if [ -n "$ver" ]; then
+              code=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/devin-${{ matrix.pkg }}/${ver}/json")
+              if [ "$code" = "404" ]; then
+                echo "version=$ver" >> "$GITHUB_OUTPUT"
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              elif [ "$code" != "200" ]; then
+                echo "PyPI version check failed (HTTP $code)" >&2
+                exit 1
+              fi
             fi
           fi
           test -n "$ver"
