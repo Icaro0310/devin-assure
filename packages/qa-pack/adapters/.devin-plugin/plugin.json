@@ -1,0 +1,15 @@
+{
+  "name": "devin-qa-pack",
+  "version": "0.1.0",
+  "description": "Verify what an agent session claimed it did (tests, commits, files, pushes) against its own tool-call evidence. Read-only audit — PASS / PARTIAL / UNVERIFIED per session.",
+  "author": { "name": "Icaro0310" },
+  "repository": "https://github.com/Icaro0310/devin-assure",
+  "license": "MIT",
+  "keywords": ["devin", "qa", "audit", "verification", "evidence"],
+  "mcpServers": {
+    "devin-qa-pack": {
+      "command": "uvx",
+      "args": ["--from", "devin-qa-pack[mcp]", "devin-qa-pack-mcp"]
+    }
+  }
+}
