@@ -267,7 +267,7 @@ dev = [
 
 [[package]]
 name = "devin-evals"
-version = "0.2.0"
+version = "0.3.1"
 source = { editable = "packages/evals" }
 dependencies = [
     { name = "devin-internals-spec" },
@@ -276,6 +276,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "mcp" },
     { name = "pytest" },
 ]
 mcp = [
@@ -286,6 +287,7 @@ mcp = [
 requires-dist = [
     { name = "devin-internals-spec", specifier = ">=0.3.0,<0.4.0" },
     { name = "devin-redact", specifier = ">=0.2.0,<0.3.0" },
+    { name = "mcp", marker = "extra == 'dev'", specifier = ">=1.2" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
 ]

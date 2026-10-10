@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-10
+
+### Fixed
+
+- `devin_evals.__version__` / `--version` now report the real release —
+  the constant drifted at 0.2.0 while the wheel published as 0.3.0.
+
 ## [0.3.0] - 2026-10-10
 
 ### Added
