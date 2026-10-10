@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `regex` grader — tenth deterministic grader, matching transcript text
+- `regex` grader — tenth deterministic grader, matching tool output JSON
   against a pattern (`{"grader": "regex", "text": "...", "present": bool}`).
   Already used by the golden corpus (`golden-d03-verified-claim`), so the
   corpus previously could not verify against the published wheel — this
