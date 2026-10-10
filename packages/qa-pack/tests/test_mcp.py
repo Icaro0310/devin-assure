@@ -57,6 +57,22 @@ def test_do_audit_default_limit_covers_all(sessions_db):
     assert len(out["sessions"]) >= 3
 
 
+def test_do_audit_default_limit_not_capped_at_twenty(tmp_path):
+    """Boundary regression: the all-sessions default must not silently
+    stop at the old 20-session cap (the CLI's limit=None)."""
+    import sqlite3
+
+    from conftest import add_session
+    from devin_internals.fixtures import create_sessions_db
+    db = create_sessions_db(tmp_path / "sessions.db", n_sessions=0)
+    con = sqlite3.connect(db)
+    with con:
+        for i in range(25):
+            add_session(con, f"bulk-{i}", "/nonexistent", f"bulk {i}")
+    out = do_audit(audit_all_sessions=True, sessions_db=str(db))
+    assert len(out["sessions"]) == 25
+
+
 def test_do_audit_mcp_source_needs_session_id():
     out = do_audit(source="mcp")
     assert out["error"] == "usage"

@@ -71,6 +71,10 @@ def do_audit(
         audits = [audit_source(view, claim_limit, **kw)]
         return audits_payload(audits, f"mcp:{mcp.DEFAULT_MCP_URL}")
 
+    if session_id and audit_all_sessions:
+        return {"error": "conflicting_scope",
+                "detail": "session_id and audit_all_sessions are mutually "
+                "exclusive (CLI: --session / --all)"}
     db = Path(sessions_db).expanduser() if sessions_db else (
         default_sessions_db())
     if db is None or not db.is_file():
@@ -80,10 +84,6 @@ def do_audit(
         store = SessionsStore(db)
     except (SchemaError, OSError) as exc:
         return {"error": "bad_store", "detail": f"cannot open {db}: {exc}"}
-    if session_id and audit_all_sessions:
-        return {"error": "conflicting_scope",
-                "detail": "session_id and audit_all_sessions are mutually "
-                "exclusive (CLI: --session / --all)"}
     with store:
         if session_id:
             session = _find_session(store, session_id)
