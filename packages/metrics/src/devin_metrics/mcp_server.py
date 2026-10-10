@@ -42,7 +42,7 @@ def _resolve_stores(sessions_db: str, acp_dir: str) -> tuple[Path, Path]:
 
 def do_query(
     kind: str = "summary",
-    days: int = 30,
+    days: int = 0,
     sessions_db: str = "",
     acp_dir: str = "",
 ) -> dict | list:
@@ -107,7 +107,7 @@ def build_server():
     @server.tool()
     def metrics_query(
         kind: str = "summary",
-        days: int = 30,
+        days: int = 0,
         sessions_db: str = "",
         acp_dir: str = "",
     ) -> dict | list[Any]:

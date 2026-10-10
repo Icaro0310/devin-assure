@@ -46,6 +46,16 @@ schtasks /create /tn "devin-evals" /tr "devin-evals run --sessions-db %APPDATA%\
 Runs under your account — no admin needed. Adjust `/sc`/`/st` (or `/sc onlogon` for daemons) to taste.
 
 
+## Adapters (MCP / Devin skill / plugin)
+
+- MCP server: `pip install 'devin-evals[mcp]'` then run `devin-evals-mcp` (stdio).
+  Read-only tools only.
+- Devin plugin + skill: `devin plugins install
+  Icaro0310/devin-assure#packages/evals/adapters`. The manifest
+  launches the server through `uvx --from 'devin-evals[mcp]' devin-evals-mcp`, which
+  resolves once the next PyPI release ships — until then install from
+  source (`pip install -e 'packages/evals[mcp]'` from a checkout).
+
 ## Troubleshooting
 
 - If a command is not found, reopen PowerShell and run `uv tool update-shell`.

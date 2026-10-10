@@ -27,10 +27,16 @@ runs:
         python-version: ${{ inputs.python-version }}
     - name: Install devin-evals
       shell: bash
-      run: pip install devin-evals
+      env:
+        ACTION_SRC: ${{ github.action_path }}
+      run: pip install "$ACTION_SRC"
     - name: Run evals
       shell: bash
+      env:
+        EVALS_DIR: ${{ inputs.evals-dir }}
+        SESSIONS_DB: ${{ inputs.sessions-db }}
+        PACKS_DIR: ${{ inputs.packs-dir }}
       run: |
-        args="run --evals ${{ inputs.evals-dir }} --sessions-db ${{ inputs.sessions-db }}"
-        [ -n "${{ inputs.packs-dir }}" ] && args="$args --packs-dir ${{ inputs.packs-dir }}"
-        devin-evals $args
+        args=(run --evals "$EVALS_DIR" --sessions-db "$SESSIONS_DB")
+        [ -n "$PACKS_DIR" ] && args+=(--packs-dir "$PACKS_DIR")
+        devin-evals "${args[@]}"

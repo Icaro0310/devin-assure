@@ -22,6 +22,12 @@ First PyPI release. `pip install devin-evals`.
 
 ### Added
 
+- Read-only adapters: Devin skill and `adapters/` plugin root for
+  `devin-evals` and `devin-metrics` MCP servers (`mcp` extra,
+  `devin-evals-mcp`/`devin-metrics-mcp` entry points); setup documented
+  in the OS guides.
+
+
 - README gains the generated `Part of the DEVIN ecosystem` block
   (track/nature/audience/interface rendered from the registry).
 
