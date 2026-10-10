@@ -1,0 +1,52 @@
+name: docker-publish
+on:
+  pull_request:
+    paths:
+      - "packages/*/Dockerfile"
+      - ".github/workflows/docker-publish.yml"
+  workflow_run:
+    workflows: ["pypi-publish"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        pkg: [qa-pack, evals]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Resolve package version
+        id: v
+        run: |
+          ver=$(sed -n 's/^version = "\(.*\)"/\1/p' "packages/${{ matrix.pkg }}/pyproject.toml")
+          test -n "$ver"
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+        with:
+          context: .
+          file: packages/${{ matrix.pkg }}/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          build-args: VERSION=${{ steps.v.outputs.version }}
+          tags: |
+            ghcr.io/icaro0310/devin-${{ matrix.pkg }}:${{ steps.v.outputs.version }}
+            ghcr.io/icaro0310/devin-${{ matrix.pkg }}:latest
+      - name: Smoke
+        run: docker run --rm ghcr.io/icaro0310/devin-${{ matrix.pkg }}:latest --help
