@@ -39,14 +39,20 @@ Use `run --sessions-db`/`--evals`; `ab-run --work-dir` picks the A/B workspace-c
 
 _Weekly regression replay; `--evals` (dir of *.json cases) and `--sessions-db` are both required, so create the case dir first. A checkout ships examples under `evals/` and `corpus/evals/`; installed from PyPI you author or copy your own. Corpus stays deterministic and offline._
 
-Save this as `%USERPROFILE%\devin-tasks\devin-evals.cmd` (quoting works normally inside a `.cmd` file):
+Quoted path arguments inside `/tr` fail differently in cmd.exe and PowerShell 5.1, so this job goes through a wrapper `.cmd` file (quoting inside the file works normally). `%PUBLIC%` is used because it never contains spaces, keeping the stored action space-free:
+
+```powershell
+New-Item -ItemType Directory -Force "$env:PUBLIC\devin-tasks"
+```
+
+Save this as `%PUBLIC%\devin-tasks\devin-evals.cmd`:
 
 ```batch
 devin-evals run --evals "%USERPROFILE%\devin-evals\cases" --sessions-db "%APPDATA%\devin\cli\sessions.db"
 ```
 
 ```powershell
-schtasks /create /tn "devin-evals" /tr "%USERPROFILE%\devin-tasks\devin-evals.cmd" /sc weekly /d SUN /st 06:00 /f
+schtasks /create /tn "devin-evals" /tr "%PUBLIC%\devin-tasks\devin-evals.cmd" /sc weekly /d SUN /st 06:00 /f
 ```
 
 Runs under your account, no admin needed. Adjust `/sc`/`/st` (or `/sc onlogon` for daemons) to taste.
