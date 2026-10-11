@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- `__version__` now matches the published artifact: the 0.2.0 wheel on PyPI self-reports 0.1.0 (built before the version sync landed). This release exists so the index carries a wheel whose metadata and self-report agree.
+
 ## Unreleased
 
 - `devin-metrics` is now published on PyPI: README install section recommends `uv tool install devin-metrics` (DIST-STATUS banner removed, `distribution_status` is `published`).
