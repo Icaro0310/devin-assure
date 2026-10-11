@@ -14,7 +14,7 @@ Devin session is *not* required.
 
 ```bash
 git clone https://github.com/Icaro0310/devin-assure
-cd devin-qa-pack/examples/agent-assurance
+cd devin-assure/packages/qa-pack/examples/agent-assurance
 bash run.sh        # or ./run.sh once it is executable
 ```
 
@@ -22,7 +22,7 @@ Windows (PowerShell):
 
 ```powershell
 git clone https://github.com/Icaro0310/devin-assure
-cd devin-qa-pack\examples\agent-assurance
+cd devin-assure\packages\qa-pack\examples\agent-assurance
 .\run.ps1
 ```
 

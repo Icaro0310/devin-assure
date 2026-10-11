@@ -291,7 +291,7 @@ Two honest degradations, by design:
 ## Works with Devin alone (Devin-only mode)
 
 devin-qa-pack is an offline, read-only audit of recorded Devin sessions. It
-never calls an LLM, never touches the network, and never writes to Devin's
+never calls an LLM, makes no network calls by default, and never writes to Devin's
 stores — a safe pick for restricted machines.
 
 ## Platform support
@@ -351,7 +351,7 @@ python -m pytest
 - You want to verify that a finished Devin session actually ran tests, created commits, wrote files, or pushed — not just claimed to.
 - You are gating agent output in CI and need a machine-readable verdict (`PASS`/`PARTIAL`/`UNVERIFIED`) with exit codes.
 - You want to audit many sessions at once, offline, without sending transcripts to an LLM — and optionally publish a single static HTML report (`devin-qa-pack report`).
-- You are on a restricted machine: the tool is read-only and never touches the network.
+- You are on a restricted machine: the tool is read-only and makes no network calls by default (the opt-in `--source mcp` and `--online` checks are off unless requested).
 
 ## When NOT to use this
 
@@ -363,7 +363,7 @@ python -m pytest
 
 **How do I verify a Devin session actually ran the tests it claims?** Run `devin-qa-pack audit --session <id>`. It reads the session's `tool_call_state` rows from `sessions.db`, extracts delivery claims like "tests passed", and checks each against recorded tool calls — a claim without matching evidence resolves to `UNVERIFIED` or `PARTIAL`, not `PASS`.
 
-**Does devin-qa-pack need network access or an API key?** No. It is a fully offline, read-only audit of the local `sessions.db`. It never calls an LLM, never sends data anywhere, and never writes to Devin's stores.
+**Does devin-qa-pack need network access or an API key?** By default, no — it is a read-only audit of the local `sessions.db`. Two opt-in exceptions exist: `audit --source mcp` queries `mcp.devin.ai` (requires `DEVIN_API_KEY`, fails closed without it; `DEVIN_ORG_ID` is sent only when set, for tokens that need explicit org context) and `--online`/`--allow-domain` HEAD-checks allowlisted URLs. Neither runs unless requested; it never calls an LLM and never writes to Devin's stores.
 
 **Where does devin-qa-pack find sessions.db?** It auto-detects `%APPDATA%/devin/cli/sessions.db` on Windows, `$XDG_DATA_HOME/devin/cli/sessions.db` on Linux (`~/.local/share/devin/cli/sessions.db` by default), `~/Library/Application Support/devin/` on macOS, plus a legacy `~/.config/devin` layout. Override with `--sessions-db`.
 

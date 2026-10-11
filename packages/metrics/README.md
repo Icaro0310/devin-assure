@@ -5,11 +5,11 @@
 <a href="https://github.com/Icaro0310/devin-assure/actions/workflows/test-metrics.yml"><img src="https://github.com/Icaro0310/devin-assure/actions/workflows/test-metrics.yml/badge.svg" alt="ci"/></a>
 
 
-<a href="https://scorecard.dev/viewer/?uri=github.com/Icaro0310/devin-metrics"><img src="https://api.scorecard.dev/projects/github.com/Icaro0310/devin-metrics/badge" alt="OpenSSF Scorecard"/></a>
+<a href="https://scorecard.dev/viewer/?uri=github.com/Icaro0310/devin-assure"><img src="https://api.scorecard.dev/projects/github.com/Icaro0310/devin-assure/badge" alt="OpenSSF Scorecard"/></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="License: MIT"/></a>
 <a href="https://www.python.org/"><img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python 3.10+"/></a>
-<a href="https://github.com/Icaro0310/devin-assure"><img src="https://img.shields.io/github/stars/Icaro0310/devin-metrics" alt="GitHub stars"/></a>
-<a href="https://github.com/Icaro0310/devin-assure/commits/main"><img src="https://img.shields.io/github/last-commit/Icaro0310/devin-metrics" alt="Last commit"/></a>
+<a href="https://github.com/Icaro0310/devin-assure"><img src="https://img.shields.io/github/stars/Icaro0310/devin-assure" alt="GitHub stars"/></a>
+<a href="https://github.com/Icaro0310/devin-assure/commits/main"><img src="https://img.shields.io/github/last-commit/Icaro0310/devin-assure" alt="Last commit"/></a>
 <a href="https://github.com/Icaro0310/awesome-devin"><img src="https://img.shields.io/badge/part%20of-devin--*-ecosystem-7c3aed" alt="devin-* ecosystem"/></a>
 <a href="https://github.com/Icaro0310/devin-assure/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome"/></a>
 </div>
