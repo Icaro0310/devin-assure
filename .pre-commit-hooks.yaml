@@ -1,0 +1,19 @@
+- id: devin-qa-pack-gate
+  name: devin-qa-pack session audit
+  description: >-
+    Re-audit the most recent Devin session before committing:
+    `devin-qa-pack audit --all --limit 1` reads the auto-detected
+    sessions.db and checks the latest session's deliverable claims
+    against tool_call_state ground truth — a "tests passed" claim
+    needs a real test-runner call, a "committed <sha>" claim needs
+    the hash in a call or in git log. Exits 1 when the verdict is
+    PARTIAL or UNVERIFIED, blocking the commit; exits 2 when no
+    sessions.db is reachable, so the hook fails closed on machines
+    without a Devin data dir. Fully read-only and offline — live
+    URL checks require the opt-in `--online` flag, which the hook
+    never passes. To audit more sessions or one specific session,
+    override with `args:` (e.g. `--limit 20` or `--session <id>`).
+  entry: devin-qa-pack audit --all --limit 1
+  language: system
+  pass_filenames: false
+  always_run: true
