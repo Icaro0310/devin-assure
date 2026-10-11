@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+
+- Docs: guias de plataforma regenerados; job semanal agora inclui `--evals` e `--sessions-db` obrigatórios.
 - README now prescribes the PyPI install (`uv tool install devin-evals` /
   `pip install devin-evals`); the source-only `DIST-STATUS` banner is gone.
 
