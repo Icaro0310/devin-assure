@@ -19,7 +19,7 @@ uv tool install "devin-metrics"
 ## Devin paths
 
 Session data normally lives under `%APPDATA%\devin\cli\`; UI state and ACP stores under `%APPDATA%\Devin\User\`.
-Use the tool's documented `--data-dir` or `--config-dir` flags for non-default locations.
+Use `--sessions-db`/`--acp-dir` for non-default locations.
 
 ## Environment notes
 
@@ -40,7 +40,7 @@ Use the tool's documented `--data-dir` or `--config-dir` flags for non-default l
 _Daily usage summary; `watch` is the advisory context guard._
 
 ```powershell
-schtasks /create /tn "devin-metrics" /tr "devin-metrics summary" /sc daily /st 04:00 /f
+schtasks /create /tn "devin-metrics" /tr "devin-metrics summary" /sc daily /st 04:45 /f
 ```
 
 Runs under your account — no admin needed. Adjust `/sc`/`/st` (or `/sc onlogon` for daemons) to taste.

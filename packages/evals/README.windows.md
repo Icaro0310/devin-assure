@@ -19,7 +19,7 @@ uv tool install "devin-evals"
 ## Devin paths
 
 Session data normally lives under `%APPDATA%\devin\cli\`; UI state and ACP stores under `%APPDATA%\Devin\User\`.
-Use the tool's documented `--data-dir` or `--config-dir` flags for non-default locations.
+Use `--sessions-db`/`--work-dir` for non-default locations.
 
 ## Environment notes
 
@@ -40,7 +40,7 @@ Use the tool's documented `--data-dir` or `--config-dir` flags for non-default l
 _Weekly regression replay; corpus stays deterministic and offline._
 
 ```powershell
-schtasks /create /tn "devin-evals" /tr "devin-evals run --sessions-db %APPDATA%\devin\cli\sessions.db" /sc daily /st 04:00 /f
+schtasks /create /tn "devin-evals" /tr "devin-evals run --sessions-db %APPDATA%\devin\cli\sessions.db" /sc weekly /d SUN /st 06:00 /f
 ```
 
 Runs under your account — no admin needed. Adjust `/sc`/`/st` (or `/sc onlogon` for daemons) to taste.
