@@ -40,7 +40,7 @@ Use `--sessions-db`/`--acp-dir` for non-default locations.
 _Daily usage summary; `watch` is the advisory context guard._
 
 ```powershell
-schtasks /create /tn "devin-metrics" /tr "devin-metrics summary" /sc daily /st 04:45 /f
+schtasks /create /tn "devin-metrics" /tr 'devin-metrics summary' /sc daily /st 04:45 /f
 ```
 
 Runs under your account, no admin needed. Adjust `/sc`/`/st` (or `/sc onlogon` for daemons) to taste.
