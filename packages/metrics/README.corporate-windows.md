@@ -64,7 +64,7 @@ _Daily usage summary; `watch` is the advisory context guard._
 schtasks /create /tn "devin-metrics" /tr "devin-metrics summary" /sc daily /st 04:45 /f
 ```
 
-User-scope `schtasks` needs no admin. If Group Policy disables Task Scheduler (`0x80070005` "Access is denied"), run the command manually or use the tool's own `install` subcommand where available. Options needing elevation, "Run whether user is logged on or not", highest privileges, are usually policy-blocked; when they are, a user-scope logon trigger (`/sc onlogon`) is the realistic fallback.
+User-scope `schtasks` needs no admin. If Group Policy disables Task Scheduler (`0x80070005` "Access is denied"), run the command manually or use the tool's own `install` subcommand where available. Options needing elevation, "Run whether user is logged on or not", highest privileges, are usually policy-blocked; when they are, a user-scope logon trigger (`/sc onlogon`, or `New-ScheduledTaskTrigger -AtLogOn`) is the realistic fallback.
 
 
 ## Troubleshooting
