@@ -16,6 +16,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which switches fixture handling from a blanket `fixtures` directory
   exclusion to hash-pinned `.secrets-scan-allow` entries.
 
+## [0.3.1] - 2026-10-10
+
+### Fixed
+
+- `__version__` synced to the package version (0.2.0 had self-reported
+  through the 0.3.x line until this sync).
+- Golden corpus regenerated under the new version so the committed
+  drift gate passes (`tools/regen-corpus.py`, seed-pinned).
+
+### Added
+
+- PyPI publish workflow verifies the wheel's self-reported
+  `__version__` against `pyproject.toml` before upload
+  (`--no-deps` install into an isolated target).
+- GHCR image `ghcr.io/icaro0310/devin-evals` tagged `<version>` +
+  `latest` (linux/amd64 + linux/arm64); the image installs the
+  published wheel, never the checkout.
+
+## [0.3.0] - 2026-10-10
+
+### Added
+
+- Read-only adapters shipped: `evals_mcp` (corpus verify + compare),
+  Devin Skill, Devin Plugin manifest, and the `devin-evals-action`
+  satellite — all delegating to the package core.
+
 ## [0.2.0] - 2026-10-08
 
 First PyPI release. `pip install devin-evals`.
