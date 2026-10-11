@@ -245,6 +245,30 @@ stdin and exports `DEVIN_SESSION_ID`):
 }
 ```
 
+## Pre-commit gate
+
+The repo root ships `.pre-commit-hooks.yaml` — reference it from a
+consumer's `.pre-commit-config.yaml`:
+
+```yaml
+- repo: https://github.com/Icaro0310/devin-assure
+  rev: <tag-or-sha>
+  hooks: [{ id: devin-qa-pack-gate }]
+```
+
+Requires `devin-qa-pack` on PATH (`pipx install devin-qa-pack` or
+`uv tool install devin-qa-pack`). On every commit the gate runs
+`devin-qa-pack audit --all --limit 1 --within .` from the repo root:
+it reads the auto-detected sessions.db, keeps only sessions whose
+`working_directory` is this repo and audits the newest one. A PARTIAL
+or UNVERIFIED verdict exits 1 and blocks the commit; the gate fails
+closed (exit 2) when no sessions.db is reachable or no session matches
+this repo. Fully read-only and offline — `--online` is never passed.
+Widen it via `args:` (e.g. `args: [--limit, "20"]`); `--session` and
+`--transcript` cannot be selected through `args:` because `--all` stays
+in the entry and the scope flags are mutually exclusive — run
+`devin-qa-pack audit --session <id>` directly instead.
+
 ## Auditing other agents (experimental)
 
 `audit --transcript` runs the same claim/evidence model over non-Devin
