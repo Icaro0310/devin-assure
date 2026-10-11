@@ -4,7 +4,8 @@
 verifies deliverable claims against tool_call_state ground truth and
 prints a verdict per session. Read-only. Exit codes: 0 = every audited
 session PASS · 1 = audit ran, some session PARTIAL/UNVERIFIED · 2 = the
-audit could not run (missing/unknown store, unknown session).
+audit could not run (missing/unknown store, unknown session, or no
+session matched the scope — e.g. an empty db or ``--within``).
 
 ``devin-qa-pack session-end`` is the SessionEnd hook variant: it audits
 only the session that just ended, writes the verdict to a JSON side
@@ -83,6 +84,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--cwd", metavar="PATH",
         help="working directory for git/file checks in --transcript mode "
         "(default: the transcript's directory / transcript cwd field)")
+    audit.add_argument(
+        "--within", metavar="PATH",
+        help="with --all: only audit sessions whose working_directory is "
+             "PATH or inside it — '.' scopes the audit to the current "
+             "repository (applied before --limit)")
     audit.add_argument("--limit", type=int, metavar="N",
                        help="max sessions with --all (most recent first)")
     audit.add_argument("--json", action="store_true", help="JSON output")
@@ -246,6 +252,9 @@ def _load_transcript(path_arg: str, fmt: str | None, cwd: str | None):
 
 
 def _cmd_audit(args: argparse.Namespace) -> int:
+    if args.within and not args.all:
+        print("error: --within only applies to --all", file=sys.stderr)
+        return 2
     if getattr(args, "source", "local") == "mcp":
         if not getattr(args, "session", None):
             print("error: --source mcp needs --session <cloud session id>",
@@ -285,13 +294,19 @@ def _cmd_audit(args: argparse.Namespace) -> int:
             kw = {"online": args.online,
                   "allow_domains": tuple(args.allow_domain)}
             if args.all:
-                audits = audit_all(store, limit=args.limit, **kw)
+                audits = audit_all(store, limit=args.limit,
+                                   within=args.within, **kw)
             else:
                 session = _find_session(store, args.session)
                 if session is None:
                     return 2
                 audits = [audit_session(store, session, **kw)]
 
+    if not audits:
+        # Fail closed: ``all()`` on an empty list would exit 0 and a commit
+        # gate must not pass without auditing any evidence.
+        print(f"error: no sessions to audit in {db}", file=sys.stderr)
+        return 2
     if args.json:
         print(json.dumps(audits_payload(audits, db), indent=2))
     else:

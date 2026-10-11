@@ -105,16 +105,39 @@ def audit_session(
     )
 
 
+def _is_within(path: Path, root: Path) -> bool:
+    """True when ``path`` resolves to ``root`` or a directory under it."""
+    try:
+        path.expanduser().resolve().relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
 def audit_all(
     store: SessionsStore,
     limit: int | None = None,
     *,
+    within: str | Path | None = None,
     online: bool = False,
     allow_domains: tuple[str, ...] = (),
 ) -> list[SessionAudit]:
+    if within is None:
+        sessions = store.sessions(limit=limit)
+    else:
+        # ``within`` filters on working_directory, so the SQL LIMIT cannot
+        # apply first — the newest session overall is often another
+        # project's, and a commit gate must audit *this* repo's newest.
+        root = Path(within).expanduser().resolve()
+        sessions = [
+            s
+            for s in store.sessions()
+            if s.working_directory
+            and _is_within(Path(s.working_directory), root)
+        ][:limit]
     return [
         audit_session(store, s, online=online, allow_domains=allow_domains)
-        for s in store.sessions(limit=limit)
+        for s in sessions
     ]
 
 

@@ -1,7 +1,10 @@
 """cli.py — audit subcommand, --json shape and exit codes."""
 
 import json
+import sqlite3
 
+import pytest
+from devin_internals.fixtures import _BASE_TS_MS, create_sessions_db
 from devin_qa_pack.cli import main
 
 
@@ -76,6 +79,85 @@ def test_unique_session_prefix_resolves(sessions_db, capsys):
                "--session", "sess-veri"])
     assert rc == 0
     assert "sess-verified" in capsys.readouterr().out
+
+
+def test_audit_all_empty_store_exits_two(tmp_path, capsys):
+    """An existing but empty sessions.db yields no audits — fail closed
+    (``all([])`` would otherwise exit 0 and pass a commit gate on no
+    evidence)."""
+    db = create_sessions_db(tmp_path / "empty.db", n_sessions=0)
+    rc = main(["audit", "--sessions-db", str(db), "--all"])
+    assert rc == 2
+    assert "no sessions" in capsys.readouterr().err
+
+
+@pytest.fixture
+def two_dir_db(tmp_path):
+    """sessions.db where the newest session lives OUTSIDE the repo dir:
+
+    - ``sess-repo``: working_directory ``<tmp>/repo``, PARTIAL (claims,
+      no corroborating tool calls).
+    - ``sess-elsewhere``: working_directory ``<tmp>/elsewhere``, newer and
+      PASS — the unrelated session a bare ``--limit 1`` would audit.
+    """
+    from conftest import add_message, add_session, add_tool_call, exec_call
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    elsewhere = tmp_path / "elsewhere"
+    db = create_sessions_db(tmp_path / "sessions.db", n_sessions=0)
+    con = sqlite3.connect(db)
+    with con:
+        add_session(con, "sess-repo", str(repo), "This repo's session")
+        add_message(con, "sess-repo", 1, "agent",
+                    "All tests passed. Committed deadbee.")
+        add_session(con, "sess-elsewhere", str(elsewhere), "Other project",
+                    created=_BASE_TS_MS + 3_600_000)
+        add_message(con, "sess-elsewhere", 1, "agent",
+                    "All tests passed — pytest is green.")
+        add_tool_call(con, "sess-elsewhere", "tc-ok",
+                      exec_call("python -m pytest -q", output="5 passed"))
+    con.close()
+    return db, repo
+
+
+def test_audit_within_scopes_to_repo(two_dir_db, capsys):
+    """``--within .`` keeps only sessions whose working_directory is this
+    repo — an unrelated project's newer PASS cannot pass the gate."""
+    db, repo = two_dir_db
+    rc = main(["audit", "--sessions-db", str(db), "--all", "--limit", "1",
+               "--within", str(repo)])
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "sess-repo" in out
+    assert "sess-elsewhere" not in out
+
+
+def test_audit_without_within_newest_unrelated_passes(two_dir_db, capsys):
+    """The bypass ``--within`` closes: bare ``--all --limit 1`` audits the
+    newest session overall — here another project's PASS."""
+    db, _repo = two_dir_db
+    rc = main(["audit", "--sessions-db", str(db), "--all", "--limit", "1"])
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "sess-elsewhere" in out
+
+
+def test_audit_within_no_match_exits_two(two_dir_db, tmp_path, capsys):
+    """No session under PATH → nothing audited → fail closed."""
+    db, _repo = two_dir_db
+    rc = main(["audit", "--sessions-db", str(db), "--all",
+               "--within", str(tmp_path / "untouched")])
+    assert rc == 2
+    assert "no sessions" in capsys.readouterr().err
+
+
+def test_audit_within_requires_all(two_dir_db, capsys):
+    db, _repo = two_dir_db
+    rc = main(["audit", "--sessions-db", str(db), "--session", "sess-repo",
+               "--within", "."])
+    assert rc == 2
+    assert "--within" in capsys.readouterr().err
 
 
 # -- report subcommand ---------------------------------------------------------
