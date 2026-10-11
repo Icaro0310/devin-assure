@@ -37,10 +37,10 @@ Use `run --sessions-db`/`--evals`; `ab-run --work-dir` picks the A/B workspace-c
 
 ## Recurring runs (optional)
 
-_Weekly regression replay; `--evals` (dir of *.json cases) and `--sessions-db` are both required. Corpus stays deterministic and offline._
+_Weekly regression replay; `--evals` (dir of *.json cases) and `--sessions-db` are both required, so create the case dir first. A checkout ships examples under `evals/` and `corpus/evals/`; installed from PyPI you author or copy your own. Corpus stays deterministic and offline._
 
 ```powershell
-schtasks /create /tn "devin-evals" /tr "devin-evals run --evals %USERPROFILE%\devin-evals\cases --sessions-db %APPDATA%\devin\cli\sessions.db" /sc weekly /d SUN /st 06:00 /f
+schtasks /create /tn "devin-evals" /tr "devin-evals run --evals \"%USERPROFILE%\devin-evals\cases\" --sessions-db \"%APPDATA%\devin\cli\sessions.db\"" /sc weekly /d SUN /st 06:00 /f
 ```
 
 Runs under your account, no admin needed. Adjust `/sc`/`/st` (or `/sc onlogon` for daemons) to taste.

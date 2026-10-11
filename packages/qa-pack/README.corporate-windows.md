@@ -31,13 +31,13 @@ Use `--data-dir`/`--sessions-db` for non-default locations.
 
 - **No admin rights needed:** `uv` and every tool install under `%LOCALAPPDATA%`/`%APPDATA%`, nothing writes to `Program Files`, the registry, or requires elevation.
 - **Proxy:** set `HTTPS_PROXY`/`HTTP_PROXY` before installing. Per session: `$env:HTTPS_PROXY="http://proxy:port"`; persistently: `setx HTTPS_PROXY "http://proxy:port"`. `uv`, `pip` and `npm` honor them.
-- **TLS inspection:** if the corporate proxy intercepts TLS, point the installer at the company CA bundle: `$env:REQUESTS_CA_BUNDLE="C:\path\corp-root.pem"`. Certificate errors at install time mean the proxy, not the package.
+- **TLS inspection:** if the corporate proxy intercepts TLS, point the tools at the company CA bundle: `$env:REQUESTS_CA_BUNDLE=` `"C:\path\corp-root.pem"` for pip/requests and `$env:SSL_CERT_FILE="C:\path\corp-root.pem"` for uv and urllib (see the Zscaler section for the full per-tool map). Certificate errors at install time mean the proxy, not the package.
 - **Execution policy:** installed CLIs are real executables, `Set-ExecutionPolicy` only matters for `.ps1` scripts from a checkout; `-Scope CurrentUser RemoteSigned` suffices, no admin.
 - **Blocked installers:** if winget/Store are disabled by policy, `uv` installs as a standalone binary, download the GitHub release zip, extract to `%LOCALAPPDATA%\bin`, add it to PATH.
 - **Long paths:** keep checkout/install roots short (`C:\dev`), MAX_PATH (260 chars) can still bite inside virtualenvs; `LongPathsEnabled` needs admin, short roots do not.
 - **EDR/antivirus:** if a scan kills the install, retry with an exclusion or ask IT to allowlist `%LOCALAPPDATA%\uv` and `%USERPROFILE%\.local\bin`. These tools never elevate or listen on the network by default.
 - **Offline/air-gapped:** `pip download <package> -d wheels\` on a connected machine, copy the folder, then `pip install --no-index --find-links wheels\` on the target (pure-Python tools; native deps need a matching platform wheel). For `source_only` tools installed from a copied checkout, stage the build backend too (`pip download setuptools wheel`), then install with `pip install --no-index --find-links wheels\ --no-build-isolation .` inside the checkout.
-- **Fully local runtime:** the core audit is fully offline. Two opt-in exceptions that do not apply under local-only: `audit --source mcp` POSTs to `https://mcp.devin.ai/mcp` with `DEVIN_API_KEY`/`DEVIN_ORG_ID` (fail-closed without the key; `DEVIN_MCP_URL` overrides the endpoint), and `--online`/`--allow-domain` makes HEAD requests to allowlisted claim URLs.
+- **Fully local runtime:** the core audit is fully offline. Two opt-in exceptions that do not apply under local-only: `audit --source mcp` POSTs to `https://mcp.devin.ai/mcp` with `DEVIN_API_KEY` (fail-closed without it; `DEVIN_ORG_ID` is sent only when set, for tokens that need explicit org context; `DEVIN_MCP_URL` overrides the endpoint), and `--online`/`--allow-domain` makes HEAD requests to allowlisted claim URLs.
 
 ## Zscaler
 
@@ -52,7 +52,7 @@ Zscaler é comum em ambientes corporativos e se comporta diferente de um proxy g
   ```
   Se a raiz da Zscaler já estiver no repositório de certificados do Windows (caso comum: instalada por política), `uv` também resolve com `uv --native-tls` ou `$env:UV_NATIVE_TLS="1"`, que lê o store do SO em vez do bundle embutido.
 - **PAC file / auto-config:** se o proxy vem de um PAC em vez de variável fixa, `HTTPS_PROXY` manual pode não bastar. Descubra o proxy ativo antes de setar a variável: `netsh winhttp show proxy`, ou o painel do Zscaler Client Connector. Para downloads pontuais, copie o endereço que o PAC resolve para `HTTPS_PROXY`/`HTTP_PROXY`.
-- **Portas e protocolos:** os MCP servers que este ecossistema instala usam transporte `stdio`, sem porta não-padrão, e ZPA não interfere. Exceções opt-in existem e estão no bullet "Fully local runtime" de cada guia (ex.: o perfil corporate do devin-switch registra MCPs remotos HTTPS; o `--source mcp` do devin-qa-pack sai por HTTPS). Ferramentas remotas assim dependem de a ZPA/liberação alcançar o host delas.
+- **Portas e protocolos:** os MCP servers que este ecossistema instala usam transporte `stdio`, sem porta não-padrão, e ZPA não interfere. Exceções opt-in existem e estão no bullet "Fully local runtime" deste guia (ex.: o perfil corporate do devin-switch registra MCPs remotos HTTPS; o `--source mcp` do devin-qa-pack sai por HTTPS). Ferramentas remotas assim dependem de a ZPA/liberação alcançar o host delas.
 - **"É a Zscaler ou outra coisa?":** `SSL: CERTIFICATE_VERIFY_FAILED` cujo emissor do certificado é `Zscaler` significa inspeção de TLS; resolva pela raiz acima. Timeout ou `connection refused` aponta mais para firewall/regra de rede, não TLS. Valide o proxy ativo e reporte ao TI com o host e a porta.
 
 

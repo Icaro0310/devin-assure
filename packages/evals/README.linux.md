@@ -38,7 +38,7 @@ Use `run --sessions-db`/`--evals`; `ab-run --work-dir` picks the A/B workspace-c
 
 ## Recurring runs (optional)
 
-_Weekly regression replay; `--evals` (dir of *.json cases) and `--sessions-db` are both required. Corpus stays deterministic and offline._
+_Weekly regression replay; `--evals` (dir of *.json cases) and `--sessions-db` are both required, so create the case dir first. A checkout ships examples under `evals/` and `corpus/evals/`; installed from PyPI you author or copy your own. Corpus stays deterministic and offline._
 
 ```cron
 0 6 * * 0 devin-evals run --evals ~/devin-evals/cases --sessions-db ~/.local/share/devin/cli/sessions.db
