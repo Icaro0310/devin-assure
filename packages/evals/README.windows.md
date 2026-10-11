@@ -39,7 +39,7 @@ Use `run --sessions-db`/`--evals`; `ab-run --work-dir` picks the A/B workspace-c
 
 _Weekly regression replay; `--evals` (dir of *.json cases) and `--sessions-db` are both required, so create the case dir first. A checkout ships examples under `evals/` and `corpus/evals/`; installed from PyPI you author or copy your own. Corpus stays deterministic and offline._
 
-Quoted path arguments inside `/tr` fail differently in cmd.exe and PowerShell 5.1, so this job goes through a wrapper `.cmd` file in your own profile directory (quoting inside the file works normally, and no other user can replace it). Register with the `ScheduledTask` cmdlets, which take the path literally:
+Quoted path arguments inside `/tr` fail differently in cmd.exe and PowerShell 5.1, so this job goes through a wrapper `.cmd` file in your own profile directory (quoting inside the file works normally, and no other user can replace it). The task inherits your user `PATH`; if the tool is not on it, write the tool's full path inside the `.cmd`. Register with the `ScheduledTask` cmdlets, which take the path literally and replace cleanly on rerun (`-Force`):
 
 ```powershell
 New-Item -ItemType Directory -Force "$env:USERPROFILE\devin-tasks"   # cmd.exe: mkdir "%USERPROFILE%\devin-tasks"
@@ -54,7 +54,7 @@ devin-evals run --evals "%USERPROFILE%\devin-evals\cases" --sessions-db "%APPDAT
 ```powershell
 $action  = New-ScheduledTaskAction -Execute "$env:USERPROFILE\devin-tasks\devin-evals.cmd"
 $trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Sunday -At 6AM
-Register-ScheduledTask -TaskName "devin-evals" -Action $action -Trigger $trigger
+Register-ScheduledTask -TaskName "devin-evals" -Action $action -Trigger $trigger -Force
 ```
 
 _cmd.exe users: the same registration works from Task Scheduler's GUI (Action = the .cmd path)._

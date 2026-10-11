@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Docs: job agendado usa wrapper `.cmd` em `%USERPROFILE%\devin-tasks` + `Register-ScheduledTask` (cross-shell, sem hijack cross-user).
 
-### Changed
+
 
 
 - Docs: guias de plataforma regenerados; job semanal agora inclui `--evals` e `--sessions-db` obrigatórios.
