@@ -15,14 +15,19 @@ read-only surface as the package's MCP server (`qa_audit`).
 
 - Status bar item showing the worst verdict across audited sessions
   (`PASS (n)` / `PARTIAL` / `UNVERIFIED`), with the per-verdict counts in
-  the tooltip. Click it to re-run the audit.
+  the tooltip. **Clicking it re-runs the same scoped audit** (all /
+  workspace / single session) — not a global audit.
 - **devin-qa-pack: Audit all sessions** — `audit --all --limit N --json`,
   then a quick-pick of verdicts; selecting one opens a markdown sheet with
   the session's claims and evidence.
 - **devin-qa-pack: Audit this workspace's sessions** — same audit scoped
-  to the open folder (`--within <workspaceFolder>`).
+  to the open folder(s) (`--within <folder>`). Multi-root workspaces run
+  one `--within` audit per folder and merge the verdicts (deduped by
+  session id).
 - **devin-qa-pack: Audit one session** — prompts for a session id (exact
   or unique prefix) and audits just that one (`--session <id>`).
+- **devin-qa-pack: Re-run last audit** — repeats whichever scope ran most
+  recently (the status bar click does the same).
 
 ## Read-only contract
 
@@ -34,8 +39,11 @@ purpose:
 - `session-end` — the SessionEnd hook handler; writes a JSON side file.
 - `intent` — the QA-4 heuristic stays CLI-only for now (the MCP surface
   likewise exposes only `audit`).
-- `--online` / `--allow-domain` — live network checks stay opt-in on the
-  CLI; the adapter never passes them.
+- `--online` / `--allow-domain` / `--transcript` / `--source` — live
+  network checks and non-local evidence modes stay CLI-only. The adapter
+  never passes them **and filters them out of `devinQaPack.extraArgs`**
+  (value-taking flags are dropped together with their value), so a
+  setting can't smuggle network access into the audit.
 
 Exit codes are treated as results, not errors: 0 = all PASS, 1 = some
 session PARTIAL/UNVERIFIED, 2 = the audit could not run (missing
@@ -43,8 +51,14 @@ sessions.db, unknown session) — the last surfaces the CLI's stderr.
 
 ## CLI compatibility (schema contract)
 
-Pinned via the `devin-qa-pack-cli` field in `package.json`:
-`devin-qa-pack >=0.1,<0.2` (the released CLI is 0.1.x).
+The `devin-qa-pack-cli` field in `package.json` declares the supported
+range — `devin-qa-pack >=0.1,<0.2` (the released CLI is 0.1.x). It is
+**advisory metadata, not an install constraint**: the extension uses
+whichever `devin-qa-pack` is on `PATH` (or `devinQaPack.executable`).
+What the pin guarantees is enforced at runtime — every payload is
+shape-validated below and drift surfaces as an explicit error, never a
+blank badge. Install a CLI inside the pinned range and the contract
+holds.
 
 The extension renders this `audit --json` shape:
 
@@ -79,7 +93,15 @@ or set `devinQaPack.executable` to an absolute path, and
 |---|---|---|
 | `devinQaPack.executable` | `devin-qa-pack` | CLI executable (name or absolute path) |
 | `devinQaPack.limit` | `20` | Max sessions per `--all` audit |
-| `devinQaPack.extraArgs` | `[]` | Extra args appended to every CLI call |
+| `devinQaPack.extraArgs` | `[]` | Extra args appended to every CLI call (`--online`, `--allow-domain`, `--transcript`, `--source` are filtered out) |
+
+## Testing
+
+The adapter suite is plain `node --test` (no vscode install needed — the
+`vscode` module is stubbed). It runs in CI via the reusable
+[`adapter-test.yml`](https://github.com/Icaro0310/devin-powerups/blob/main/.github/workflows/adapter-test.yml)
+caller in `.github/workflows/test-qa-pack-vscode.yml`, on Windows and
+Ubuntu.
 
 ## Privacy
 

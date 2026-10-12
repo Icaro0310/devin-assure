@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.1.1]
+
+### Added
+
+- `devin-qa-pack: Re-run last audit` command; the status bar click now
+  re-runs the same scoped audit (all / workspace / session) instead of
+  always auditing globally.
+- CI coverage: `test-qa-pack-vscode.yml` runs `node --test` via the
+  reusable `adapter-test.yml` on Windows and Ubuntu.
+
+### Fixed
+
+- Multi-root workspaces: every workspace folder gets its own `--within`
+  audit and the verdicts merge (deduped by session id), instead of only
+  auditing the first folder.
+- A claim-picker selection resolving after a newer audit started no
+  longer opens stale claim details (seq re-checked post-await).
+- Failure path clears the status bar warning background.
+- `devinQaPack.extraArgs` can no longer smuggle `--online`,
+  `--allow-domain`, `--transcript` or `--source` into the audit — the
+  flags (and their values) are filtered before spawning the CLI.
+
 ## [0.1.0]
 
 ### Added
