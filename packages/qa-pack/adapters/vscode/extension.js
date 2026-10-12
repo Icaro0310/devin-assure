@@ -111,6 +111,15 @@ function runWithin(folders) {
   return Promise.all(folders.map((f) =>
     runJson(["audit", "--all", "--within", f.uri.fsPath,
       "--limit", String(config().limit), "--json"]))).then((payloads) => {
+    // Each folder payload gets the same contract check as the merged one —
+    // p.sessions is dereferenced below, so drift has to fail loudly here
+    // naming the missing field and folder, not as a TypeError in flatMap.
+    payloads.forEach((p, i) => {
+      const shape = validateAuditPayload(p);
+      if (!shape.ok) throw new Error(`audit JSON missing ${shape.missing.join(", ")} ` +
+        `(folder ${folders[i].uri.fsPath}) — extension/CLI drift ` +
+        `(compatible: devin-qa-pack ${CLI_RANGE})`);
+    });
     const seen = new Set();
     return { sessions_db: folders.map((f) => f.uri.fsPath).join(", "),
       sessions: payloads.flatMap((p) => p.sessions)
