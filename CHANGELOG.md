@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Docs** — corporate-Windows guides: Zscaler root export now covers both
+  certificate stores (`certmgr.msc`/`certlm.msc`,
+  `Cert:\CurrentUser\Root` + `Cert:\LocalMachine\Root`) and yields PEM
+  (Base-64 wizard export, or `certutil -encode` after
+  `Export-Certificate`, which writes DER).
 - **Feature** — repo root now ships `.pre-commit-hooks.yaml` with the
   `devin-qa-pack-gate` hook (`devin-qa-pack audit --all --limit 1 --within .`),
   a read-only, offline commit gate that re-audits the newest Devin session
