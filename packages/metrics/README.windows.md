@@ -59,6 +59,28 @@ Runs under your account, no admin needed. Adjust `/sc`/`/st` (or `/sc onlogon` f
   point a local manifest copy at the checkout:
   `uvx --from './packages/metrics[mcp]' devin-metrics-mcp`.
 
+### MCP host configs
+
+Same stdio server in other hosts — server name `devin-metrics`:
+
+**Zed** — `context_servers` in `~/.config/zed/settings.json`:
+
+```jsonc
+{ "context_servers": { "devin-metrics": { "command": { "path": "devin-metrics-mcp", "args": [] } } } }
+```
+
+**JetBrains AI Assistant** — Settings → Tools → AI Assistant → Model Context Protocol → Add:
+
+```json
+{ "mcpServers": { "devin-metrics": { "command": "devin-metrics-mcp" } } }
+```
+
+**Antigravity** — `~/.gemini/config/mcp_config.json`:
+
+```json
+{ "mcpServers": { "devin-metrics": { "command": "devin-metrics-mcp" } } }
+```
+
 ## Troubleshooting
 
 - If a command is not found, reopen PowerShell and run `uv tool update-shell`.
