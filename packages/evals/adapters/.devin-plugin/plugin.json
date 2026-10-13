@@ -1,6 +1,6 @@
 {
   "name": "devin-evals",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "description": "Evaluation harness: replay session prompts against deterministic rubric graders to measure agent quality over time.",
   "author": { "name": "Icaro0310" },
   "repository": "https://github.com/Icaro0310/devin-assure",
