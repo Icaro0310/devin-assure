@@ -63,6 +63,19 @@ _cmd.exe users: the same registration works from Task Scheduler's GUI (Action = 
 Runs under your account, no admin needed. Adjust the `New-ScheduledTaskTrigger` arguments (or `-AtLogOn` for daemons) to taste.
 
 
+## Adapters (MCP / Devin skill / plugin)
+
+- MCP server: `pip install 'devin-evals[mcp]'` then run `devin-evals-mcp` (stdio).
+  Read-only tools only.
+- Devin plugin + skill: `devin plugins install
+  Icaro0310/devin-assure#packages/evals/adapters`. The manifest
+  launches the server through `uvx --from 'devin-evals[mcp]' devin-evals-mcp`, which
+  resolves once the next PyPI release ships. Until then, an
+  editable install does not change what `uvx --from` resolves —
+  either run the source-installed `devin-evals-mcp` directly, or
+  point a local manifest copy at the checkout:
+  `uvx --from './packages/evals[mcp]' devin-evals-mcp`.
+
 ## Troubleshooting
 
 - If a command is not found, reopen PowerShell and run `uv tool update-shell`.

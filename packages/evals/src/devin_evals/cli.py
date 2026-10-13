@@ -387,6 +387,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
         f"score: {s['passed']}/{s['total']} cases passed"
         f" — report written to {Path(args.out).resolve()}"
     )
+    graded = s["passed"] + s["failed"] + s["errored"]
+    if s["total"] and not graded:
+        print("error: every case skipped — nothing was graded",
+              file=sys.stderr)
+        return _FAILED
     return _FAILED if (s["failed"] or s["errored"]) else _OK
 
 
