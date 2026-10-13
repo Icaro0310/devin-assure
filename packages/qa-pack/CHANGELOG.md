@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 
+- Version bumped to 0.1.1 to restore the lockstep gate with the VS Code
+  adapter (`adapters/vscode/package.json` shipped 0.1.1 while the
+  package stayed 0.1.0 — the `test-qa-pack-vscode` lockstep check
+  requires both to match).
 - Docs: guias de plataforma regenerados (Zscaler, exceções de rede opt-in nomeadas); FAQ corrige `DEVIN_ORG_ID` para condicional (enviado apenas quando setado).
 - README gains the generated `Part of the DEVIN ecosystem` block
   (track/nature/audience/interface rendered from the registry).
