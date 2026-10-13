@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Feature** — `devin-metrics digest --weekly` composes the existing
+  `summary`/`daily`/`watch` outputs into one markdown report
+  (`digest-YYYY-Www.md`, atomic tmp+replace write) and prints its path.
+  Incremental via the shared `devin_internals.cursor` state
+  (`metrics-digest-state.json`): the last digested ISO week is the
+  watermark, so a second run in the same week reports "already digested"
+  and writes nothing unless `--force`; `--since` backfills an explicit
+  week (`YYYY-Www`, a date inside it, or epoch ms), corrupt state fails
+  open into a full run, and `DEVIN_CURSOR_DIR` overrides the `.devin/`
+  anchor. The watch-guard findings moved to
+  `devin_metrics.aggregate.watch_report` (shared with `watch`), and
+  `devin-metrics` now requires `devin-internals-spec>=0.3.1`.
 - **Docs** — corporate-Windows guides: Zscaler root export now covers both
   certificate stores (`certmgr.msc`/`certlm.msc`,
   `Cert:\CurrentUser\Root` + `Cert:\LocalMachine\Root`) and yields PEM

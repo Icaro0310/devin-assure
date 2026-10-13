@@ -183,6 +183,47 @@ def by_day(snap: MetricsSnapshot, days: int | None = None) -> list[dict[str, Any
     ]
 
 
+def watch_report(
+    snap: MetricsSnapshot,
+    session_warn: int = 400_000,
+    daily_warn: int = 2_000_000,
+) -> dict[str, Any]:
+    """Advisory context-guard findings (ME-2) — warns, never blocks.
+
+    Cost is unverifiable in local stores (ME-3), so the guard watches
+    ``context_tokens`` (peak prompt size per session) — the only real
+    resource signal that persists. Thresholds are advisory; callers decide
+    the exit code. Shared by the ``watch`` command and ``digest --weekly``.
+    """
+    findings: list[dict[str, Any]] = []
+    by_ctx = sorted(
+        (s for s in snap.sessions if s.context_tokens is not None),
+        key=lambda s: s.context_tokens or 0, reverse=True)
+    over_session = [s for s in by_ctx if s.context_tokens > session_warn]
+    days: dict[str, int] = {}
+    for s in snap.sessions:
+        if s.context_tokens:
+            d = _day(s.created_at)
+            days[d] = days.get(d, 0) + s.context_tokens
+    over_days = {d: v for d, v in days.items() if v > daily_warn}
+    for s in over_session:
+        findings.append({"kind": "session", "session_id": s.id,
+                         "context_tokens": s.context_tokens,
+                         "threshold": session_warn})
+    for d, v in sorted(over_days.items()):
+        findings.append({"kind": "day", "date": d, "context_tokens": v,
+                         "threshold": daily_warn})
+    return {
+        "advisory": True,
+        "thresholds": {"session_warn": session_warn,
+                       "daily_warn": daily_warn},
+        "sessions_observed": len(by_ctx),
+        "findings": findings,
+        "note": "advisory only — context_tokens is peak prompt size, "
+                "not cost (local stores have no cost data, verified ME-3)",
+    }
+
+
 def top_sessions(
     snap: MetricsSnapshot, n: int = 5, key: str = "duration_ms"
 ) -> list[dict[str, Any]]:
