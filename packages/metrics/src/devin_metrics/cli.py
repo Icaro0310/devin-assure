@@ -5,6 +5,10 @@ Subcommands (read-only, no network, all accept ``--json``):
 - ``summary``   headline numbers + per-model table + top-5 longest sessions
 - ``projects``  per-project (``working_directory``) session/activity table
 - ``daily``     per-day activity; ``--days N`` keeps the N most recent days
+- ``digest``    ``--weekly`` composes summary+daily+watch into one report
+                file (``digest-YYYY-Www.md``); incremental via the shared
+                week-key cursor — a second run in the same week is a no-op
+                unless ``--force``
 
 Store locations default to the platform Devin data dir (``paths.py``);
 ``--data-dir`` overrides the root, ``--sessions-db``/``--acp-dir`` override
@@ -24,11 +28,17 @@ from pathlib import Path
 
 from devin_internals.schema import SchemaError
 
-from devin_metrics.aggregate import by_day, by_project, summarize
+from devin_metrics.aggregate import (
+    by_day,
+    by_project,
+    summarize,
+    watch_report,
+)
 from devin_metrics.churn import churn_report, render_churn
 from devin_metrics.collect import MetricsSnapshot, collect
 from devin_metrics.dashboard.collect import collect_stats
 from devin_metrics.dashboard.render import render_html
+from devin_metrics.digest import run_digest, week_key_for
 from devin_metrics.paths import (
     acp_messages_dir,
     default_acp_messages_dir,
@@ -96,40 +106,14 @@ def cmd_watch(args: argparse.Namespace) -> int:
     resource signal that persists. Thresholds are advisory: sessions that
     crossed them are listed, exit stays 0 unless --fail.
     """
-    snap = _snapshot(args)
-    findings: list[dict] = []
-    by_ctx = sorted(
-        (s for s in snap.sessions if s.context_tokens is not None),
-        key=lambda s: s.context_tokens or 0, reverse=True)
-    over_session = [s for s in by_ctx if s.context_tokens > args.session_warn]
-    days: dict[str, int] = {}
-    for s in snap.sessions:
-        if s.context_tokens:
-            from devin_metrics.aggregate import _day
-            d = _day(s.created_at)
-            days[d] = days.get(d, 0) + s.context_tokens
-    over_days = {d: v for d, v in days.items() if v > args.daily_warn}
-    for s in over_session:
-        findings.append({"kind": "session", "session_id": s.id,
-                         "context_tokens": s.context_tokens,
-                         "threshold": args.session_warn})
-    for d, v in sorted(over_days.items()):
-        findings.append({"kind": "day", "date": d, "context_tokens": v,
-                         "threshold": args.daily_warn})
-    report = {
-        "advisory": True,
-        "thresholds": {"session_warn": args.session_warn,
-                       "daily_warn": args.daily_warn},
-        "sessions_observed": len(by_ctx),
-        "findings": findings,
-        "note": "advisory only — context_tokens is peak prompt size, "
-                "not cost (local stores have no cost data, verified ME-3)",
-    }
+    report = watch_report(
+        _snapshot(args), args.session_warn, args.daily_warn)
+    findings = report["findings"]
     if args.json:
         print(json.dumps(report, indent=2))
     else:
-        print(f"watch (advisory): {len(by_ctx)} sessions observed · "
-              f"{len(findings)} finding(s)")
+        print(f"watch (advisory): {report['sessions_observed']} sessions "
+              f"observed · {len(findings)} finding(s)")
         for f in findings:
             if f["kind"] == "session":
                 print(f"  session {f['session_id'][:16]}… "
@@ -140,6 +124,37 @@ def cmd_watch(args: argparse.Namespace) -> int:
         if not findings:
             print("  all clear")
     return 1 if (findings and args.fail) else 0
+
+
+def cmd_digest(args: argparse.Namespace) -> int:
+    """Weekly digest — one markdown report per ISO week.
+
+    Incremental via the shared ``metrics-digest`` cursor: the week key is
+    the watermark, so a second run inside the same ISO week reports
+    "already digested" and writes nothing unless ``--force``. ``--since``
+    backfills an explicit week (YYYY-Www, a date inside it, or epoch ms).
+    """
+    try:
+        week = week_key_for(args.since)
+    except ValueError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    res = run_digest(
+        _snapshot(args), args.out_dir, week=week, days=args.days,
+        session_warn=args.session_warn, daily_warn=args.daily_warn,
+        force=args.force)
+    if args.json:
+        print(json.dumps({
+            "week": res.week,
+            "report": str(res.path),
+            "written": res.written,
+            "skipped_reason": res.skipped_reason,
+        }, indent=2))
+    elif res.written:
+        print(f"wrote {res.path} — digest for {res.week}")
+    else:
+        print(f"{res.skipped_reason} — {res.path} (use --force to rerun)")
+    return 0
 
 
 def cmd_churn(args: argparse.Namespace) -> int:
@@ -201,6 +216,39 @@ def build_parser() -> argparse.ArgumentParser:
         help="keep the N most recent activity days (default: all)",
     )
     p_daily.set_defaults(func=cmd_daily)
+    p_digest = sub.add_parser(
+        "digest", parents=[common],
+        help="compose summary+daily+watch into a report file")
+    p_digest.add_argument(
+        "--weekly", action="store_true", required=True,
+        help="weekly report — one digest-YYYY-Www.md per ISO week")
+    p_digest.add_argument(
+        "--out-dir", metavar="DIR", default=".",
+        help="directory for the report (default: current directory)")
+    p_digest.add_argument(
+        "--days", type=int, default=7, metavar="N",
+        help="daily section keeps the N most recent activity days "
+        "(default: %(default)s)")
+    p_digest.add_argument(
+        "--session-warn", type=int, default=400_000, metavar="N",
+        help="watch: flag sessions with peak context > N tokens "
+        "(default: %(default)s)")
+    p_digest.add_argument(
+        "--daily-warn", type=int, default=2_000_000, metavar="N",
+        help="watch: flag days whose summed context > N tokens "
+        "(default: %(default)s)")
+    p_digest.add_argument(
+        "--since", metavar="WEEK|DATE|EPOCH_MS",
+        help="digest an explicit week instead of the current one "
+        "(YYYY-Www, a date inside it, or epoch ms) — backfill mode")
+    p_digest.add_argument(
+        "--incremental", action="store_true",
+        help="cursor mode — the default; a second run in the same week is "
+        "a no-op (kept for explicitness in scheduled jobs)")
+    p_digest.add_argument(
+        "--force", action="store_true",
+        help="re-digest even if this week was already digested")
+    p_digest.set_defaults(func=cmd_digest)
     p_dash = sub.add_parser("dashboard", parents=[common],
                             help="render the static HTML dashboard")
     p_dash.add_argument(

@@ -169,3 +169,36 @@ def render_daily_md(rows: list[dict[str, Any]]) -> str:
             for r in rows
         ],
     )
+
+
+def render_watch_md(report: dict[str, Any]) -> str:
+    """Watch-guard findings (``aggregate.watch_report``) as a markdown block."""
+    th = report["thresholds"]
+    findings = report["findings"]
+    parts = [
+        (
+            f"_{report['sessions_observed']} sessions observed"
+            f" · {len(findings)} finding(s) — advisory only"
+            f" (session_warn {th['session_warn']:,}"
+            f" · daily_warn {th['daily_warn']:,})_"
+        ),
+    ]
+    if findings:
+        parts += [
+            "",
+            md_table(
+                ["KIND", "WHERE", "CONTEXT TOKENS", "THRESHOLD"],
+                [
+                    [
+                        f["kind"],
+                        f.get("session_id") or f.get("date") or "-",
+                        fmt_int(f["context_tokens"]),
+                        fmt_int(f["threshold"]),
+                    ]
+                    for f in findings
+                ],
+            ),
+        ]
+    else:
+        parts += ["", "_all clear_"]
+    return "\n".join(parts)
