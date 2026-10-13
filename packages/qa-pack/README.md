@@ -361,7 +361,9 @@ network is off by default and the audit is fully offline otherwise.
   `UNVERIFIED`.
 - It verifies *that* actions happened, not that the work is good.
   Green tests in a tool call don't prove the fix is correct.
-- Read-only, offline; no real-time monitoring, no MCP server (M2).
+- Read-only, offline; no real-time monitoring. A read-only MCP server
+  (`devin-qa-pack-mcp`, `mcp` extra) exposes `qa_audit` — the same
+  payload as `audit --json`; applying nothing mutating.
 
 ## Development
 
@@ -380,7 +382,8 @@ python -m pytest
 ## When NOT to use this
 
 - You need a review of code quality or correctness — it verifies that actions happened, not that the work is good.
-- You need real-time monitoring or an MCP server (on the M2 roadmap).
+- You need real-time monitoring — the `devin-qa-pack-mcp` MCP server is
+  read-only batch audit, not live watching (still on the M2 roadmap).
 - Your agent is not Devin — the ground truth comes from Devin's `sessions.db`.
 
 ## FAQ

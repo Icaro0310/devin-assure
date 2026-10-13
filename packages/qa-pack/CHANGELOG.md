@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 
+- Version bumped to 0.1.1 to restore the lockstep gate with the VS Code
+  adapter (`adapters/vscode/package.json` shipped 0.1.1 while the
+  package stayed 0.1.0 — the `test-qa-pack-vscode` lockstep check
+  requires both to match).
 - Docs: guias de plataforma regenerados (Zscaler, exceções de rede opt-in nomeadas); FAQ corrige `DEVIN_ORG_ID` para condicional (enviado apenas quando setado).
 - README gains the generated `Part of the DEVIN ecosystem` block
   (track/nature/audience/interface rendered from the registry).
@@ -33,6 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `working_directory` is PATH or inside it, applied before `--limit`.
   This is what lets the pre-commit gate audit *this* repo's newest
   session instead of whichever project's session is globally newest.
+- Read-only adapters: `devin_qa_pack.mcp_server` MCP server (`qa_audit`,
+  `devin-qa-pack-mcp` entry point, `mcp` extra), Devin skill and
+  `adapters/` plugin root. `session_id` + `audit_all_sessions` together
+  is a `conflicting_scope` error (CLI mutual exclusion); the default
+  batch limit audits all sessions like the CLI (`limit=0` → unbounded).
 - `audit --source mcp --session <id>` — audits **cloud sessions** through
   the official Devin MCP `devin_session_events` stream
   (`mcp.devin.ai`, `Bearer $DEVIN_API_KEY`, optional `DEVIN_ORG_ID` for
