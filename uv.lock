@@ -304,7 +304,7 @@ wheels = [
 
 [[package]]
 name = "devin-metrics"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/metrics" }
 dependencies = [
     { name = "devin-internals-spec" },
@@ -328,7 +328,7 @@ provides-extras = ["dev", "mcp"]
 
 [[package]]
 name = "devin-qa-pack"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "packages/qa-pack" }
 dependencies = [
     { name = "devin-internals-spec" },
@@ -338,13 +338,17 @@ dependencies = [
 dev = [
     { name = "pytest" },
 ]
+mcp = [
+    { name = "mcp" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "devin-internals-spec", specifier = ">=0.3.0,<0.4.0" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "mcp"]
 
 [[package]]
 name = "devin-redact"

@@ -7,26 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.1] - 2026-10-10
-
-### Fixed
-
-- `devin_evals.__version__` / `--version` now report the real release —
-  the constant drifted at 0.2.0 while the wheel published as 0.3.0.
-
-## [0.3.0] - 2026-10-10
-
 ### Added
 
-- `regex` grader — tenth deterministic grader, matching tool output JSON
-  against a pattern (`{"grader": "regex", "text": "...", "present": bool}`).
-  Already used by the golden corpus (`golden-d03-verified-claim`), so the
-  corpus previously could not verify against the published wheel — this
-  release closes that gap (the `devin-evals-action` satellite depends on
-  it).
+- Read-only adapters: `devin_evals.mcp_server` MCP server (`evals_run`
+  tool, `devin-evals-mcp` entry point, `mcp` extra), Devin skill and
+  `adapters/` plugin root for `devin-evals` and `devin-metrics` MCP
+  servers (`devin-metrics-mcp` entry point); setup documented in the OS
+  guides. The `devin-evals-action` composite action and the
+  `evals-action` smoke workflow gate the corpus end-to-end.
 
 ### Changed
 
+- `run` fails closed when every case is skipped — a run that graded
+  nothing now exits 1 (`error: every case skipped`) instead of passing
+  on zero evidence.
+- Docs: job agendado usa wrapper `.cmd` em `%USERPROFILE%\devin-tasks` + `Register-ScheduledTask` (cross-shell, sem hijack cross-user).
+
+- Docs: guias de plataforma regenerados; job semanal agora inclui `--evals` e `--sessions-db` obrigatórios.
 - README now prescribes the PyPI install (`uv tool install devin-evals` /
   `pip install devin-evals`); the source-only `DIST-STATUS` banner is gone.
 
@@ -34,17 +31,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   which switches fixture handling from a blanket `fixtures` directory
   exclusion to hash-pinned `.secrets-scan-allow` entries.
 
+## [0.3.1] - 2026-10-10
+
+### Fixed
+
+- `devin_evals.__version__` / `--version` now report the real release —
+  the constant drifted at 0.2.0 while the wheel published as 0.3.0.
+- `__version__` synced to the package version (0.2.0 had self-reported
+  through the 0.3.x line until this sync).
+- Golden corpus regenerated under the new version so the committed
+  drift gate passes (`tools/regen-corpus.py`, seed-pinned).
+
+### Added
+
+- PyPI publish workflow verifies the wheel's self-reported
+  `__version__` against `pyproject.toml` before upload
+  (`--no-deps` install into an isolated target).
+- GHCR image `ghcr.io/icaro0310/devin-evals` tagged `<version>` +
+  `latest` (linux/amd64 + linux/arm64); the image installs the
+  published wheel, never the checkout.
+
+## [0.3.0] - 2026-10-10
+
+### Added
+
+- Read-only adapters shipped: `evals_mcp` (corpus verify + compare),
+  Devin Skill, Devin Plugin manifest, and the `devin-evals-action`
+  satellite — all delegating to the package core.
+- `regex` grader — tenth deterministic grader, matching tool output JSON
+  against a pattern (`{"grader": "regex", "text": "...", "present": bool}`).
+  Already used by the golden corpus (`golden-d03-verified-claim`), so the
+  corpus previously could not verify against the published wheel — this
+  release closes that gap (the `devin-evals-action` satellite depends on
+  it).
+
 ## [0.2.0] - 2026-10-08
 
 First PyPI release. `pip install devin-evals`.
 
 ### Added
-
-- Read-only adapters: Devin skill and `adapters/` plugin root for
-  `devin-evals` and `devin-metrics` MCP servers (`mcp` extra,
-  `devin-evals-mcp`/`devin-metrics-mcp` entry points); setup documented
-  in the OS guides.
-
 
 - README gains the generated `Part of the DEVIN ecosystem` block
   (track/nature/audience/interface rendered from the registry).

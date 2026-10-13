@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devin-metrics"
-version = "0.2.0"
+version = "0.2.1"
 description = "Activity, context and session observability across Devin sessions — local-only, no telemetry."
 readme = "README.md"
 license = { text = "MIT" }

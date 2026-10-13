@@ -1,8 +1,27 @@
-- id: qa-pack-audit
+- id: devin-qa-pack-gate
   name: devin-qa-pack session audit
-  description: Audit the most recent Devin session's deliverable claims against tool-call evidence; fails on non-PASS verdicts.
-  entry: devin-qa-pack audit --all --limit 1
+  description: >-
+    Re-audit this repository's most recent Devin session before
+    committing — requires `devin-qa-pack` on PATH (`pipx install
+    devin-qa-pack` or `uv tool install devin-qa-pack`). The hook runs
+    `devin-qa-pack audit --all --limit 1 --within .` from the repo
+    root: it reads the auto-detected sessions.db, keeps only sessions
+    whose working_directory is this repo (or a subdirectory of it) and
+    checks the newest one's deliverable claims against tool_call_state
+    ground truth — a "tests passed" claim needs a real test-runner
+    call, a "committed <sha>" claim needs the hash in a call or in
+    git log. Exits 1 when the verdict is PARTIAL or UNVERIFIED,
+    blocking the commit; exits 2 when no sessions.db is reachable or
+    no session's working_directory matches this repo, so the hook
+    fails closed on machines or repositories without Devin evidence.
+    Fully read-only and offline — live URL checks require the opt-in
+    `--online` flag, which the hook never passes. To widen the audit,
+    override `args:` (e.g. `--limit 20`, `--sessions-db <path>` or a
+    different `--within`). `--session`/`--transcript` cannot be
+    selected via `args:` because `--all` stays in the entry and the
+    scope flags are mutually exclusive — run
+    `devin-qa-pack audit --session <id>` directly instead.
+  entry: devin-qa-pack audit --all --limit 1 --within .
   language: system
   pass_filenames: false
   always_run: true
-  verbose: true

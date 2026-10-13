@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **Docs** — corporate-Windows guides: Zscaler root export now covers both
+  certificate stores (`certmgr.msc`/`certlm.msc`,
+  `Cert:\CurrentUser\Root` + `Cert:\LocalMachine\Root`) and yields PEM
+  (Base-64 wizard export, or `certutil -encode` after
+  `Export-Certificate`, which writes DER).
+- **Feature** — repo root now ships `.pre-commit-hooks.yaml` with the
+  `devin-qa-pack-gate` hook (`devin-qa-pack audit --all --limit 1 --within .`),
+  a read-only, offline commit gate that re-audits the newest Devin session
+  for the repo being committed; `audit` gained `--within PATH` to scope
+  `--all` by session `working_directory`, and an empty audit scope now
+  fails closed (exit 2) instead of passing on zero evidence.
 - **Docs** — refreshed the generated `Part of the DEVIN ecosystem` block: journey recuration v2 (six paths, zero repeats, `Local-first ops` label, `devin-bridge` in DevOps).
 - **Docs** — ecosystem journey recuration applied (six curated audiences); stale `Path:` line removed from the devin-qa-pack eco-block, which is not a registry entry.
 - **CI** — Ruff lint job added (`astral-sh/ruff-action`, pinned); codebase

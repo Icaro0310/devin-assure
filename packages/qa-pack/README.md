@@ -245,6 +245,30 @@ stdin and exports `DEVIN_SESSION_ID`):
 }
 ```
 
+## Pre-commit gate
+
+The repo root ships `.pre-commit-hooks.yaml` — reference it from a
+consumer's `.pre-commit-config.yaml`:
+
+```yaml
+- repo: https://github.com/Icaro0310/devin-assure
+  rev: <tag-or-sha>
+  hooks: [{ id: devin-qa-pack-gate }]
+```
+
+Requires `devin-qa-pack` on PATH (`pipx install devin-qa-pack` or
+`uv tool install devin-qa-pack`). On every commit the gate runs
+`devin-qa-pack audit --all --limit 1 --within .` from the repo root:
+it reads the auto-detected sessions.db, keeps only sessions whose
+`working_directory` is this repo and audits the newest one. A PARTIAL
+or UNVERIFIED verdict exits 1 and blocks the commit; the gate fails
+closed (exit 2) when no sessions.db is reachable or no session matches
+this repo. Fully read-only and offline — `--online` is never passed.
+Widen it via `args:` (e.g. `args: [--limit, "20"]`); `--session` and
+`--transcript` cannot be selected through `args:` because `--all` stays
+in the entry and the scope flags are mutually exclusive — run
+`devin-qa-pack audit --session <id>` directly instead.
+
 ## Auditing other agents (experimental)
 
 `audit --transcript` runs the same claim/evidence model over non-Devin
@@ -291,7 +315,7 @@ Two honest degradations, by design:
 ## Works with Devin alone (Devin-only mode)
 
 devin-qa-pack is an offline, read-only audit of recorded Devin sessions. It
-never calls an LLM, never touches the network, and never writes to Devin's
+never calls an LLM, makes no network calls by default, and never writes to Devin's
 stores — a safe pick for restricted machines.
 
 ## Platform support
@@ -337,7 +361,9 @@ network is off by default and the audit is fully offline otherwise.
   `UNVERIFIED`.
 - It verifies *that* actions happened, not that the work is good.
   Green tests in a tool call don't prove the fix is correct.
-- Read-only, offline; no real-time monitoring, no MCP server (M2).
+- Read-only, offline; no real-time monitoring. A read-only MCP server
+  (`devin-qa-pack-mcp`, `mcp` extra) exposes `qa_audit` — the same
+  payload as `audit --json`; applying nothing mutating.
 
 ## Development
 
@@ -351,19 +377,20 @@ python -m pytest
 - You want to verify that a finished Devin session actually ran tests, created commits, wrote files, or pushed — not just claimed to.
 - You are gating agent output in CI and need a machine-readable verdict (`PASS`/`PARTIAL`/`UNVERIFIED`) with exit codes.
 - You want to audit many sessions at once, offline, without sending transcripts to an LLM — and optionally publish a single static HTML report (`devin-qa-pack report`).
-- You are on a restricted machine: the tool is read-only and never touches the network.
+- You are on a restricted machine: the tool is read-only and makes no network calls by default (the opt-in `--source mcp` and `--online` checks are off unless requested).
 
 ## When NOT to use this
 
 - You need a review of code quality or correctness — it verifies that actions happened, not that the work is good.
-- You need real-time monitoring or an MCP server (on the M2 roadmap).
+- You need real-time monitoring — the `devin-qa-pack-mcp` MCP server is
+  read-only batch audit, not live watching (still on the M2 roadmap).
 - Your agent is not Devin — the ground truth comes from Devin's `sessions.db`.
 
 ## FAQ
 
 **How do I verify a Devin session actually ran the tests it claims?** Run `devin-qa-pack audit --session <id>`. It reads the session's `tool_call_state` rows from `sessions.db`, extracts delivery claims like "tests passed", and checks each against recorded tool calls — a claim without matching evidence resolves to `UNVERIFIED` or `PARTIAL`, not `PASS`.
 
-**Does devin-qa-pack need network access or an API key?** No. It is a fully offline, read-only audit of the local `sessions.db`. It never calls an LLM, never sends data anywhere, and never writes to Devin's stores.
+**Does devin-qa-pack need network access or an API key?** By default, no — it is a read-only audit of the local `sessions.db`. Two opt-in exceptions exist: `audit --source mcp` queries `mcp.devin.ai` (requires `DEVIN_API_KEY`, fails closed without it; `DEVIN_ORG_ID` is sent only when set, for tokens that need explicit org context) and `--online`/`--allow-domain` HEAD-checks allowlisted URLs. Neither runs unless requested; it never calls an LLM and never writes to Devin's stores.
 
 **Where does devin-qa-pack find sessions.db?** It auto-detects `%APPDATA%/devin/cli/sessions.db` on Windows, `$XDG_DATA_HOME/devin/cli/sessions.db` on Linux (`~/.local/share/devin/cli/sessions.db` by default), `~/Library/Application Support/devin/` on macOS, plus a legacy `~/.config/devin` layout. Override with `--sessions-db`.
 

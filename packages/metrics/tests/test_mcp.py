@@ -61,8 +61,9 @@ def test_do_query_daily_omitted_days_beyond_thirty(tmp_path, acp_dir,
     truncate the result."""
     import sqlite3
 
-    from conftest import DAY_MS, T0, _add_session
     from devin_internals.fixtures import create_sessions_db
+
+    from tests.conftest import DAY_MS, T0, _add_session
 
     db = create_sessions_db(tmp_path / "sessions.db")
     con = sqlite3.connect(db)
