@@ -77,6 +77,28 @@ User-scope registration (`schtasks` or the `ScheduledTask` cmdlets) needs no adm
   resolves once the next PyPI release ships — until then install from
   source (`pip install -e 'packages/metrics[mcp]'` from a checkout).
 
+### MCP host configs
+
+Same stdio server in other hosts — server name `devin-metrics`:
+
+**Zed** — `context_servers` in `~/.config/zed/settings.json`:
+
+```jsonc
+{ "context_servers": { "devin-metrics": { "command": { "path": "devin-metrics-mcp", "args": [] } } } }
+```
+
+**JetBrains AI Assistant** — Settings → Tools → AI Assistant → Model Context Protocol → Add:
+
+```json
+{ "mcpServers": { "devin-metrics": { "command": "devin-metrics-mcp" } } }
+```
+
+**Antigravity** — `~/.gemini/config/mcp_config.json`:
+
+```json
+{ "mcpServers": { "devin-metrics": { "command": "devin-metrics-mcp" } } }
+```
+
 ## Troubleshooting
 
 - If a command is not found, reopen PowerShell and run `uv tool update-shell`.
