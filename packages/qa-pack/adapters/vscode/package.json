@@ -1,0 +1,77 @@
+{
+  "name": "devin-qa-pack",
+  "displayName": "devin-qa-pack",
+  "description": "QA audits for Devin sessions, inside the editor. Thin adapter: the extension shells out to the devin-qa-pack CLI and renders the result — no audit logic is reimplemented here.",
+  "version": "0.1.1",
+  "publisher": "icaro0310",
+  "license": "MIT",
+  "devin-qa-pack-cli": ">=0.1,<0.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Icaro0310/devin-assure.git",
+    "directory": "packages/qa-pack/adapters/vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "devin",
+    "qa",
+    "audit",
+    "assurance"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "devin-qa-pack.audit",
+        "title": "devin-qa-pack: Audit all sessions"
+      },
+      {
+        "command": "devin-qa-pack.auditWorkspace",
+        "title": "devin-qa-pack: Audit this workspace's sessions"
+      },
+      {
+        "command": "devin-qa-pack.auditSession",
+        "title": "devin-qa-pack: Audit one session"
+      },
+      {
+        "command": "devin-qa-pack.reaudit",
+        "title": "devin-qa-pack: Re-run last audit"
+      }
+    ],
+    "configuration": {
+      "title": "devin-qa-pack",
+      "properties": {
+        "devinQaPack.executable": {
+          "type": "string",
+          "default": "devin-qa-pack",
+          "description": "devin-qa-pack executable (name or absolute path)"
+        },
+        "devinQaPack.limit": {
+          "type": "number",
+          "default": 20,
+          "description": "Max sessions per audit (devin-qa-pack audit --limit)"
+        },
+        "devinQaPack.extraArgs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra CLI args appended to every devin-qa-pack call (e.g. [\"--sessions-db\", \"…\"]). Network/evidence-mode flags — --online, --allow-domain, --transcript, --source — are filtered out: this surface stays offline and read-only."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {}
+}

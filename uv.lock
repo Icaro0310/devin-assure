@@ -267,7 +267,7 @@ dev = [
 
 [[package]]
 name = "devin-evals"
-version = "0.2.0"
+version = "0.3.1"
 source = { editable = "packages/evals" }
 dependencies = [
     { name = "devin-internals-spec" },
@@ -298,7 +298,7 @@ wheels = [
 
 [[package]]
 name = "devin-metrics"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "packages/metrics" }
 dependencies = [
     { name = "devin-internals-spec" },

@@ -1,0 +1,36 @@
+# adapter-test.yml — one job per adapter face, scoped to the face's
+# paths AND the package source: a CLI change can break the parity
+# contract without touching the adapter, so core paths must also
+# trigger the face suite. Node faces set node-version and skip-install.
+# See devin-powerups docs/adapter-checklist.md + workflows/VARIANTS.md.
+name: test-qa-pack-vscode
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/qa-pack/adapters/vscode/**'
+      - 'packages/qa-pack/src/**'
+      - 'packages/qa-pack/pyproject.toml'
+      - '.github/workflows/test-qa-pack-vscode.yml'
+  pull_request:
+    paths:
+      - 'packages/qa-pack/adapters/vscode/**'
+      - 'packages/qa-pack/src/**'
+      - 'packages/qa-pack/pyproject.toml'
+      - '.github/workflows/test-qa-pack-vscode.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  adapter-test:
+    permissions:
+      contents: read
+    uses: Icaro0310/devin-powerups/.github/workflows/adapter-test.yml@v1
+    with:
+      package-dir: packages/qa-pack
+      adapter-dir: packages/qa-pack/adapters/vscode
+      test-command: node --test
+      node-version: "22"
+      skip-install: true

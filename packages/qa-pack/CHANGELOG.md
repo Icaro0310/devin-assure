@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+
+- Docs: guias de plataforma regenerados (Zscaler, exceções de rede opt-in nomeadas); FAQ corrige `DEVIN_ORG_ID` para condicional (enviado apenas quando setado).
 - README gains the generated `Part of the DEVIN ecosystem` block
   (track/nature/audience/interface rendered from the registry).
 
@@ -23,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `.pre-commit-hooks.yaml` at the repo root — `devin-qa-pack-gate` runs
+  `devin-qa-pack audit --all --limit 1 --within .` on every commit:
+  read-only, offline, scoped to the repo's own sessions; see
+  "Pre-commit gate" in the README.
+- `audit --within PATH` (with `--all`) — only audits sessions whose
+  `working_directory` is PATH or inside it, applied before `--limit`.
+  This is what lets the pre-commit gate audit *this* repo's newest
+  session instead of whichever project's session is globally newest.
 - Read-only adapters: `devin_qa_pack.mcp_server` MCP server (`qa_audit`,
   `devin-qa-pack-mcp` entry point, `mcp` extra), Devin skill and
   `adapters/` plugin root. `session_id` + `audit_all_sessions` together
@@ -49,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `audit --all` over a store with no matching sessions (empty db, or a
+  `--within` scope nothing falls under) exited 0 — `all([])` is True —
+  so a commit gate would pass on zero audited evidence. An empty audit
+  set now exits 2 (`error: no sessions to audit`), failing closed.
 - `url` claims (e.g. "deployed to https://…") crashed `audit`/`report`
   with a `NameError` — `_verify_url` was referenced but never imported.
   Verification now routes through `verify_claims`.

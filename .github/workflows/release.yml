@@ -60,4 +60,8 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ github.ref_name }}" "$PKG_DIR"/dist/* sbom.cdx.json* --verify-tag --generate-notes
+          # Tag name goes through env, never inline interpolation — a
+          # crafted tag could otherwise run command substitution in
+          # the double-quoted position below.
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: gh release create "$RELEASE_TAG" "$PKG_DIR"/dist/* sbom.cdx.json* --verify-tag --generate-notes
