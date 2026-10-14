@@ -80,6 +80,12 @@ class MetricsSnapshot:
     usage: tuple[UsageRecord, ...]
 
 
+def _rows(store: Any, streaming: str, legacy: str) -> Any:
+    """Streaming iter_* rows when internals provides it; materialized list otherwise."""
+    fn = getattr(store, streaming, None)
+    return fn(batch_size=200) if fn is not None else getattr(store, legacy)()
+
+
 def _num(value: Any) -> float | None:
     return float(value) if isinstance(value, (int, float)) else None
 
@@ -101,10 +107,23 @@ def extract_usage(
          "usage": {"input_tokens": <int>, "output_tokens": <int>}}
 
     Returns ``None`` for non-JSON payloads or rows carrying none of those
-    fields, so plain user/tool chatter never leaks into usage stats. If the
-    real payload shape turns out to differ, this function is the *only* place
+    fields, so plain user/tool chatter never leaks into usage stats. Any
+    payload containing ``\\u`` escapes is always parsed — escaped keys like
+    ``m\\u006fdel`` only reveal themselves after decoding. If the real
+    payload shape turns out to differ, this function is the *only* place
     that changes.
     """
+    # Cheap gate: payloads are MB-scale strings and ~all carry no usage keys —
+    # skip json.loads entirely when none of the field names is even present.
+    # Payloads containing JSON unicode escapes may hide keys (e.g. "m\u006fdel"),
+    # so they are always parsed.
+    if (
+        "\\u" not in payload
+        and '"model"' not in payload
+        and '"usage"' not in payload
+        and '"cost_usd"' not in payload
+    ):
+        return None
     try:
         data = json.loads(payload)
     except (TypeError, ValueError):
@@ -144,7 +163,7 @@ def _scan_acp_dir(acp_dir: Path | None) -> tuple[list[UsageRecord], int, int, in
         files += 1
         try:
             with AcpMessagesStore(db) as store:
-                for msg in store.messages():
+                for msg in _rows(store, "iter_messages", "messages"):
                     rec = extract_usage(db.stem, msg.position, msg.kind, msg.payload)
                     if rec is not None:
                         records.append(rec)
@@ -173,7 +192,7 @@ def collect(sessions_db: str | Path, acp_dir: str | Path | None) -> MetricsSnaps
         sessions = store.sessions()
         msg_counts: dict[str, int] = {}
         context_peak: dict[str, int] = {}
-        for node in store.message_nodes():
+        for node in _rows(store, "iter_message_nodes", "message_nodes"):
             msg_counts[node.session_id] = msg_counts.get(node.session_id, 0) + 1
             if node.metadata:
                 try:
@@ -190,7 +209,7 @@ def collect(sessions_db: str | Path, acp_dir: str | Path | None) -> MetricsSnaps
                 ):
                     context_peak[node.session_id] = ntp
         tool_counts: dict[str, int] = {}
-        for tc in store.tool_call_state():
+        for tc in _rows(store, "iter_tool_call_state", "tool_call_state"):
             tool_counts[tc.session_id] = tool_counts.get(tc.session_id, 0) + 1
 
     usage, files, errors, _ = _scan_acp_dir(acp_path)
