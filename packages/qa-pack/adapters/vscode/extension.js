@@ -2,6 +2,11 @@
 
 const vscode = require("vscode");
 const cp = require("child_process");
+// Shared Restricted-Mode-safe executable resolver — byte-identical copy of
+// devin-powerups' adapters/shared/safe-executable.cjs (lockstep enforced by
+// config-restricted-check). On Windows, CreateProcess searches cwd before
+// PATH: spawn only the absolute path this returns.
+const { resolveSafeExecutable } = require("./safe-executable.cjs");
 let statusBar, output;
 // Monotonic counter — a slow audit finishing late must not overwrite a
 // newer verdict already rendered on the status bar (anti-race guard).
@@ -29,13 +34,28 @@ function sanitizeArgs(extra) {
   }
   return keep;
 }
+// First workspace folder, when one is open — used only to bound
+// resolveSafeExecutable's inside-workspace rejection, not as spawn cwd.
+function workspaceDir() {
+  const folders = vscode.workspace.workspaceFolders;
+  return folders && folders.length ? folders[0].uri.fsPath : null;
+}
 // Injectable for tests. Exit codes are results, not errors: 0 = all PASS,
 // 1 = flagged (PARTIAL/UNVERIFIED), 2 = could not run.
 const deps = {
-  runCli: (args) =>
-    new Promise((resolve, reject) => {
-      const { executable, extraArgs } = config();
-      cp.execFile(executable, args.concat(sanitizeArgs(extraArgs)),
+  runCli: (args) => {
+    const { executable, extraArgs } = config();
+    const spec = resolveSafeExecutable(executable, {
+      workspaceDir: workspaceDir(),
+      trusted: vscode.workspace.isTrusted,
+      npmPackage: null,
+    });
+    return new Promise((resolve, reject) => {
+      if (!spec) {
+        return reject(new Error("devin-qa-pack not found on PATH. Install it " +
+          "(uv tool install devin-qa-pack) or set devinQaPack.executable."));
+      }
+      cp.execFile(spec.file, spec.argv.concat(args, sanitizeArgs(extraArgs)),
         { timeout: 120000, maxBuffer: 8 * 1024 * 1024 },
         (err, stdout, stderr) => {
           if (err && err.killed) return reject(new Error("devin-qa-pack timed out after 120s"));
@@ -45,7 +65,8 @@ const deps = {
           }
           resolve({ code: err ? err.code : 0, stdout, stderr });
         });
-    }),
+    });
+  },
 };
 const VERDICTS = ["PASS", "PARTIAL", "UNVERIFIED"];
 // Contract: `devin-qa-pack audit --json` → {sessions_db, sessions:
