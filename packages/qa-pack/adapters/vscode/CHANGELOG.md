@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Executable resolution hardened for Restricted Mode (shared
+  safe-executable resolver).
+
 ## [0.1.1]
 
 ### Added
