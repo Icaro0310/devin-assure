@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from devin_internals.schema import SchemaError
-from devin_metrics.collect import collect
+from devin_metrics.collect import _rows, collect, extract_usage
 
 
 def test_collect_sessions(sessions_db, acp_dir, session_ids):
@@ -78,3 +78,48 @@ def test_noise_rows_do_not_leak_into_usage(sessions_db, acp_dir):
     snap = collect(sessions_db, acp_dir)
     # each acp db also holds one "user.message" noise row; none may appear
     assert all(u.kind == "agent.message" for u in snap.usage)
+
+
+def test_extract_usage_skips_payloads_without_usage_keys():
+    # no field name present -> the substring gate returns before json.loads
+    assert (
+        extract_usage("s1", 0, "agent.message", '{"text": "plain chatter"}')
+        is None
+    )
+
+
+def test_extract_usage_parses_unicode_escaped_keys():
+    # "m\u006fdel" decodes to "model": the gate must not drop escaped keys
+    payload = (
+        r'{"m\u006fdel": "gpt-5", "cost_usd": 0.01,'
+        r' "usage": {"input_tokens": 7, "output_tokens": 3}}'
+    )
+    rec = extract_usage("s1", 0, "agent.message", payload)
+    assert rec is not None
+    assert rec.model == "gpt-5"
+    assert rec.cost_usd == pytest.approx(0.01)
+    assert rec.input_tokens == 7
+    assert rec.output_tokens == 3
+
+
+def test_rows_prefers_streaming_iterator():
+    calls = []
+
+    class Store:
+        def iter_message_nodes(self, batch_size):
+            calls.append(batch_size)
+            return iter(["a", "b"])
+
+        def message_nodes(self):
+            raise AssertionError("materialized path must not run")
+
+    assert list(_rows(Store(), "iter_message_nodes", "message_nodes")) == ["a", "b"]
+    assert calls == [200]
+
+
+def test_rows_falls_back_to_materialized_list():
+    class Store:
+        def message_nodes(self):
+            return ["x"]
+
+    assert _rows(Store(), "iter_message_nodes", "message_nodes") == ["x"]

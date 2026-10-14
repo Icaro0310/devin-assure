@@ -113,8 +113,11 @@ def extract_usage(
     """
     # Cheap gate: payloads are MB-scale strings and ~all carry no usage keys —
     # skip json.loads entirely when none of the field names is even present.
+    # Payloads containing JSON unicode escapes may hide keys (e.g. "m\u006fdel"),
+    # so they are always parsed.
     if (
-        '"model"' not in payload
+        "\\u" not in payload
+        and '"model"' not in payload
         and '"usage"' not in payload
         and '"cost_usd"' not in payload
     ):
