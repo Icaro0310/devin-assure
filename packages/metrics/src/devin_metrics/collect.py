@@ -107,8 +107,10 @@ def extract_usage(
          "usage": {"input_tokens": <int>, "output_tokens": <int>}}
 
     Returns ``None`` for non-JSON payloads or rows carrying none of those
-    fields, so plain user/tool chatter never leaks into usage stats. If the
-    real payload shape turns out to differ, this function is the *only* place
+    fields, so plain user/tool chatter never leaks into usage stats. Any
+    payload containing ``\\u`` escapes is always parsed — escaped keys like
+    ``m\\u006fdel`` only reveal themselves after decoding. If the real
+    payload shape turns out to differ, this function is the *only* place
     that changes.
     """
     # Cheap gate: payloads are MB-scale strings and ~all carry no usage keys —
