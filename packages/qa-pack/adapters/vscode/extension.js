@@ -34,11 +34,11 @@ function sanitizeArgs(extra) {
   }
   return keep;
 }
-// First workspace folder, when one is open — used only to bound
+// All open workspace folders (multi-root) — used only to bound
 // resolveSafeExecutable's inside-workspace rejection, not as spawn cwd.
-function workspaceDir() {
+function workspaceDirs() {
   const folders = vscode.workspace.workspaceFolders;
-  return folders && folders.length ? folders[0].uri.fsPath : null;
+  return folders ? folders.map((f) => f.uri.fsPath) : [];
 }
 // Injectable for tests. Exit codes are results, not errors: 0 = all PASS,
 // 1 = flagged (PARTIAL/UNVERIFIED), 2 = could not run.
@@ -46,7 +46,7 @@ const deps = {
   runCli: (args) => {
     const { executable, extraArgs } = config();
     const spec = resolveSafeExecutable(executable, {
-      workspaceDir: workspaceDir(),
+      workspaceDirs: workspaceDirs(),
       trusted: vscode.workspace.isTrusted,
       npmPackage: null,
     });
