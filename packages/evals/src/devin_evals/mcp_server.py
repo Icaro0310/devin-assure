@@ -12,6 +12,8 @@ server or the ``mcp`` package. ``build_server()`` wraps it — needs the
 
 from __future__ import annotations
 
+import sys
+
 from devin_internals.schema import SchemaError
 
 from devin_evals.cases import CaseError
@@ -102,7 +104,13 @@ def build_server():
 
 
 def main() -> None:
-    build_server().run(transport="stdio")
+    try:
+        build_server().run(transport="stdio")
+    except ImportError as exc:
+        # Missing the 'mcp' extra — one-line install hint on stderr,
+        # not a traceback (MCP hosts surface the log raw).
+        print(f"error: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
 
 
 if __name__ == "__main__":
