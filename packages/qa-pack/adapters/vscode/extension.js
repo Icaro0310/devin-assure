@@ -125,18 +125,31 @@ function validateAuditPayload(payload) {
 // argparse rejection is ambiguous — a too-old CLI missing a built-in
 // flag, or a typo in devinQaPack.extraArgs. The probe plus the
 // flag/setting comparison in runJson decides which.
-let probedCliVersion;
-async function probeVersion() {
-  if (probedCliVersion !== undefined) return probedCliVersion;
-  probedCliVersion = null;
-  try {
-    const { stdout } = await deps.runCli(["--version"], { includeExtraArgs: false });
-    const m = /(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]*)?)/.exec(stdout || "");
-    if (m) probedCliVersion = m[1];
-  } catch {
-    /* probe is best-effort — classification falls back to the flag check */
-  }
-  return probedCliVersion;
+// Flags the extension itself passes to the CLI. A rejection of one of
+// these is the CLI's fault even when extraArgs happens to repeat it —
+// so they are excluded from the "only settings" check below.
+const BUILT_IN_FLAGS = new Set(
+  ["--all", "--session", "--within", "--limit", "--json", "--version"]);
+
+// Cached as a promise so concurrent audits share one probe, and keyed by
+// devinQaPack.executable — changing the configured binary re-probes
+// instead of reusing a stale verdict from the previous CLI.
+let versionProbe;
+let probedExecutable;
+function probeVersion() {
+  const exe = config().executable;
+  if (versionProbe && probedExecutable === exe) return versionProbe;
+  probedExecutable = exe;
+  versionProbe = (async () => {
+    try {
+      const { stdout } = await deps.runCli(["--version"], { includeExtraArgs: false });
+      const m = /(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]*)?)/.exec(stdout || "");
+      return m ? m[1] : null;
+    } catch {
+      return null; /* probe is best-effort — falls back to the flag check */
+    }
+  })();
+  return versionProbe;
 }
 
 async function runJson(args) {
@@ -155,7 +168,8 @@ async function runJson(args) {
       const rejected = (stderr.match(/unrecognized arguments:\s*(.+)/) || [])[1]
         ?.trim().split(/\s+/).filter((t) => t.startsWith("-")) || [];
       const userFlags = new Set(config().extraArgs.filter((t) => t.startsWith("-")));
-      const onlySettings = rejected.length > 0 && rejected.every((t) => userFlags.has(t));
+      const onlySettings = rejected.length > 0 &&
+        rejected.every((t) => userFlags.has(t) && !BUILT_IN_FLAGS.has(t));
       const probed = await probeVersion();
       const compat = probed ? cliCompatStatus(probed) : "unknown";
       if (onlySettings || compat === "compatible") {
@@ -314,5 +328,5 @@ module.exports.__internals__ = {
   deps, sanitizeArgs, validateAuditPayload, sessionMd, renderVerdicts, runWithin,
   audit, auditWorkspace, auditSession, CLI_RANGE, COMPATIBLE_CLI,
   parseVersion, cliCompatStatus, runJson,
-  probeVersion, resetProbe: () => { probedCliVersion = undefined; },
+  probeVersion, resetProbe: () => { versionProbe = undefined; probedExecutable = undefined; },
 };

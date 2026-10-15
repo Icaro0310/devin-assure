@@ -7,6 +7,7 @@ const outputStub = { lines: [], appendLine(l) { this.lines.push(l); }, clear() {
 const errorMessages = [];
 const registered = {}; // command id → handler, captured at activate()
 let docsOpened = 0;
+let testExtras = [];
 
 const vscodeStub = {
   ThemeColor: class {
@@ -31,7 +32,9 @@ const vscodeStub = {
       get: (k, d) =>
         k === "executable"
           ? process.env.QA_VSCODE_TEST_EXE || "devin-qa-pack"
-          : d,
+          : k === "extraArgs"
+            ? testExtras
+            : d,
     }),
     openTextDocument: () => Promise.resolve({}),
   },
@@ -405,6 +408,54 @@ test("unrecognized args on a too-old CLI names floor and version", async () => {
       /too old.*found 0\.1\.0.*uv tool upgrade devin-qa-pack/s,
     );
   } finally {
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
+
+test("a built-in flag duplicated in extraArgs still blames an old CLI", async () => {
+  __internals__.resetProbe();
+  testExtras = ["--within"]; // user repeats a built-in flag
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = (args) =>
+    args[0] === "--version"
+      ? Promise.resolve({ code: 0, stdout: "devin-qa-pack 0.1.0\n", stderr: "" })
+      : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --within" });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--within", "/repo", "--json"]),
+      /too old.*found 0\.1\.0/s,
+    );
+  } finally {
+    testExtras = [];
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
+
+test("changing devinQaPack.executable re-probes the version", async () => {
+  __internals__.resetProbe();
+  testExtras = ["--bogus"];
+  const real = __internals__.deps.runCli;
+  let probes = 0;
+  __internals__.deps.runCli = (args) => {
+    if (args[0] === "--version") {
+      probes++;
+      return Promise.resolve({ code: 0, stdout: "devin-qa-pack 0.1.2\n", stderr: "" });
+    }
+    return Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --bogus" });
+  };
+  try {
+    await assert.rejects(__internals__.runJson(["audit", "--all", "--json"]));
+    assert.strictEqual(probes, 1);
+    await assert.rejects(__internals__.runJson(["audit", "--all", "--json"]));
+    assert.strictEqual(probes, 1, "same executable reuses the probe");
+    process.env.QA_VSCODE_TEST_EXE = "/opt/other/devin-qa-pack";
+    await assert.rejects(__internals__.runJson(["audit", "--all", "--json"]));
+    assert.strictEqual(probes, 2, "new executable triggers a fresh probe");
+  } finally {
+    testExtras = [];
+    delete process.env.QA_VSCODE_TEST_EXE;
     __internals__.deps.runCli = real;
     __internals__.resetProbe();
   }
