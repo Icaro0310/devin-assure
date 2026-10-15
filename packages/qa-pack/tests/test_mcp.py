@@ -130,7 +130,7 @@ def test_main_missing_mcp_exercises_real_import(monkeypatch, capsys):
     not a stubbed build_server — produces the missing-extra exit."""
     import sys
 
-    from devin_qa_pack import mcp_server  # noqa: PLC0415
+    from devin_qa_pack import mcp_server
 
     for name in [k for k in sys.modules if k == "mcp" or k.startswith("mcp.")]:
         monkeypatch.delitem(sys.modules, name)
