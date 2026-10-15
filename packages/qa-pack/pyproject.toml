@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devin-qa-pack"
-version = "0.1.1"
+version = "0.1.2"
 description = "QA audit for Devin sessions: verifies deliverable claims (tests, commits, files, pushes) against tool_call_state ground truth."
 readme = "README.md"
 license = { text = "MIT" }
