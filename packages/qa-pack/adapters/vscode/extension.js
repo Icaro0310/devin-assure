@@ -178,7 +178,8 @@ async function runJson(args) {
           ? "the CLI version could not be probed"
           : compat === "compatible"
             ? `the installed CLI ${probed} is inside ${CLI_RANGE}`
-            : `the installed CLI ${probed} is also outside ${CLI_RANGE} — upgrade separately`;
+            : `the installed CLI ${probed} is also outside ${CLI_RANGE} — ` +
+              (compat === "too-new" ? "downgrade the CLI or update the extension" : "upgrade the CLI");
         throw new Error(
           `devinQaPack.extraArgs contains unsupported option(s): ${rejected.join(", ")} — ` +
           `fix the setting (${cliNote})`);

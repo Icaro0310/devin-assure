@@ -482,3 +482,53 @@ test("audit-only flag in extraArgs on a session audit blames the setting", async
     __internals__.resetProbe();
   }
 });
+
+test("extraArgs error note reports too-old and too-new verdicts accurately", async () => {
+  const real = __internals__.deps.runCli;
+  try {
+    for (const [version, want] of [
+      ["0.1.0", /also outside.*upgrade the CLI/s],
+      ["0.2.0", /also outside.*downgrade the CLI or update the extension/s],
+    ]) {
+      __internals__.resetProbe();
+      testExtras = ["--bogus"];
+      __internals__.deps.runCli = (args) =>
+        args[0] === "--version"
+          ? Promise.resolve({ code: 0, stdout: `devin-qa-pack ${version}\n`, stderr: "" })
+          : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --bogus" });
+      await assert.rejects(
+        __internals__.runJson(["audit", "--all", "--json"]),
+        /extraArgs contains unsupported option/,
+      );
+      await assert.rejects(
+        __internals__.runJson(["audit", "--all", "--json"]),
+        want,
+        `verdict note for ${version}`,
+      );
+    }
+  } finally {
+    testExtras = [];
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
+
+test("extraArgs error note covers an unprobed CLI", async () => {
+  __internals__.resetProbe();
+  testExtras = ["--bogus"];
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = (args) =>
+    args[0] === "--version"
+      ? Promise.reject(new Error("spawn failed"))
+      : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --bogus" });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--json"]),
+      /could not be probed/,
+    );
+  } finally {
+    testExtras = [];
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
