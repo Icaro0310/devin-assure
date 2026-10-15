@@ -31,6 +31,8 @@ jobs:
       dir: ${{ steps.pkg.outputs.dir }}
       mod: ${{ steps.pkg.outputs.mod }}
     steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
       - name: Resolve package directory and module
         id: pkg
         env:
@@ -44,6 +46,20 @@ jobs:
               metrics) echo "dir=packages/metrics" >> "$GITHUB_OUTPUT"; echo "mod=devin_metrics" >> "$GITHUB_OUTPUT" ;;
             *) echo "unknown package: $base" >&2; exit 1 ;;
           esac
+
+      # The verify gate below checks wheel internals (__version__ ==
+      # pyproject), not the tag — without this a mistagged push would
+      # still ship pyproject's version under a release label that never
+      # matched a manifest.
+      - name: Check tag matches manifest version
+        if: github.ref_type == 'tag'
+        run: |
+          want="${GITHUB_REF_NAME##*-v}"
+          got=$(python3 -c "import tomllib,sys; print(tomllib.load(open(sys.argv[1],'rb'))['project']['version'])" "${{ steps.pkg.outputs.dir }}/pyproject.toml")
+          if [ "$want" != "$got" ]; then
+            echo "::error::tag '$GITHUB_REF_NAME' ($want) vs ${{ steps.pkg.outputs.dir }}/pyproject.toml $got — retag or bump"
+            exit 1
+          fi
 
   # Wheel __version__ gate lives in one place — verified before publish
   # runs, on the resolved package only.
