@@ -29,11 +29,20 @@ function parseVersion(version) {
 
 const cmp3 = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 // "compatible" | "too-old" | "too-new" | "unknown"
+// Semver precedence: a prerelease sits BELOW its base release —
+// 0.1.2-rc1 does not meet the >=0.1.2 floor (no --within), while
+// 0.2.0-rc1 is still inside <0.2.
 function cliCompatStatus(version) {
   const v = parseVersion(version);
   if (!v) return "unknown";
-  if (cmp3(v, COMPATIBLE_CLI.min) < 0) return "too-old";
-  if (cmp3(v, COMPATIBLE_CLI.maxExclusive) >= 0) return "too-new";
+  const pre = /-/.test(String(version).trim().split("+")[0]);
+  if (cmp3(v, COMPATIBLE_CLI.min) < 0 || (pre && cmp3(v, COMPATIBLE_CLI.min) === 0)) {
+    return "too-old";
+  }
+  if (cmp3(v, COMPATIBLE_CLI.maxExclusive) > 0 ||
+      (!pre && cmp3(v, COMPATIBLE_CLI.maxExclusive) === 0)) {
+    return "too-new";
+  }
   return "compatible";
 }
 function config() {
@@ -64,7 +73,9 @@ function workspaceDirs() {
 // Injectable for tests. Exit codes are results, not errors: 0 = all PASS,
 // 1 = flagged (PARTIAL/UNVERIFIED), 2 = could not run.
 const deps = {
-  runCli: (args) => {
+  // opts.includeExtraArgs:false skips devinQaPack.extraArgs — used by the
+  // --version probe so a bad setting cannot break the probe itself.
+  runCli: (args, opts = {}) => {
     const { executable, extraArgs } = config();
     const spec = resolveSafeExecutable(executable, {
       workspaceDirs: workspaceDirs(),
@@ -76,7 +87,8 @@ const deps = {
         return reject(new Error("devin-qa-pack not found on PATH. Install it " +
           "(uv tool install devin-qa-pack) or set devinQaPack.executable."));
       }
-      cp.execFile(spec.file, spec.argv.concat(args, sanitizeArgs(extraArgs)),
+      cp.execFile(spec.file, spec.argv.concat(args,
+        ...(opts.includeExtraArgs === false ? [] : sanitizeArgs(extraArgs))),
         { timeout: 120000, maxBuffer: 8 * 1024 * 1024 },
         (err, stdout, stderr) => {
           if (err && err.killed) return reject(new Error("devin-qa-pack timed out after 120s"));
@@ -109,6 +121,24 @@ function validateAuditPayload(payload) {
   }
   return { ok: missing.length === 0, missing };
 }
+// Once-per-session `devin-qa-pack --version` probe (best-effort). An
+// argparse rejection is ambiguous — a too-old CLI missing a built-in
+// flag, or a typo in devinQaPack.extraArgs. The probe plus the
+// flag/setting comparison in runJson decides which.
+let probedCliVersion;
+async function probeVersion() {
+  if (probedCliVersion !== undefined) return probedCliVersion;
+  probedCliVersion = null;
+  try {
+    const { stdout } = await deps.runCli(["--version"], { includeExtraArgs: false });
+    const m = /(\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]*)?)/.exec(stdout || "");
+    if (m) probedCliVersion = m[1];
+  } catch {
+    /* probe is best-effort — classification falls back to the flag check */
+  }
+  return probedCliVersion;
+}
+
 async function runJson(args) {
   const { code, stdout, stderr } = await deps.runCli(args);
   let payload;
@@ -116,16 +146,33 @@ async function runJson(args) {
     payload = JSON.parse(stdout);
   } catch {
     output.appendLine((stdout || "") + (stderr || ""));
-    // argparse rejects flags it does not know (e.g. --within in CLI 0.1.0):
-    // that is a too-old CLI, not a broken audit — name the floor, not noise.
+    // argparse rejects flags it does not know (e.g. --within in CLI
+    // 0.1.0) — but that is ambiguous: a too-old CLI missing a built-in
+    // flag, or a bad entry in devinQaPack.extraArgs. Probe --version
+    // once per session and compare rejected flags against the setting
+    // before blaming the CLI.
     if (/unrecognized arguments|invalid choice/.test(stderr || "")) {
+      const rejected = (stderr.match(/unrecognized arguments:\s*(.+)/) || [])[1]
+        ?.trim().split(/\s+/).filter((t) => t.startsWith("-")) || [];
+      const userFlags = new Set(config().extraArgs.filter((t) => t.startsWith("-")));
+      const onlySettings = rejected.length > 0 && rejected.every((t) => userFlags.has(t));
+      const probed = await probeVersion();
+      const compat = probed ? cliCompatStatus(probed) : "unknown";
+      if (onlySettings || compat === "compatible") {
+        throw new Error(
+          `devinQaPack.extraArgs contains unsupported option(s): ${rejected.join(", ")} — ` +
+          `fix the setting (the installed CLI${probed ? ` ${probed}` : ""} is inside ${CLI_RANGE})`);
+      }
+      const found = probed ? `, found ${probed}` : "";
+      const hint = probed
+        ? "upgrade: uv tool upgrade devin-qa-pack"
+        : "upgrade: uv tool upgrade devin-qa-pack — or check devinQaPack.extraArgs";
       throw new Error(`devin-qa-pack CLI is too old for this extension ` +
-        `(requires ${CLI_RANGE}); the installed CLI rejected an argument — ` +
-        `upgrade: uv tool upgrade devin-qa-pack`);
+        `(requires ${CLI_RANGE}${found}); the installed CLI rejected an argument — ${hint}`);
     }
     throw new Error(`devin-qa-pack audit returned no JSON (exit ${code}) — see output channel`);
   }
-  // CLIs ≥0.1.3 self-report "version" in the payload; older ones simply omit
+  // CLIs ≥0.1.2 self-report "version" in the payload; older ones simply omit
   // it, so an absent field is not proof of drift — shape validation is.
   const compat = cliCompatStatus(payload && payload.version);
   if (compat === "too-old" || compat === "too-new") {
@@ -267,4 +314,5 @@ module.exports.__internals__ = {
   deps, sanitizeArgs, validateAuditPayload, sessionMd, renderVerdicts, runWithin,
   audit, auditWorkspace, auditSession, CLI_RANGE, COMPATIBLE_CLI,
   parseVersion, cliCompatStatus, runJson,
+  probeVersion, resetProbe: () => { probedCliVersion = undefined; },
 };

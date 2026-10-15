@@ -364,3 +364,48 @@ test("package.json devin-qa-pack-cli pin covers the package version", () => {
     `package ${v[0]} outside pinned range ${range}`,
   );
 });
+
+test("cliCompatStatus honors prerelease precedence at the bounds", async () => {
+  const s = __internals__.cliCompatStatus;
+  assert.strictEqual(s("0.1.2-rc1"), "too-old", "0.1.2-rc1 is below the 0.1.2 floor");
+  assert.strictEqual(s("0.1.3-rc1"), "compatible");
+  assert.strictEqual(s("0.2.0-rc1"), "compatible", "0.2.0-rc1 is below 0.2.0");
+  assert.strictEqual(s("0.2.0"), "too-new");
+  assert.strictEqual(s("0.1.2+build5"), "compatible", "build metadata does not downgrade");
+});
+
+test("unrecognized args on a compatible CLI blames devinQaPack.extraArgs", async () => {
+  __internals__.resetProbe();
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = (args) =>
+    args[0] === "--version"
+      ? Promise.resolve({ code: 0, stdout: "devin-qa-pack 0.1.2\n", stderr: "" })
+      : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --sessoin" });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--json"]),
+      /extraArgs contains unsupported option/,
+    );
+  } finally {
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
+
+test("unrecognized args on a too-old CLI names floor and version", async () => {
+  __internals__.resetProbe();
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = (args) =>
+    args[0] === "--version"
+      ? Promise.resolve({ code: 0, stdout: "devin-qa-pack 0.1.0\n", stderr: "" })
+      : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --within" });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--within", "/repo", "--json"]),
+      /too old.*found 0\.1\.0.*uv tool upgrade devin-qa-pack/s,
+    );
+  } finally {
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
