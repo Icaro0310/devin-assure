@@ -60,7 +60,7 @@ const fs = require("node:fs");
 const SESSION = {
   session_id: "abcdef1234567890",
   title: "fix tests",
-  working_directory: "/home/u/repo",
+  working_directory: "/repo/u/repo",
   verdict: "PASS",
   summary: { verified: 2, disputed: 0, unverifiable: 0 },
   claims: [
