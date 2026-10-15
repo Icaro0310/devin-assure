@@ -123,3 +123,21 @@ def test_mcp_tool_surface_is_pinned():
     tool only lands after a deliberate edit here — check it stays
     read-only before widening."""
     assert _registered_tool_names() == {"qa_audit"}
+
+
+def test_main_missing_mcp_exercises_real_import(monkeypatch, capsys):
+    """Block `mcp` in sys.modules so the real _make_app import chain —
+    not a stubbed build_server — produces the missing-extra exit."""
+    import sys
+
+    from devin_qa_pack import mcp_server  # noqa: PLC0415
+
+    for name in [k for k in sys.modules if k == "mcp" or k.startswith("mcp.")]:
+        monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setitem(sys.modules, "mcp", None)
+    with pytest.raises(SystemExit) as exc:
+        mcp_server.main()
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert "mcp" in err
+    assert "Traceback" not in err
