@@ -125,16 +125,19 @@ def test_mcp_tool_surface_is_pinned():
     assert _registered_tool_names() == {"qa_audit"}
 
 
-def test_main_missing_mcp_extra_exits_with_hint(capsys, monkeypatch):
-    """main() must exit 1 with the install hint on stderr, not a
-    traceback, when the mcp extra is absent."""
-    import devin_qa_pack.mcp_server as ms
+def test_main_missing_mcp_exercises_real_import(monkeypatch, capsys):
+    """Block `mcp` in sys.modules so the real _make_app import chain —
+    not a stubbed build_server — produces the missing-extra exit."""
+    import sys
 
-    def _boom():
-        raise ImportError("No module named 'mcp'")
+    from devin_qa_pack import mcp_server
 
-    monkeypatch.setattr(ms, "build_server", _boom)
+    for name in [k for k in sys.modules if k == "mcp" or k.startswith("mcp.")]:
+        monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setitem(sys.modules, "mcp", None)
     with pytest.raises(SystemExit) as exc:
-        ms.main()
+        mcp_server.main()
     assert exc.value.code == 1
-    assert "mcp" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "mcp" in err
+    assert "Traceback" not in err

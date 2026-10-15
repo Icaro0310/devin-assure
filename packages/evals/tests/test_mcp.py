@@ -133,3 +133,23 @@ def test_mcp_tool_surface_is_pinned():
     tool only lands after a deliberate edit here — check it stays
     read-only before widening."""
     assert _registered_tool_names() == {"evals_run"}
+
+
+def test_main_missing_mcp_extra_exits_with_hint(monkeypatch, capsys):
+    """Without the 'mcp' extra the entry point must print the install
+    hint and exit 1 — MCP hosts surface stderr raw, a traceback there
+    reads as a crash."""
+    from devin_evals import mcp_server
+
+    def _boom(*_a, **_k):
+        raise ImportError(
+            "The MCP server needs the 'mcp' extra: "
+            "pip install 'devin-evals[mcp]'")
+
+    monkeypatch.setattr(mcp_server, "build_server", _boom)
+    with pytest.raises(SystemExit) as exc:
+        mcp_server.main()
+    assert exc.value.code == 1
+    err = capsys.readouterr().err
+    assert "mcp" in err
+    assert "Traceback" not in err

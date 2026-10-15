@@ -6,6 +6,10 @@
 
 ## Unreleased
 
+- `devin-metrics-mcp` exits with a one-line install hint when the `mcp`
+  extra is missing instead of dumping a traceback; startup
+  `ImportError`s from `.run()` keep their traceback.
+
 - Read-only adapters: `devin_metrics.mcp_server` MCP server
   (`metrics_query`, `devin-metrics-mcp` entry point, `mcp` extra),
   Devin skill and `adapters/` plugin root; setup documented in the OS

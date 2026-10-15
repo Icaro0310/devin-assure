@@ -30,6 +30,7 @@ from devin_internals.parsers import SessionsStore
 from devin_internals.parsers.sessions import Session
 from devin_internals.schema import SchemaError
 
+from devin_qa_pack import __version__
 from devin_qa_pack.html_report import render_html
 from devin_qa_pack.intent import (
     FLAGGED,
@@ -38,7 +39,6 @@ from devin_qa_pack.intent import (
     intent_dict,
     render_intent,
 )
-from devin_qa_pack import __version__
 from devin_qa_pack.paths import default_sessions_db
 from devin_qa_pack.report import (
     PASS,
