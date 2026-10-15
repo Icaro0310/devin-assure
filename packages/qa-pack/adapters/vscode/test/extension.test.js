@@ -270,6 +270,62 @@ test("sanitizeArgs strips network/evidence-mode flags and their values", () => {
   );
 });
 
+test("runJson maps argparse rejections to a version-floor message", async () => {
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = () =>
+    Promise.resolve({
+      code: 2,
+      stdout: "",
+      stderr: "usage: devin-qa-pack [-h] ...\nerror: unrecognized arguments: --within /repo",
+    });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--within", "/repo", "--json"]),
+      /too old for this extension.*>=0\.1\.2.*upgrade: uv tool upgrade/s,
+    );
+  } finally {
+    __internals__.deps.runCli = real;
+  }
+});
+
+test("runJson rejects a self-reported out-of-range CLI version", async () => {
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = () =>
+    Promise.resolve({
+      code: 0,
+      stdout: JSON.stringify({ ...PAYLOAD, version: "0.3.0" }),
+      stderr: "",
+    });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--json"]),
+      /CLI 0\.3\.0 is outside the range.*update the extension/s,
+    );
+  } finally {
+    __internals__.deps.runCli = real;
+  }
+});
+
+test("runJson accepts payloads with a compatible or absent version", async () => {
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = () =>
+    Promise.resolve({
+      code: 0,
+      stdout: JSON.stringify({ ...PAYLOAD, version: "0.1.9" }),
+      stderr: "",
+    });
+  try {
+    const p = await __internals__.runJson(["audit", "--all", "--json"]);
+    assert.strictEqual(p.version, "0.1.9");
+    __internals__.deps.runCli = () =>
+      Promise.resolve({ code: 0, stdout: JSON.stringify(PAYLOAD), stderr: "" });
+    const p2 = await __internals__.runJson(["audit", "--all", "--json"]);
+    assert.strictEqual(p2.sessions.length, 1); // no version field — still fine
+  } finally {
+    __internals__.deps.runCli = real;
+  }
+});
+
 test("deps.runCli rejects with an actionable error when the CLI is absent", async () => {
   process.env.QA_VSCODE_TEST_EXE = "devin-qa-pack-definitely-missing-9f3b";
   try {
@@ -290,19 +346,21 @@ test("package.json devin-qa-pack-cli pin covers the package version", () => {
   assert.ok(range, 'package.json must declare "devin-qa-pack-cli"');
   // The pin is the single source of truth for CLI_RANGE in extension.js.
   assert.strictEqual(range, __internals__.CLI_RANGE);
-  const m = /^>=(\d+)\.(\d+),<(\d+)\.(\d+)$/.exec(range);
+  const m = /^>=(\d+)\.(\d+)(?:\.(\d+))?,<(\d+)\.(\d+)(?:\.(\d+))?$/.exec(range);
   assert.ok(m, `unparseable range: ${range}`);
   // The pin must cover the real package version (../pyproject.toml).
   const pyproject = fs.readFileSync(
     path.join(__dirname, "..", "..", "..", "pyproject.toml"),
     "utf8",
   );
-  const v = /version\s*=\s*"(\d+)\.(\d+)\.\d+"/.exec(pyproject);
+  const v = /version\s*=\s*"(\d+)\.(\d+)\.(\d+)"/.exec(pyproject);
   assert.ok(v, "package version not found in pyproject.toml");
-  const [maj, min] = [Number(v[1]), Number(v[2])];
+  const ver = [Number(v[1]), Number(v[2]), Number(v[3])];
+  const lo = [Number(m[1]), Number(m[2]), Number(m[3] || 0)];
+  const hi = [Number(m[4]), Number(m[5]), Number(m[6] || 0)];
+  const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   assert.ok(
-    (maj > Number(m[1]) || (maj === Number(m[1]) && min >= Number(m[2]))) &&
-      (maj < Number(m[3]) || (maj === Number(m[3]) && min < Number(m[4]))),
+    cmp(ver, lo) >= 0 && cmp(ver, hi) < 0,
     `package ${v[0]} outside pinned range ${range}`,
   );
 });

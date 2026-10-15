@@ -19,6 +19,7 @@ from typing import Any
 from devin_internals.parsers import SessionsStore
 from devin_internals.parsers.sessions import Session
 
+from devin_qa_pack import __version__
 from devin_qa_pack.adapters.base import SourceSession
 from devin_qa_pack.adapters.devin import session_view
 from devin_qa_pack.verify import (
@@ -167,6 +168,7 @@ def audits_payload(
     audits: list[SessionAudit], sessions_db: str | Path
 ) -> dict[str, Any]:
     return {
+        "version": __version__,
         "sessions_db": str(sessions_db),
         "sessions": [audit_dict(a) for a in audits],
     }

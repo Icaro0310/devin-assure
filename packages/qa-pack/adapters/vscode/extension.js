@@ -13,8 +13,29 @@ let statusBar, output;
 // lastRun holds the newest completed audit — the badge re-runs that scope.
 let auditSeq = 0, lastRun = null;
 
-// Same range as the "devin-qa-pack-cli" pin in package.json (see README).
-const CLI_RANGE = ">=0.1,<0.2";
+// Same range as the "devin-qa-pack-cli" pin in package.json (see README) —
+// test/cli-contract.test.js asserts the pin, these bounds and the real CLI
+// version agree. The floor is patch-level: --within (audit scoping) first
+// shipped in CLI 0.1.2 — 0.1.0 accepts the argv but argparse exits 2 on it.
+const COMPATIBLE_CLI = { min: [0, 1, 2], maxExclusive: [0, 2, 0] };
+const CLI_RANGE = ">=0.1.2,<0.2";
+
+function parseVersion(version) {
+  const m = /^(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]*)?$/.exec(
+    String(version || "").trim(),
+  );
+  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+}
+
+const cmp3 = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+// "compatible" | "too-old" | "too-new" | "unknown"
+function cliCompatStatus(version) {
+  const v = parseVersion(version);
+  if (!v) return "unknown";
+  if (cmp3(v, COMPATIBLE_CLI.min) < 0) return "too-old";
+  if (cmp3(v, COMPATIBLE_CLI.maxExclusive) >= 0) return "too-new";
+  return "compatible";
+}
 function config() {
   const c = vscode.workspace.getConfiguration("devinQaPack");
   return { executable: c.get("executable", "devin-qa-pack"),
@@ -90,12 +111,31 @@ function validateAuditPayload(payload) {
 }
 async function runJson(args) {
   const { code, stdout, stderr } = await deps.runCli(args);
+  let payload;
   try {
-    return JSON.parse(stdout);
+    payload = JSON.parse(stdout);
   } catch {
     output.appendLine((stdout || "") + (stderr || ""));
+    // argparse rejects flags it does not know (e.g. --within in CLI 0.1.0):
+    // that is a too-old CLI, not a broken audit — name the floor, not noise.
+    if (/unrecognized arguments|invalid choice/.test(stderr || "")) {
+      throw new Error(`devin-qa-pack CLI is too old for this extension ` +
+        `(requires ${CLI_RANGE}); the installed CLI rejected an argument — ` +
+        `upgrade: uv tool upgrade devin-qa-pack`);
+    }
     throw new Error(`devin-qa-pack audit returned no JSON (exit ${code}) — see output channel`);
   }
+  // CLIs ≥0.1.3 self-report "version" in the payload; older ones simply omit
+  // it, so an absent field is not proof of drift — shape validation is.
+  const compat = cliCompatStatus(payload && payload.version);
+  if (compat === "too-old" || compat === "too-new") {
+    throw new Error(`devin-qa-pack CLI ${payload.version} is outside the range ` +
+      `this extension supports (${CLI_RANGE}) — ` +
+      (compat === "too-old"
+        ? "upgrade: uv tool upgrade devin-qa-pack"
+        : "downgrade the CLI or update the extension"));
+  }
+  return payload;
 }
 
 function sessionMd(a) {
@@ -225,5 +265,6 @@ module.exports = { activate, deactivate };
 // Test-only surface — internals reachable without the editor.
 module.exports.__internals__ = {
   deps, sanitizeArgs, validateAuditPayload, sessionMd, renderVerdicts, runWithin,
-  audit, auditWorkspace, auditSession, CLI_RANGE,
+  audit, auditWorkspace, auditSession, CLI_RANGE, COMPATIBLE_CLI,
+  parseVersion, cliCompatStatus, runJson,
 };
