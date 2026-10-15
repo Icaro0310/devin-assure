@@ -125,12 +125,6 @@ function validateAuditPayload(payload) {
 // argparse rejection is ambiguous — a too-old CLI missing a built-in
 // flag, or a typo in devinQaPack.extraArgs. The probe plus the
 // flag/setting comparison in runJson decides which.
-// Flags the extension itself passes to the CLI. A rejection of one of
-// these is the CLI's fault even when extraArgs happens to repeat it —
-// so they are excluded from the "only settings" check below.
-const BUILT_IN_FLAGS = new Set(
-  ["--all", "--session", "--within", "--limit", "--json", "--version"]);
-
 // Cached as a promise so concurrent audits share one probe, and keyed by
 // devinQaPack.executable — changing the configured binary re-probes
 // instead of reusing a stale verdict from the previous CLI.
@@ -168,8 +162,12 @@ async function runJson(args) {
       const rejected = (stderr.match(/unrecognized arguments:\s*(.+)/) || [])[1]
         ?.trim().split(/\s+/).filter((t) => t.startsWith("-")) || [];
       const userFlags = new Set(config().extraArgs.filter((t) => t.startsWith("-")));
+      // A rejected flag is the CLI's fault only if THIS call sent it —
+      // --within on a session audit, or any flag the extension never
+      // passes, must have come from extraArgs even on an old CLI.
+      const sentFlags = new Set(args.filter((t) => t.startsWith("-")));
       const onlySettings = rejected.length > 0 &&
-        rejected.every((t) => userFlags.has(t) && !BUILT_IN_FLAGS.has(t));
+        rejected.every((t) => userFlags.has(t) && !sentFlags.has(t));
       const probed = await probeVersion();
       const compat = probed ? cliCompatStatus(probed) : "unknown";
       if (onlySettings || compat === "compatible") {

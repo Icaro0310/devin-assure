@@ -460,3 +460,25 @@ test("changing devinQaPack.executable re-probes the version", async () => {
     __internals__.resetProbe();
   }
 });
+
+test("audit-only flag in extraArgs on a session audit blames the setting", async () => {
+  __internals__.resetProbe();
+  testExtras = ["--within", "/repo"]; // valid only for --all audits
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = (args) =>
+    args[0] === "--version"
+      ? Promise.resolve({ code: 0, stdout: "devin-qa-pack 0.1.0\n", stderr: "" })
+      : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --within" });
+  try {
+    // session audit never sends --within, so the rejection is the
+    // setting's fault even when the probe says the CLI is old.
+    await assert.rejects(
+      __internals__.runJson(["audit", "--session", "s1", "--json"]),
+      /extraArgs contains unsupported option/,
+    );
+  } finally {
+    testExtras = [];
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
