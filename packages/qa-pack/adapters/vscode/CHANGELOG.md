@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- CLI compatibility: a `devin-qa-pack --version` probe (once per
+  session, bypassing `devinQaPack.extraArgs`) distinguishes a genuinely
+  old CLI from a bad setting when argparse rejects arguments — a bad
+  setting now names `devinQaPack.extraArgs` instead of demanding an
+  upgrade.
+- Prerelease versions no longer bypass the compat floor: `0.1.2-rc1`
+  classifies as too-old (semver precedence puts it below 0.1.2).
+
+### Changed
+
+- The CLI floor is patch-level `>=0.1.2,<0.2` (`--within` first shipped
+  in 0.1.2); the README's advertised range was updated to match.
+
 ## [0.1.2]
 
 ### Fixed

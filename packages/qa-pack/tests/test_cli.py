@@ -206,3 +206,13 @@ def test_report_unknown_session_exits_two(sessions_db, tmp_path, capsys):
                "--session", "nope", "--out", str(tmp_path / "x.html")])
     assert rc == 2
     assert "nope" in capsys.readouterr().err
+
+
+def test_version_flag_prints_version(capsys):
+    from devin_qa_pack import __version__
+    from devin_qa_pack.cli import main
+
+    with pytest.raises(SystemExit) as exc:
+        main(["--version"])
+    assert exc.value.code == 0
+    assert f"devin-qa-pack {__version__}" in capsys.readouterr().out

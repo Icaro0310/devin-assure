@@ -52,7 +52,7 @@ sessions.db, unknown session) — the last surfaces the CLI's stderr.
 ## CLI compatibility (schema contract)
 
 The `devin-qa-pack-cli` field in `package.json` declares the supported
-range — `devin-qa-pack >=0.1,<0.2` (the released CLI is 0.1.x). It is
+range — `devin-qa-pack >=0.1.2,<0.2` (the released CLI is 0.1.x). It is
 **advisory metadata, not an install constraint**: the extension uses
 whichever `devin-qa-pack` is on `PATH` (or `devinQaPack.executable`).
 What the pin guarantees is enforced at runtime — every payload is
@@ -63,7 +63,8 @@ holds.
 The extension renders this `audit --json` shape:
 
 ```json
-{ "sessions_db": "…", "sessions": [ { "session_id": "…", "title": "…",
+{ "sessions_db": "…", "version": "0.1.2", "sessions": [
+  { "session_id": "…", "title": "…",
   "working_directory": "…", "verdict": "PASS|PARTIAL|UNVERIFIED",
   "summary": { "verified": 0, "disputed": 0, "unverifiable": 0 },
   "claims": [ { "kind": "…", "detail": "…",
@@ -74,6 +75,10 @@ The extension renders this `audit --json` shape:
 Required per session: `session_id` (string), `verdict` (one of the three
 values), `summary` (object) and `claims` (array). A payload missing
 required fields surfaces an explicit drift error instead of a blank badge.
+Top-level `version` is advisory — CLIs ≥0.1.2 emit it and the extension
+uses it for a precise compat check; an absent field is tolerated (shape
+validation still guards), and a prerelease like `0.1.2-rc1` sits below
+the floor.
 
 ## Requirements
 
