@@ -7,6 +7,7 @@ const outputStub = { lines: [], appendLine(l) { this.lines.push(l); }, clear() {
 const errorMessages = [];
 const registered = {}; // command id → handler, captured at activate()
 let docsOpened = 0;
+let testExtras = [];
 
 const vscodeStub = {
   ThemeColor: class {
@@ -31,7 +32,9 @@ const vscodeStub = {
       get: (k, d) =>
         k === "executable"
           ? process.env.QA_VSCODE_TEST_EXE || "devin-qa-pack"
-          : d,
+          : k === "extraArgs"
+            ? testExtras
+            : d,
     }),
     openTextDocument: () => Promise.resolve({}),
   },
@@ -60,7 +63,7 @@ const fs = require("node:fs");
 const SESSION = {
   session_id: "abcdef1234567890",
   title: "fix tests",
-  working_directory: "/home/u/repo",
+  working_directory: "/repo/u/repo",
   verdict: "PASS",
   summary: { verified: 2, disputed: 0, unverifiable: 0 },
   claims: [
@@ -270,6 +273,62 @@ test("sanitizeArgs strips network/evidence-mode flags and their values", () => {
   );
 });
 
+test("runJson maps argparse rejections to a version-floor message", async () => {
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = () =>
+    Promise.resolve({
+      code: 2,
+      stdout: "",
+      stderr: "usage: devin-qa-pack [-h] ...\nerror: unrecognized arguments: --within /repo",
+    });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--within", "/repo", "--json"]),
+      /too old for this extension.*>=0\.1\.2.*upgrade: uv tool upgrade/s,
+    );
+  } finally {
+    __internals__.deps.runCli = real;
+  }
+});
+
+test("runJson rejects a self-reported out-of-range CLI version", async () => {
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = () =>
+    Promise.resolve({
+      code: 0,
+      stdout: JSON.stringify({ ...PAYLOAD, version: "0.3.0" }),
+      stderr: "",
+    });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--json"]),
+      /CLI 0\.3\.0 is outside the range.*update the extension/s,
+    );
+  } finally {
+    __internals__.deps.runCli = real;
+  }
+});
+
+test("runJson accepts payloads with a compatible or absent version", async () => {
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = () =>
+    Promise.resolve({
+      code: 0,
+      stdout: JSON.stringify({ ...PAYLOAD, version: "0.1.9" }),
+      stderr: "",
+    });
+  try {
+    const p = await __internals__.runJson(["audit", "--all", "--json"]);
+    assert.strictEqual(p.version, "0.1.9");
+    __internals__.deps.runCli = () =>
+      Promise.resolve({ code: 0, stdout: JSON.stringify(PAYLOAD), stderr: "" });
+    const p2 = await __internals__.runJson(["audit", "--all", "--json"]);
+    assert.strictEqual(p2.sessions.length, 1); // no version field — still fine
+  } finally {
+    __internals__.deps.runCli = real;
+  }
+});
+
 test("deps.runCli rejects with an actionable error when the CLI is absent", async () => {
   process.env.QA_VSCODE_TEST_EXE = "devin-qa-pack-definitely-missing-9f3b";
   try {
@@ -290,19 +349,186 @@ test("package.json devin-qa-pack-cli pin covers the package version", () => {
   assert.ok(range, 'package.json must declare "devin-qa-pack-cli"');
   // The pin is the single source of truth for CLI_RANGE in extension.js.
   assert.strictEqual(range, __internals__.CLI_RANGE);
-  const m = /^>=(\d+)\.(\d+),<(\d+)\.(\d+)$/.exec(range);
+  const m = /^>=(\d+)\.(\d+)(?:\.(\d+))?,<(\d+)\.(\d+)(?:\.(\d+))?$/.exec(range);
   assert.ok(m, `unparseable range: ${range}`);
   // The pin must cover the real package version (../pyproject.toml).
   const pyproject = fs.readFileSync(
     path.join(__dirname, "..", "..", "..", "pyproject.toml"),
     "utf8",
   );
-  const v = /version\s*=\s*"(\d+)\.(\d+)\.\d+"/.exec(pyproject);
+  const v = /version\s*=\s*"(\d+)\.(\d+)\.(\d+)"/.exec(pyproject);
   assert.ok(v, "package version not found in pyproject.toml");
-  const [maj, min] = [Number(v[1]), Number(v[2])];
+  const ver = [Number(v[1]), Number(v[2]), Number(v[3])];
+  const lo = [Number(m[1]), Number(m[2]), Number(m[3] || 0)];
+  const hi = [Number(m[4]), Number(m[5]), Number(m[6] || 0)];
+  const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
   assert.ok(
-    (maj > Number(m[1]) || (maj === Number(m[1]) && min >= Number(m[2]))) &&
-      (maj < Number(m[3]) || (maj === Number(m[3]) && min < Number(m[4]))),
+    cmp(ver, lo) >= 0 && cmp(ver, hi) < 0,
     `package ${v[0]} outside pinned range ${range}`,
   );
+});
+
+test("cliCompatStatus honors prerelease precedence at the bounds", async () => {
+  const s = __internals__.cliCompatStatus;
+  assert.strictEqual(s("0.1.2-rc1"), "too-old", "0.1.2-rc1 is below the 0.1.2 floor");
+  assert.strictEqual(s("0.1.3-rc1"), "compatible");
+  assert.strictEqual(s("0.2.0-rc1"), "compatible", "0.2.0-rc1 is below 0.2.0");
+  assert.strictEqual(s("0.2.0"), "too-new");
+  assert.strictEqual(s("0.1.2+build5"), "compatible", "build metadata does not downgrade");
+});
+
+test("unrecognized args on a compatible CLI blames devinQaPack.extraArgs", async () => {
+  __internals__.resetProbe();
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = (args) =>
+    args[0] === "--version"
+      ? Promise.resolve({ code: 0, stdout: "devin-qa-pack 0.1.2\n", stderr: "" })
+      : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --sessoin" });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--json"]),
+      /extraArgs contains unsupported option/,
+    );
+  } finally {
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
+
+test("unrecognized args on a too-old CLI names floor and version", async () => {
+  __internals__.resetProbe();
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = (args) =>
+    args[0] === "--version"
+      ? Promise.resolve({ code: 0, stdout: "devin-qa-pack 0.1.0\n", stderr: "" })
+      : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --within" });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--within", "/repo", "--json"]),
+      /too old.*found 0\.1\.0.*uv tool upgrade devin-qa-pack/s,
+    );
+  } finally {
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
+
+test("a built-in flag duplicated in extraArgs still blames an old CLI", async () => {
+  __internals__.resetProbe();
+  testExtras = ["--within"]; // user repeats a built-in flag
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = (args) =>
+    args[0] === "--version"
+      ? Promise.resolve({ code: 0, stdout: "devin-qa-pack 0.1.0\n", stderr: "" })
+      : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --within" });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--within", "/repo", "--json"]),
+      /too old.*found 0\.1\.0/s,
+    );
+  } finally {
+    testExtras = [];
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
+
+test("changing devinQaPack.executable re-probes the version", async () => {
+  __internals__.resetProbe();
+  testExtras = ["--bogus"];
+  const real = __internals__.deps.runCli;
+  let probes = 0;
+  __internals__.deps.runCli = (args) => {
+    if (args[0] === "--version") {
+      probes++;
+      return Promise.resolve({ code: 0, stdout: "devin-qa-pack 0.1.2\n", stderr: "" });
+    }
+    return Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --bogus" });
+  };
+  try {
+    await assert.rejects(__internals__.runJson(["audit", "--all", "--json"]));
+    assert.strictEqual(probes, 1);
+    await assert.rejects(__internals__.runJson(["audit", "--all", "--json"]));
+    assert.strictEqual(probes, 1, "same executable reuses the probe");
+    process.env.QA_VSCODE_TEST_EXE = "/opt/other/devin-qa-pack";
+    await assert.rejects(__internals__.runJson(["audit", "--all", "--json"]));
+    assert.strictEqual(probes, 2, "new executable triggers a fresh probe");
+  } finally {
+    testExtras = [];
+    delete process.env.QA_VSCODE_TEST_EXE;
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
+
+test("audit-only flag in extraArgs on a session audit blames the setting", async () => {
+  __internals__.resetProbe();
+  testExtras = ["--within", "/repo"]; // valid only for --all audits
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = (args) =>
+    args[0] === "--version"
+      ? Promise.resolve({ code: 0, stdout: "devin-qa-pack 0.1.0\n", stderr: "" })
+      : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --within" });
+  try {
+    // session audit never sends --within, so the rejection is the
+    // setting's fault even when the probe says the CLI is old.
+    await assert.rejects(
+      __internals__.runJson(["audit", "--session", "s1", "--json"]),
+      /extraArgs contains unsupported option/,
+    );
+  } finally {
+    testExtras = [];
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
+
+test("extraArgs error note reports too-old and too-new verdicts accurately", async () => {
+  const real = __internals__.deps.runCli;
+  try {
+    for (const [version, want] of [
+      ["0.1.0", /also outside.*upgrade the CLI/s],
+      ["0.2.0", /also outside.*downgrade the CLI or update the extension/s],
+    ]) {
+      __internals__.resetProbe();
+      testExtras = ["--bogus"];
+      __internals__.deps.runCli = (args) =>
+        args[0] === "--version"
+          ? Promise.resolve({ code: 0, stdout: `devin-qa-pack ${version}\n`, stderr: "" })
+          : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --bogus" });
+      await assert.rejects(
+        __internals__.runJson(["audit", "--all", "--json"]),
+        /extraArgs contains unsupported option/,
+      );
+      await assert.rejects(
+        __internals__.runJson(["audit", "--all", "--json"]),
+        want,
+        `verdict note for ${version}`,
+      );
+    }
+  } finally {
+    testExtras = [];
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
+});
+
+test("extraArgs error note covers an unprobed CLI", async () => {
+  __internals__.resetProbe();
+  testExtras = ["--bogus"];
+  const real = __internals__.deps.runCli;
+  __internals__.deps.runCli = (args) =>
+    args[0] === "--version"
+      ? Promise.reject(new Error("spawn failed"))
+      : Promise.resolve({ code: 2, stdout: "", stderr: "error: unrecognized arguments: --bogus" });
+  try {
+    await assert.rejects(
+      __internals__.runJson(["audit", "--all", "--json"]),
+      /could not be probed/,
+    );
+  } finally {
+    testExtras = [];
+    __internals__.deps.runCli = real;
+    __internals__.resetProbe();
+  }
 });

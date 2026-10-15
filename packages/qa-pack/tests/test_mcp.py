@@ -123,3 +123,18 @@ def test_mcp_tool_surface_is_pinned():
     tool only lands after a deliberate edit here — check it stays
     read-only before widening."""
     assert _registered_tool_names() == {"qa_audit"}
+
+
+def test_main_missing_mcp_extra_exits_with_hint(capsys, monkeypatch):
+    """main() must exit 1 with the install hint on stderr, not a
+    traceback, when the mcp extra is absent."""
+    import devin_qa_pack.mcp_server as ms
+
+    def _boom():
+        raise ImportError("No module named 'mcp'")
+
+    monkeypatch.setattr(ms, "build_server", _boom)
+    with pytest.raises(SystemExit) as exc:
+        ms.main()
+    assert exc.value.code == 1
+    assert "mcp" in capsys.readouterr().err

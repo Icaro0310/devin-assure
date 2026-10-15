@@ -38,6 +38,7 @@ from devin_qa_pack.intent import (
     intent_dict,
     render_intent,
 )
+from devin_qa_pack import __version__
 from devin_qa_pack.paths import default_sessions_db
 from devin_qa_pack.report import (
     PASS,
@@ -55,6 +56,9 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="devin-qa-pack",
         description="Audit Devin sessions: verify deliverable claims "
         "(tests, commits, files, pushes) against tool_call_state ground truth.",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
     )
     sub = parser.add_subparsers(dest="command")
     audit = sub.add_parser("audit", help="verify claims per session")
