@@ -328,7 +328,7 @@ provides-extras = ["dev", "mcp"]
 
 [[package]]
 name = "devin-qa-pack"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "packages/qa-pack" }
 dependencies = [
     { name = "devin-internals-spec" },
