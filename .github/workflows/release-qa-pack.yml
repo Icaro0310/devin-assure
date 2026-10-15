@@ -107,7 +107,12 @@ jobs:
       # this explicit dispatch covers re-runs of THIS workflow (a rerun
       # does not re-emit the tag push event) and is idempotent
       # end-to-end: the publish leg uploads with skip-existing.
+      # continue-on-error: a dispatch failure must not fail `release`
+      # and starve the fanout leg (Open VSX + Marketplace) — the tag
+      # push already queued PyPI independently, so a failed re-dispatch
+      # is a warning, not a release blocker.
       - name: Trigger PyPI publish workflow
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ github.ref_name }}
