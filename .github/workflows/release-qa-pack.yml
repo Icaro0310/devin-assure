@@ -46,16 +46,20 @@ jobs:
           want="${GITHUB_REF_NAME##*-v}"
           got_ext=$(python3 -c "import json; print(json.load(open('packages/qa-pack/adapters/vscode/package.json'))['version'])")
           got_wheel=$(python3 -c "import tomllib; print(tomllib.load(open('packages/qa-pack/pyproject.toml','rb'))['project']['version'])")
-          if [ "$want" != "$got_ext" ] || [ "$want" != "$got_wheel" ]; then
-            echo "::error::tag '$GITHUB_REF_NAME' ($want) vs package.json $got_ext / pyproject $got_wheel"
-            exit 1
-          fi
+          got_init=$(python3 -c "import re; print(re.search(r'__version__\s*=\s*\"([^\"]+)\"', open('packages/qa-pack/src/devin_qa_pack/__init__.py').read()).group(1))")
+          got_plugin=$(python3 -c "import json; print(json.load(open('packages/qa-pack/adapters/.devin-plugin/plugin.json'))['version'])")
+          for got in "$got_ext" "$got_wheel" "$got_init" "$got_plugin"; do
+            if [ "$want" != "$got" ]; then
+              echo "::error::tag '$GITHUB_REF_NAME' ($want) vs package.json $got_ext / pyproject $got_wheel / __version__ $got_init / plugin.json $got_plugin"
+              exit 1
+            fi
+          done
 
   release:
     needs: validate
-    # GitHub release work stays tag-only — a dispatch proves the fan-out
-    # legs without touching the release.
-    if: github.ref_type == 'tag'
+    # GitHub release work stays tag-push-only — a dispatch (even against
+    # an existing tag ref) proves nothing here, it only runs `validate`.
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -86,21 +90,18 @@ jobs:
           VSIX=$(ls packages/qa-pack/adapters/vscode/devin-qa-pack-*.vsix)
           # release.yml mints the GitHub release for the same tag with
           # the wheel + SBOM assets — poll for it and attach the vsix to
-          # the existing release instead of racing `gh release create`
-          # (two concurrent creates would fail one of the workflows).
-          for _ in $(seq 1 60); do
+          # the existing release instead of racing `gh release create`.
+          # No fallback create: a vsix-only release would make the wheel
+          # job's own `gh release create` fail and strand its assets.
+          for _ in $(seq 1 90); do
             if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
               gh release upload "$RELEASE_TAG" "$VSIX" --clobber
               exit 0
             fi
             sleep 10
           done
-          # Fallback after ~10 min without a release (release.yml never
-          # fired or died): create it here with just the vsix. Still
-          # idempotent — a concurrent create falls through to upload.
-          gh release create "$RELEASE_TAG" "$VSIX" \
-            --verify-tag --generate-notes \
-            || gh release upload "$RELEASE_TAG" "$VSIX" --clobber
+          echo "::error::no GitHub release for $RELEASE_TAG after 15 min — the release.yml wheel job did not mint one"
+          exit 1
 
       # pypi-publish.yml already fires on the `qa-pack-v*` tag push —
       # this explicit dispatch covers re-runs of THIS workflow (a rerun
@@ -113,7 +114,11 @@ jobs:
         run: gh workflow run pypi-publish.yml --ref "$RELEASE_TAG" -f package=qa-pack
 
   fanout:
-    needs: validate
+    needs: [validate, release]
+    # Publish legs only ever run on a real tag push after the GitHub
+    # release succeeded — a workflow_dispatch must not publish to the
+    # registries (the reusable's own tag gate is tag-only too).
+    if: github.event_name == 'push' && github.ref_type == 'tag'
     # Every scope the reusable requests must be granted here — a
     # missing scope fails the whole run at startup_failure.
     permissions:
