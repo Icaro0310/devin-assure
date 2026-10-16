@@ -1,0 +1,7 @@
+{"kind": 0, "k": [], "v": {"version": 3, "sessionId": "d7ec266f-fbf0-5639-8e82-7ef445ba605d", "creationDate": 1780039600000, "requests": [], "draftState": {"editing": true}}}
+{"kind": 1, "k": ["requesterUsername"], "v": "fixture-user"}
+{"kind": 2, "k": ["requests"], "v": {"requestId": "req-1", "timestamp": 1780039610000, "responseTimestamp": 1780039625000}}
+{"kind": 2, "k": ["requests"], "v": {"requestId": "req-2", "timestamp": 1780039640000, "result": {"timings": {"totalElapsed": 12000}}}}
+{"kind": 1, "k": ["lastMessageDate"], "v": 1780039652000}
+{"kind": 3, "k": ["draftState"]}
+{"kind": 2, "k": ["requests"], "v": {"requestId": "req-3", "timestamp":

@@ -1,0 +1,7 @@
+{"timestamp": "2026-05-29T06:26:40.000Z", "type": "session_meta", "payload": {"id": "7ab7382d-dfdf-5532-8368-eeb17ee3cf00", "cwd": "/fixture/workspace/codex-e", "timestamp": "2026-05-29T06:26:40.000Z"}}
+{"timestamp": "2026-05-29T06:26:45.000Z", "type": "event_msg", "payload": {"type": "task_started"}}
+{"timestamp": "2026-05-29T06:26:50.000Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "xyzzy run the test suite"}]}}
+{"timestamp": "2026-05-29T06:27:00.000Z", "type": "response_item", "payload": {"type": "function_call", "call_id": "call-exec-1", "name": "shell", "arguments": {"command": ["pytest", "-q"]}}}
+{"timestamp": "2026-05-29T06:27:10.000Z", "type": "response_item", "payload": {"type": "function_call_output", "call_id": "call-exec-1", "output": {"output": "xyzzy 5 passed in 0.42s", "exit_code": 0}}}
+{"timestamp": "2026-05-29T06:27:20.000Z", "type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "xyzzy evidence claim: all tests passed"}]}}
+{"timestamp": "2026-05-29T06:27:25.000Z", "type": "event_msg", "payload": {"type": "task_complete"}}

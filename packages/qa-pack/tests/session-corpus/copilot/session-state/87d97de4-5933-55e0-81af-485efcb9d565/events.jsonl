@@ -1,0 +1,6 @@
+{"id": "evt-0001", "parentId": null, "timestamp": "2026-05-28T20:26:40.000Z", "type": "session.start", "data": {"id": "87d97de4-5933-55e0-81af-485efcb9d565", "version": "0.0.0-fixture"}}
+{"id": "evt-0002", "parentId": "evt-0001", "timestamp": "2026-05-28T20:26:45.000Z", "type": "user.message", "data": {"text": "xyzzy copilot marker alpha"}}
+{"id": "evt-0003", "parentId": "evt-0002", "timestamp": "2026-05-28T20:26:48.000Z", "type": "tool.execution_start", "data": {"toolCallId": "call-alpha-1", "toolName": "bash", "input": {"command": "pytest -q"}}}
+{"id": "evt-0004", "parentId": "evt-0003", "timestamp": "2026-05-28T20:26:52.000Z", "type": "tool.execution_complete", "data": {"toolCallId": "call-alpha-1", "status": "completed", "exitCode": 0, "output": "xyzzy 5 passed in 0.42s"}}
+{"id": "evt-0005", "parentId": "evt-0004", "timestamp": "2026-05-28T20:26:55.000Z", "type": "assistant.message", "data": {"text": "xyzzy copilot marker alpha reply: all tests passed"}}
+{"id": "evt-0006", "parentId": "evt-0005", "timestamp": "2026-05-28T20:27:00.000Z", "type": "session.shutdown", "data": {"reason": "fixture-close"}}

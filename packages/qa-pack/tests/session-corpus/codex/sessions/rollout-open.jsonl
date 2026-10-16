@@ -1,0 +1,2 @@
+{"timestamp": "2026-05-29T03:26:40.000Z", "type": "session_meta", "payload": {"id": "aa098c65-adb9-5407-8bee-1cc276e17278", "cwd": "/fixture/workspace/codex-d", "timestamp": "2026-05-29T03:26:40.000Z"}}
+{"timestamp": "2026-05-29T03:26:45.000Z", "type": "event_msg", "payload": {"type": "task_started"}}

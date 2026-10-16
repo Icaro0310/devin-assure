@@ -1,0 +1,147 @@
+{
+  "version": 1,
+  "spec": "docs/SESSION-EVIDENCE.md",
+  "sessions": [
+    {
+      "surface": "codex-cli",
+      "native_id": "0fdeac16-1780-5567-8fa9-70475bd05e3b",
+      "expected_claims": [
+        {
+          "kind": "tests",
+          "verdict": "no-evidence"
+        }
+      ],
+      "expected_tool_call_kinds": [],
+      "expected_message_roles": [
+        "assistant",
+        "user"
+      ]
+    },
+    {
+      "surface": "codex-cli",
+      "native_id": "7ab7382d-dfdf-5532-8368-eeb17ee3cf00",
+      "expected_claims": [
+        {
+          "kind": "tests",
+          "verdict": "verified"
+        }
+      ],
+      "expected_tool_call_kinds": [
+        "execute"
+      ],
+      "expected_message_roles": [
+        "assistant",
+        "user"
+      ]
+    },
+    {
+      "surface": "codex-cli",
+      "native_id": "86d4c023-c547-5b5b-8bc3-12d801b155e0",
+      "expected_claims": [],
+      "expected_tool_call_kinds": [],
+      "expected_message_roles": []
+    },
+    {
+      "surface": "codex-cli",
+      "native_id": "aa098c65-adb9-5407-8bee-1cc276e17278",
+      "expected_claims": [],
+      "expected_tool_call_kinds": [],
+      "expected_message_roles": []
+    },
+    {
+      "surface": "codex-cli",
+      "native_id": "ab22f18d-23a8-567a-8378-7b26abdcdbfd",
+      "expected_claims": [],
+      "expected_tool_call_kinds": [],
+      "expected_message_roles": []
+    },
+    {
+      "surface": "codex-cli",
+      "native_id": "b1545a8b-b2df-56c2-8a8c-399767a98878",
+      "expected_claims": [],
+      "expected_tool_call_kinds": [],
+      "expected_message_roles": []
+    },
+    {
+      "surface": "copilot-cli",
+      "native_id": "1686d5c9-5107-5287-8f9c-37ca1d8bccd0",
+      "expected_claims": [],
+      "expected_tool_call_kinds": [],
+      "expected_message_roles": [
+        "assistant",
+        "user"
+      ]
+    },
+    {
+      "surface": "copilot-cli",
+      "native_id": "75d2b90e-0db0-540e-8ca7-046052537e97",
+      "expected_claims": [],
+      "expected_tool_call_kinds": [],
+      "expected_message_roles": [
+        "assistant",
+        "user"
+      ]
+    },
+    {
+      "surface": "copilot-cli",
+      "native_id": "87d97de4-5933-55e0-81af-485efcb9d565",
+      "expected_claims": [
+        {
+          "kind": "tests",
+          "verdict": "verified"
+        }
+      ],
+      "expected_tool_call_kinds": [
+        "execute"
+      ],
+      "expected_message_roles": [
+        "assistant",
+        "user"
+      ]
+    },
+    {
+      "surface": "copilot-cli",
+      "native_id": "f5fa195d-c5de-5fdf-83af-6327151f5340",
+      "expected_claims": [],
+      "expected_tool_call_kinds": [],
+      "expected_message_roles": [
+        "user"
+      ]
+    },
+    {
+      "surface": "vscode-chat",
+      "native_id": "1ac1fa88-a127-5a8c-8bf2-ea13a59f62b4",
+      "expected_claims": [
+        {
+          "kind": "tests",
+          "verdict": "verified"
+        }
+      ],
+      "expected_tool_call_kinds": [
+        "execute"
+      ],
+      "expected_message_roles": [
+        "assistant",
+        "user"
+      ]
+    },
+    {
+      "surface": "vscode-chat",
+      "native_id": "40b09524-422d-534f-8e21-bdb5d16bd8ab",
+      "expected_claims": [],
+      "expected_tool_call_kinds": [],
+      "expected_message_roles": [
+        "user"
+      ]
+    },
+    {
+      "surface": "vscode-chat",
+      "native_id": "d7ec266f-fbf0-5639-8e82-7ef445ba605d",
+      "expected_claims": [],
+      "expected_tool_call_kinds": [],
+      "expected_message_roles": [
+        "user"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{"id": "evt-0001", "parentId": null, "timestamp": "2026-05-28T23:26:40.000Z", "type": "session.start", "data": {"id": "75d2b90e-0db0-540e-8ca7-046052537e97", "version": "0.0.0-fixture"}}
+{"id": "evt-0002", "parentId": "evt-0001", "timestamp": "2026-05-28T23:26:45.000Z", "type": "user.message", "data": {"text": "xyzzy copilot marker delta"}}
+{"id": "evt-0003", "parentId": "evt-0002", "timestamp": "2026-05-28T23:26:48.000Z", "type": "assistant.message", "data": {"text": "xyzzy copilot marker delta reply"}}
+{"id": "evt-0004", "parentId": "evt-0003", "timestamp": "2026-05-28T23:27:10.000Z", "type": "session.shutdown", "data": {"reason": "fixture-close"}}
