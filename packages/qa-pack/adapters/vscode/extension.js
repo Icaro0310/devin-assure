@@ -17,8 +17,8 @@ let auditSeq = 0, lastRun = null;
 // test/cli-contract.test.js asserts the pin, these bounds and the real CLI
 // version agree. The floor is patch-level: --within (audit scoping) first
 // shipped in CLI 0.1.2 — 0.1.0 accepts the argv but argparse exits 2 on it.
-const COMPATIBLE_CLI = { min: [0, 1, 2], maxExclusive: [0, 2, 0] };
-const CLI_RANGE = ">=0.1.2,<0.2";
+const COMPATIBLE_CLI = { min: [0, 1, 2], maxExclusive: [0, 3, 0] };
+const CLI_RANGE = ">=0.1.2,<0.3";
 
 function parseVersion(version) {
   const m = /^(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]*)?$/.exec(
@@ -31,7 +31,7 @@ const cmp3 = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 // "compatible" | "too-old" | "too-new" | "unknown"
 // Semver precedence: a prerelease sits BELOW its base release —
 // 0.1.2-rc1 does not meet the >=0.1.2 floor (no --within), while
-// 0.2.0-rc1 is still inside <0.2.
+// 0.3.0-rc1 is still inside <0.3.
 function cliCompatStatus(version) {
   const v = parseVersion(version);
   if (!v) return "unknown";

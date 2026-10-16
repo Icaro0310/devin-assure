@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-16
+
 ### Fixed
 
 - CLI compatibility: a `devin-qa-pack --version` probe (once per
@@ -14,7 +16,7 @@
 
 ### Changed
 
-- The CLI floor is patch-level `>=0.1.2,<0.2` (`--within` first shipped
+- The CLI floor is patch-level `>=0.1.2,<0.3` (`--within` first shipped
   in 0.1.2); the README's advertised range was updated to match.
 
 ## [0.1.2]
