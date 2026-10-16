@@ -472,6 +472,8 @@ def test_vscode_provider_audit_end_to_end(tmp_path):
              "response": [
                  {"kind": "toolInvocation", "toolCallId": "t1",
                   "command": "python -m pytest -q",
+                  "isComplete": True,
+                  "resultDetails": {"output": "12 passed"},
                   "toolSpecificData": {
                       "kind": "terminal",
                       "terminalCommandState": {"exitCode": 0}}},
@@ -480,6 +482,14 @@ def test_vscode_provider_audit_end_to_end(tmp_path):
         ],
     }), encoding="utf-8")
     (ev,) = VscodeChatProvider([user]).sessions({})
+    # spec §4/§6.5: inline outcome fields live in update_payload, the
+    # canonical home of exit status — payload keeps the raw invocation.
+    (call,) = ev.tool_calls
+    assert call.update_payload["exit_code"] == 0
+    assert "exit_code" not in call.payload
+    # inline outcome fields follow the same rule (spec §4)
+    assert call.update_payload["isComplete"] is True
+    assert call.update_payload["resultDetails"] == {"output": "12 passed"}
     audit = audit_evidence(ev)
     assert audit.session_id == "vscode-chat:chat-3"
     assert audit.verdict == "PASS"
