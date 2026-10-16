@@ -52,7 +52,7 @@ sessions.db, unknown session) — the last surfaces the CLI's stderr.
 ## CLI compatibility (schema contract)
 
 The `devin-qa-pack-cli` field in `package.json` declares the supported
-range — `devin-qa-pack >=0.1.2,<0.2` (the released CLI is 0.1.x). It is
+range — `devin-qa-pack >=0.1.2,<0.3` (the released CLI is 0.2.x). It is
 **advisory metadata, not an install constraint**: the extension uses
 whichever `devin-qa-pack` is on `PATH` (or `devinQaPack.executable`).
 What the pin guarantees is enforced at runtime — every payload is

@@ -372,8 +372,9 @@ test("cliCompatStatus honors prerelease precedence at the bounds", async () => {
   const s = __internals__.cliCompatStatus;
   assert.strictEqual(s("0.1.2-rc1"), "too-old", "0.1.2-rc1 is below the 0.1.2 floor");
   assert.strictEqual(s("0.1.3-rc1"), "compatible");
-  assert.strictEqual(s("0.2.0-rc1"), "compatible", "0.2.0-rc1 is below 0.2.0");
-  assert.strictEqual(s("0.2.0"), "too-new");
+  assert.strictEqual(s("0.2.0"), "compatible", "the 0.2.x line is inside the range");
+  assert.strictEqual(s("0.3.0-rc1"), "compatible", "0.3.0-rc1 is below 0.3.0");
+  assert.strictEqual(s("0.3.0"), "too-new");
   assert.strictEqual(s("0.1.2+build5"), "compatible", "build metadata does not downgrade");
 });
 
@@ -488,7 +489,7 @@ test("extraArgs error note reports too-old and too-new verdicts accurately", asy
   try {
     for (const [version, want] of [
       ["0.1.0", /also outside.*upgrade the CLI/s],
-      ["0.2.0", /also outside.*downgrade the CLI or update the extension/s],
+      ["0.3.0", /also outside.*downgrade the CLI or update the extension/s],
     ]) {
       __internals__.resetProbe();
       testExtras = ["--bogus"];
