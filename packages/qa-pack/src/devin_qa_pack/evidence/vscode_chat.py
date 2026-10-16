@@ -265,6 +265,21 @@ def _chat_files(
 
 _PATH_LIKE_RE = re.compile(r"(?:[A-Za-z]:[\\/]|/|\\\\|file:)")
 
+# file:/// URIs on Windows parse as '/C:/repo' — the leading slash is a
+# URI artifact, not part of the OS path. Strip it when a drive letter
+# follows so --within comparisons and file checks see 'C:/repo'.
+_WINDOWS_URI_PATH_RE = re.compile(r"^/([A-Za-z]:[\\/].*)$")
+
+
+def _uri_path(uri: str) -> str | None:
+    """Filesystem path from a file:// URI, or None when not a file URI."""
+    parsed = urllib.parse.urlparse(uri)
+    if parsed.scheme != "file" or not parsed.path:
+        return None
+    path = urllib.parse.unquote(parsed.path)
+    m = _WINDOWS_URI_PATH_RE.match(path)
+    return m.group(1) if m else path
+
 
 def _workspace_dir(
     ws_dir: Path | None, warnings: list[str]
@@ -287,16 +302,16 @@ def _workspace_dir(
             data = None
         folder = data.get("folder") if isinstance(data, dict) else None
         if isinstance(folder, str):
-            parsed = urllib.parse.urlparse(folder)
-            if parsed.scheme == "file":
-                return urllib.parse.unquote(parsed.path)
-            if not parsed.scheme:
+            resolved = _uri_path(folder)
+            if resolved is not None:
+                return resolved
+            if not urllib.parse.urlparse(folder).scheme:
                 return folder
     name = urllib.parse.unquote(ws_dir.name)
     if name.startswith("file:"):
-        parsed = urllib.parse.urlparse(name)
-        if parsed.path:
-            return urllib.parse.unquote(parsed.path)
+        resolved = _uri_path(name)
+        if resolved:
+            return resolved
     elif _PATH_LIKE_RE.search(name):
         return name
     warnings.append(

@@ -412,6 +412,20 @@ def test_vscode_workspace_json_folder_wins(tmp_path):
     assert ev.working_dir == "/real/path/proj"
 
 
+def test_vscode_file_uri_windows_drive_strips_uri_slash(tmp_path):
+    user, ws = _vscode_layout(tmp_path)
+    (ws / "workspace.json").write_text(
+        json.dumps({"folder": "file:///C:/repo/proj"}), encoding="utf-8"
+    )
+    chat_dir = ws / "chatSessions"
+    chat_dir.mkdir()
+    (chat_dir / "c.json").write_text(
+        json.dumps({"requests": []}), encoding="utf-8"
+    )
+    (ev,) = VscodeChatProvider([user]).sessions({})
+    assert ev.working_dir == "C:/repo/proj"  # '/C:/' is a URI artifact, not a path
+
+
 def test_vscode_jsonl_mutation_log_replays_and_wins(tmp_path):
     user, ws = _vscode_layout(tmp_path)
     chat_dir = ws / "chatSessions"
