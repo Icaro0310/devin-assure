@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `audit`/`intent`/`report` with a `--sessions-db` file that exists but
+  is not a SQLite database crashed with an unhandled
+  `sqlite3.DatabaseError` traceback (exit 1) while provider mode
+  reported the same store as a warning + exit 2. `_open_store` now
+  catches `sqlite3.Error`, so the fast path fails closed with
+  `error: cannot open …` (exit 2) like every other unreadable store.
+
+### Changed
+
+- `pyproject.toml` description (the PyPI summary) still described 0.2.0
+  as a Devin-`sessions.db`-only audit; it now names the multi-surface
+  evidence layer (Devin CLI, Copilot CLI, Codex CLI, VS Code chat).
+
 ## [0.2.0] - 2026-10-16
 
 ### Added

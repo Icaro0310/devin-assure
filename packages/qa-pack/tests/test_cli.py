@@ -74,6 +74,19 @@ def test_missing_db_exits_two(tmp_path, capsys):
     assert capsys.readouterr().err
 
 
+def test_non_sqlite_db_exits_two_without_traceback(tmp_path, capsys):
+    """A --sessions-db file that is not SQLite fails closed (exit 2 +
+    `error:` line), never an unhandled DatabaseError traceback — the
+    fast path must degrade exactly like provider mode."""
+    bad = tmp_path / "not-a-db.db"
+    bad.write_text("this is not sqlite at all", encoding="utf-8")
+    rc = main(["audit", "--sessions-db", str(bad), "--all"])
+    err = capsys.readouterr().err
+    assert rc == 2
+    assert "cannot open" in err
+    assert "Traceback" not in err
+
+
 def test_unique_session_prefix_resolves(sessions_db, capsys):
     rc = main(["audit", "--sessions-db", str(sessions_db),
                "--session", "sess-veri"])
