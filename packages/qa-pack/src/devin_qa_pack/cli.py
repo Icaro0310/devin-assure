@@ -281,8 +281,10 @@ def _provider_audits(args: argparse.Namespace, kw: dict):
     if session_arg:
         found = match_evidence(evidences, session_arg)
         if isinstance(found, list):
+            # ref (workspace-hash-bearing canonical id or ephemeral key)
+            # is selectable; surface:native_id alone can repeat.
             refs = ", ".join(
-                f"{e.surface}:{e.native_id}" for e in found
+                e.ref or f"{e.surface}:{e.native_id}" for e in found
             )
             print(
                 f"error: session '{session_arg}' is ambiguous: {refs}",

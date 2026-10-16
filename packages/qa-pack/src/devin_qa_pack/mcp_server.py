@@ -101,7 +101,7 @@ def do_audit(
             found = match_evidence(evidences, session_id)
             if isinstance(found, list):
                 refs = ", ".join(
-                    f"{e.surface}:{e.native_id}" for e in found
+                    e.ref or f"{e.surface}:{e.native_id}" for e in found
                 )
                 return {"error": "ambiguous_session",
                         "detail": f"session '{session_id}' is "
