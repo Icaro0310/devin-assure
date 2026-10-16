@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "surface": "copilot-cli",
+      "store_path": "copilot",
+      "source_warnings": [],
+      "sessions": [
+        {
+          "native_id": "1686d5c9-5107-5287-8f9c-37ca1d8bccd0",
+          "workspace_seed": "/fixture/workspace/beta",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [
+              "no-end-marker"
+            ],
+            "event_count": 3,
+            "started_at": "2026-05-28T21:26:40.000Z",
+            "ended_at": "2026-05-28T21:26:50.000Z"
+          }
+        },
+        {
+          "native_id": "75d2b90e-0db0-540e-8ca7-046052537e97",
+          "workspace_seed": "/fixture/workspace/legacy",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [],
+            "event_count": 4,
+            "started_at": "2026-05-28T23:26:40.000Z",
+            "ended_at": "2026-05-28T23:27:10.000Z"
+          }
+        },
+        {
+          "native_id": "87d97de4-5933-55e0-81af-485efcb9d565",
+          "workspace_seed": "/fixture/workspace/alpha",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [],
+            "event_count": 6,
+            "started_at": "2026-05-28T20:26:40.000Z",
+            "ended_at": "2026-05-28T20:27:00.000Z"
+          }
+        },
+        {
+          "native_id": "f5fa195d-c5de-5fdf-83af-6327151f5340",
+          "workspace_seed": null,
+          "expect": {
+            "id_present": false,
+            "state": "ok",
+            "warning_codes": [
+              "unknown-workspace"
+            ],
+            "event_count": 3,
+            "started_at": "2026-05-28T22:26:40.000Z",
+            "ended_at": "2026-05-28T22:26:55.000Z"
+          }
+        }
+      ]
+    },
+    {
+      "surface": "codex-cli",
+      "store_path": "codex",
+      "source_warnings": [
+        "duplicates"
+      ],
+      "sessions": [
+        {
+          "native_id": "0fdeac16-1780-5567-8fa9-70475bd05e3b",
+          "workspace_seed": "/fixture/workspace/codex-f",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [],
+            "event_count": 5,
+            "started_at": "2026-05-29T07:26:40.000Z",
+            "ended_at": "2026-05-29T07:27:05.000Z"
+          }
+        },
+        {
+          "native_id": "7ab7382d-dfdf-5532-8368-eeb17ee3cf00",
+          "workspace_seed": "/fixture/workspace/codex-e",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [],
+            "event_count": 7,
+            "started_at": "2026-05-29T06:26:40.000Z",
+            "ended_at": "2026-05-29T06:27:25.000Z"
+          }
+        },
+        {
+          "native_id": "86d4c023-c547-5b5b-8bc3-12d801b155e0",
+          "workspace_seed": "/fixture/workspace/codex-c",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [],
+            "event_count": 3,
+            "started_at": "2026-05-29T02:26:40.000Z",
+            "ended_at": "2026-05-29T02:27:25.000Z"
+          }
+        },
+        {
+          "native_id": "aa098c65-adb9-5407-8bee-1cc276e17278",
+          "workspace_seed": "/fixture/workspace/codex-d",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [
+              "session-open"
+            ],
+            "event_count": 2,
+            "started_at": "2026-05-29T03:26:40.000Z",
+            "ended_at": null
+          }
+        },
+        {
+          "native_id": "ab22f18d-23a8-567a-8378-7b26abdcdbfd",
+          "workspace_seed": "/fixture/workspace/codex-b",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [
+              "no-end-marker"
+            ],
+            "event_count": null,
+            "started_at": "2026-05-29T01:26:40.000Z",
+            "ended_at": "2026-05-29T01:27:40.000Z"
+          }
+        },
+        {
+          "native_id": "b1545a8b-b2df-56c2-8a8c-399767a98878",
+          "workspace_seed": "/fixture/workspace/codex-a",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [
+              "no-end-marker"
+            ],
+            "event_count": null,
+            "started_at": "2026-05-29T00:26:40.000Z",
+            "ended_at": "2026-05-29T00:28:40.000Z"
+          }
+        }
+      ]
+    },
+    {
+      "surface": "vscode-chat",
+      "store_path": "vscode-chat",
+      "source_warnings": [],
+      "sessions": [
+        {
+          "native_id": "1ac1fa88-a127-5a8c-8bf2-ea13a59f62b4",
+          "workspace_seed": "5e4fbd9a8ede6a386b48ec3e3b2f7153",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [],
+            "event_count": 2,
+            "started_at": "2026-05-29T06:26:40.000Z",
+            "ended_at": "2026-05-29T06:28:10.000Z"
+          }
+        },
+        {
+          "native_id": "40b09524-422d-534f-8e21-bdb5d16bd8ab",
+          "workspace_seed": null,
+          "expect": {
+            "id_present": false,
+            "state": "ok",
+            "warning_codes": [],
+            "event_count": 1,
+            "started_at": "2026-05-29T08:26:40.000Z",
+            "ended_at": "2026-05-29T08:26:55.000Z"
+          }
+        },
+        {
+          "native_id": "d7ec266f-fbf0-5639-8e82-7ef445ba605d",
+          "workspace_seed": "f54e2ae2eb9c4df11138fd1478db693b",
+          "expect": {
+            "id_present": true,
+            "state": "ok",
+            "warning_codes": [
+              "truncated-tail"
+            ],
+            "event_count": 2,
+            "started_at": "2026-05-29T07:26:40.000Z",
+            "ended_at": "2026-05-29T07:27:32.000Z"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+{"id": "evt-0001", "parentId": null, "timestamp": "2026-05-28T21:26:40.000Z", "type": "session.start", "data": {"id": "1686d5c9-5107-5287-8f9c-37ca1d8bccd0", "version": "0.0.0-fixture"}}
+{"id": "evt-0002", "parentId": "evt-0001", "timestamp": "2026-05-28T21:26:45.000Z", "type": "user.message", "data": {"text": "xyzzy copilot marker beta"}}
+{"id": "evt-0003", "parentId": "evt-0002", "timestamp": "2026-05-28T21:26:50.000Z", "type": "assistant.message", "data": {"text": "xyzzy copilot marker beta reply"}}

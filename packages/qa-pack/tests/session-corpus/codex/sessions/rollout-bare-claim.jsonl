@@ -1,0 +1,5 @@
+{"timestamp": "2026-05-29T07:26:40.000Z", "type": "session_meta", "payload": {"id": "0fdeac16-1780-5567-8fa9-70475bd05e3b", "cwd": "/fixture/workspace/codex-f", "timestamp": "2026-05-29T07:26:40.000Z"}}
+{"timestamp": "2026-05-29T07:26:45.000Z", "type": "event_msg", "payload": {"type": "task_started"}}
+{"timestamp": "2026-05-29T07:26:50.000Z", "type": "response_item", "payload": {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "xyzzy run the test suite"}]}}
+{"timestamp": "2026-05-29T07:27:00.000Z", "type": "response_item", "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "xyzzy bare claim: all tests passed"}]}}
+{"timestamp": "2026-05-29T07:27:05.000Z", "type": "event_msg", "payload": {"type": "task_complete"}}

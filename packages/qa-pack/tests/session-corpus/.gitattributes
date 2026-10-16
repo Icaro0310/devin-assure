@@ -1,0 +1,5 @@
+# Corpus artifacts are LF-canonical: the parity contract compares bytes
+# across platforms, so checkouts must never CRLF-ify text files even when
+# the runner sets core.autocrlf=true. The sqlite store is binary.
+* text eol=lf
+*.sqlite -text
