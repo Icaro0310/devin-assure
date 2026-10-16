@@ -403,14 +403,21 @@ def _tool_call(part: dict[str, Any], fallback: str, ts: float | None) -> Evidenc
         if orig is not None and orig != "execute":
             payload.setdefault("part_kind", orig)
         payload["kind"] = "execute"
+    # Spec §4/§6.5: inline outcome fields belong to update_payload — the
+    # canonical home of extracted exit status; payload keeps the raw
+    # invocation record only.
+    update: dict[str, Any] = {}
     exit_code = _sniff_exit(part)
     if exit_code is not None:
-        payload.setdefault("exit_code", exit_code)
+        update["exit_code"] = exit_code
+    for key in ("resultDetails", "isComplete"):
+        if key in part:
+            update[key] = part[key]
     return EvidenceToolCall(
         tool_call_id=str(cid) if cid is not None else fallback,
         kind=str(kind),
         payload=payload,
-        update_payload=None,
+        update_payload=update or None,
         ts_ms=ts,
     )
 

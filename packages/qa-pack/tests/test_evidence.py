@@ -480,6 +480,11 @@ def test_vscode_provider_audit_end_to_end(tmp_path):
         ],
     }), encoding="utf-8")
     (ev,) = VscodeChatProvider([user]).sessions({})
+    # spec §4/§6.5: inline outcome fields live in update_payload, the
+    # canonical home of exit status — payload keeps the raw invocation.
+    (call,) = ev.tool_calls
+    assert call.update_payload["exit_code"] == 0
+    assert "exit_code" not in call.payload
     audit = audit_evidence(ev)
     assert audit.session_id == "vscode-chat:chat-3"
     assert audit.verdict == "PASS"
