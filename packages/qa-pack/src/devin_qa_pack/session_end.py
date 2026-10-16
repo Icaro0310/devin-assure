@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sqlite3
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -232,7 +233,9 @@ def run_session_end(
                         )
                     except Exception:  # noqa: BLE001 - fail-soft; side field is optional
                         intent = None  # fail-soft — side field is optional
-        except (SchemaError, OSError) as exc:
+        except (SchemaError, OSError, sqlite3.Error) as exc:
+            # sqlite3.Error: the file exists but is not a database —
+            # report it as an unreadable store, not an internal error.
             reason = f"cannot open {db}: {exc}"
 
     if audit is not None:

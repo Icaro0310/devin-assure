@@ -178,6 +178,22 @@ def test_missing_db_skips_softly(tmp_path, capsys):
     assert "not found" in payload["reason"]
 
 
+def test_non_sqlite_db_skips_with_cannot_open_reason(tmp_path, capsys):
+    """A file that exists but is not SQLite is an unreadable store —
+    SKIPPED with a `cannot open` reason, not an `internal error`
+    DatabaseError falling through to the CLI's outer catch."""
+    bad = tmp_path / "not-a-db.db"
+    bad.write_text("this is not sqlite at all", encoding="utf-8")
+    out = tmp_path / "v.json"
+    rc = main(["session-end", "--sessions-db", str(bad),
+               "--session-id", "sess-x", "--out", str(out)])
+    assert rc == 0
+    payload = _read(out)
+    assert payload["verdict"] == SKIPPED
+    assert "cannot open" in payload["reason"]
+    assert "internal error" not in payload["reason"]
+
+
 def test_empty_store_skips_softly(tmp_path, capsys):
     db = create_sessions_db(tmp_path / "empty.db", n_sessions=0)
     out = tmp_path / "v.json"

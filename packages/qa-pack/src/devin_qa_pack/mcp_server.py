@@ -12,6 +12,7 @@ server or the ``mcp`` package. ``build_server()`` wraps it — needs the
 
 from __future__ import annotations
 
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -140,7 +141,9 @@ def do_audit(
                 "detail": f"sessions.db not found: {db}"}
     try:
         store = SessionsStore(db)
-    except (SchemaError, OSError) as exc:
+    except (SchemaError, OSError, sqlite3.Error) as exc:
+        # sqlite3.Error: the file exists but is not a database — same
+        # controlled bad_store shape the CLI prints at exit 2.
         return {"error": "bad_store", "detail": f"cannot open {db}: {exc}"}
     with store:
         if session_id:

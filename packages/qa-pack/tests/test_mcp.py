@@ -45,6 +45,16 @@ def test_do_audit_missing_db(tmp_path):
     assert out["error"] == "no_store"
 
 
+def test_do_audit_non_sqlite_db_is_bad_store(tmp_path):
+    """A file that exists but is not SQLite reports the structured
+    bad_store error — not a raw DatabaseError from the boundary catch."""
+    bad = tmp_path / "not-a-db.db"
+    bad.write_text("this is not sqlite at all", encoding="utf-8")
+    out = do_audit(sessions_db=str(bad))
+    assert out["error"] == "bad_store"
+    assert "cannot open" in out["detail"]
+
+
 def test_do_audit_conflicting_scope_is_error(sessions_db):
     out = do_audit(
         session_id="sess-verified", audit_all_sessions=True,

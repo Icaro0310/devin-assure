@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -242,7 +243,12 @@ def _open_store(db_arg: str | None):
         return None, None
     try:
         return db, SessionsStore(db)
-    except (SchemaError, OSError) as exc:
+    except (SchemaError, OSError, sqlite3.Error) as exc:
+        # sqlite3.Error covers stores that exist but are not databases
+        # ("file is not a database") — SchemaError only fires once a real
+        # SQLite file fails schema detection, so a corrupt file used to
+        # escape as an unhandled DatabaseError (traceback, exit 1) while
+        # provider mode reported the same store as a warning + exit 2.
         print(f"error: cannot open {db}: {exc}", file=sys.stderr)
         return None, None
 
