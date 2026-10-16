@@ -10,7 +10,6 @@ import json
 
 import pytest
 from devin_internals.fixtures import create_sessions_db
-
 from devin_qa_pack.cli import main
 from devin_qa_pack.session_end import (
     SKIPPED,

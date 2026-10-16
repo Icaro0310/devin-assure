@@ -6,7 +6,6 @@ import sqlite3
 
 import pytest
 from devin_internals.parsers import SessionsStore
-
 from devin_qa_pack.cli import main
 from devin_qa_pack.evidence import (
     EvidenceMessage,
