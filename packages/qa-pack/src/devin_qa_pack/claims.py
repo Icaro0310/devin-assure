@@ -1,25 +1,22 @@
-"""Extract deliverable claims from a session's ``message_nodes``.
+"""Extract deliverable claims from a session's evidence messages.
 
 A *claim* is an assertion the agent made about delivered work: tests
 passed, a commit exists, a file was created/changed, work was pushed.
 Only agent-role messages are scanned — a user prompt quoting the same
 words is not a delivery claim.
 
-``chat_message`` payloads are marked *unstable* in devin-internals-spec
-SCHEMA.md, so decoding is defensive: JSON dicts are checked for the
-usual role/text/content keys (including content-block lists); anything
-that is not JSON at all is scanned as plain text.
+The input is the canonical :class:`EvidenceMessage` — store-specific
+payload decoding (``chat_message`` JSON for the Devin store) happens in
+the evidence providers, so this module only ever sees plain role+text.
 """
 
 from __future__ import annotations
 
-import json
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any
 
-from devin_internals.parsers.sessions import MessageNode
+from devin_qa_pack.evidence import EvidenceMessage, normalize_role
 
 TESTS = "tests"
 COMMIT = "commit"
@@ -105,37 +102,6 @@ class Claim:
     excerpt: str
 
 
-def _decode_message(chat_message: str) -> tuple[str | None, str]:
-    """Return ``(role, text)``. Non-JSON payloads become ``(None, raw)``."""
-    try:
-        data = json.loads(chat_message)
-    except (json.JSONDecodeError, TypeError):
-        return None, chat_message
-    if isinstance(data, str):
-        return None, data
-    if not isinstance(data, dict):
-        return None, ""
-    role = data.get("role") or data.get("author") or data.get("sender")
-    return (str(role).lower() if role is not None else None), _text_of(data)
-
-
-def _text_of(data: dict[str, Any]) -> str:
-    for key in ("text", "content", "message", "body", "markdown"):
-        value = data.get(key)
-        if isinstance(value, str):
-            return value
-        if isinstance(value, list):
-            parts = [
-                block.get("text", "")
-                for block in value
-                if isinstance(block, dict)
-            ]
-            text = "\n".join(p for p in parts if p)
-            if text:
-                return text
-    return ""
-
-
 def _excerpt(line: str) -> str:
     line = " ".join(line.split())
     return line if len(line) <= _MAX_EXCERPT else line[: _MAX_EXCERPT - 1] + "…"
@@ -197,15 +163,21 @@ def _collect(
             )
 
 
-def extract_claims(nodes: Iterable[MessageNode]) -> list[Claim]:
-    """All claims across ``nodes``, deduplicated by ``(kind, detail)``."""
+def extract_claims(
+    messages: Iterable[EvidenceMessage], session_id: str = ""
+) -> list[Claim]:
+    """All claims across ``messages``, deduplicated by ``(kind, detail)``.
+
+    ``node_id`` is synthesized per message so excerpts remain traceable
+    back to their position in the transcript (same convention as
+    :func:`claims_from_pairs`).
+    """
     claims: list[Claim] = []
     seen: set[tuple[str, str]] = set()
-    for node in nodes:
-        role, text = _decode_message(node.chat_message)
-        if role in _SKIP_ROLES:
+    for node_id, message in enumerate(messages, 1):
+        if message.role in _SKIP_ROLES:
             continue
-        _collect(node.session_id, node.node_id, text, claims, seen)
+        _collect(session_id, node_id, message.text, claims, seen)
     return claims
 
 
@@ -213,15 +185,13 @@ def claims_from_pairs(
     pairs: Iterable[tuple[str | None, str]],
     session_id: str,
 ) -> list[Claim]:
-    """Claims over pre-decoded ``(role, text)`` pairs — the adapter input.
-
-    ``node_id`` is synthesized per pair so excerpts remain traceable back
-    to their position in the transcript.
-    """
-    claims: list[Claim] = []
-    seen: set[tuple[str, str]] = set()
-    for node_id, (role, text) in enumerate(pairs, 1):
-        if role in _SKIP_ROLES:
-            continue
-        _collect(session_id, node_id, text, claims, seen)
-    return claims
+    """Claims over pre-decoded ``(role, text)`` pairs — the adapter input."""
+    return extract_claims(
+        (
+            EvidenceMessage(
+                role=normalize_role(role), text=text, ts_ms=None
+            )
+            for role, text in pairs
+        ),
+        session_id,
+    )

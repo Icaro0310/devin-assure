@@ -37,7 +37,12 @@ from devin_internals.parsers import SessionsStore
 from devin_internals.parsers.sessions import Session
 from devin_internals.schema import SchemaError
 
-from devin_qa_pack.intent import audit_intent, intent_dict
+from devin_qa_pack.evidence.devin_cli import session_evidence
+from devin_qa_pack.intent import (
+    audit_intent,
+    intent_dict,
+    workspace_dir_names,
+)
 from devin_qa_pack.paths import default_data_dir, default_sessions_db
 from devin_qa_pack.report import audit_dict, audit_session
 
@@ -222,9 +227,8 @@ def run_session_end(
                     )
                     try:
                         intent = audit_intent(
-                            session,
-                            store.message_nodes(session.id),
-                            store.tool_call_state(session.id),
+                            session_evidence(store, session),
+                            repo_names=workspace_dir_names(session),
                         )
                     except Exception:  # noqa: BLE001 - fail-soft; side field is optional
                         intent = None  # fail-soft — side field is optional

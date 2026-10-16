@@ -46,9 +46,11 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
-from devin_internals.parsers.sessions import MessageNode, ToolCallState
-
-from devin_qa_pack.claims import _decode_message
+from devin_qa_pack.evidence import (
+    EvidenceMessage,
+    EvidenceToolCall,
+    SessionEvidence,
+)
 
 ALIGNED = "aligned"
 FLAGGED = "flagged"
@@ -145,13 +147,13 @@ class IntentAudit:
 
 
 def first_user_prompt(
-    nodes: Iterable[MessageNode],
-) -> MessageNode | None:
-    """The first user-role ``message_nodes`` entry with non-empty text."""
-    for node in nodes:
-        role, text = _decode_message(node.chat_message)
-        if role in _USER_ROLES and text.strip():
-            return node
+    messages: Iterable[EvidenceMessage],
+) -> tuple[int, EvidenceMessage] | None:
+    """``(position, message)`` of the first user-role message with
+    non-empty text."""
+    for i, message in enumerate(messages, 1):
+        if message.role in _USER_ROLES and message.text.strip():
+            return i, message
     return None
 
 
@@ -272,16 +274,6 @@ def extract_prompt_refs(
 # ---------------------------------------------------------------------------
 
 
-def _parse_payload(text: str | None) -> dict | None:
-    if not text:
-        return None
-    try:
-        data = json.loads(text)
-    except (TypeError, ValueError):
-        return None
-    return data if isinstance(data, dict) else None
-
-
 def _walk_strings(node: Any) -> Iterator[str]:
     if isinstance(node, dict):
         for v in node.values():
@@ -344,17 +336,16 @@ def _resolve(path: str, cwd: str | None) -> str:
 
 
 def extract_touched_paths(
-    states: Iterable[ToolCallState], cwd: str | None
+    calls: Iterable[EvidenceToolCall], cwd: str | None
 ) -> set[str]:
     """Every path referenced by any tool-call payload, cwd-resolved."""
     base = _normalize(cwd) if cwd else None
     touched: set[str] = set()
-    for state in states:
+    for call in calls:
         payload: dict = {}
-        for raw in (state.tool_call_update_json, state.tool_call_json):
-            data = _parse_payload(raw)
-            if data:
-                payload = {**payload, **data}
+        for part in (call.update_payload, call.payload):
+            if isinstance(part, dict) and part:
+                payload = {**payload, **part}
         for p in _paths_from_payload(payload):
             touched.add(_resolve(p, base))
     return {
@@ -445,61 +436,72 @@ def _excerpt(text: str) -> str:
     )
 
 
-def _repo_names(session: Any) -> list[str]:
-    """Basenames of the working dir + ``workspace_dirs`` entries."""
+def _repo_names(
+    working_dir: str | None, extra_dirs: Iterable[str] = ()
+) -> list[str]:
+    """Basenames of the working dir + extra workspace dirs."""
     names: list[str] = []
-    wd = _normalize(getattr(session, "working_directory", "") or "")
+    wd = _normalize(working_dir or "")
     if wd:
         names.append(_basename(wd))
-    raw = getattr(session, "workspace_dirs", None)
-    if isinstance(raw, str):
-        try:
-            data = json.loads(raw)
-        except (TypeError, ValueError):
-            data = None
-        if isinstance(data, list):
-            for item in data:
-                if isinstance(item, str):
-                    norm = _normalize(item)
-                    if norm:
-                        names.append(_basename(norm))
+    for item in extra_dirs:
+        norm = _normalize(item)
+        if norm:
+            names.append(_basename(norm))
     return names
 
 
+def workspace_dir_names(session: Any) -> list[str]:
+    """A Devin session row's ``workspace_dirs`` JSON as path strings."""
+    raw = getattr(session, "workspace_dirs", None)
+    if not isinstance(raw, str):
+        return []
+    try:
+        data = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    if not isinstance(data, list):
+        return []
+    return [item for item in data if isinstance(item, str)]
+
+
 def audit_intent(
-    session: Any,
-    nodes: Iterable[MessageNode],
-    states: Iterable[ToolCallState],
+    evidence: SessionEvidence,
+    *,
+    repo_names: Iterable[str] = (),
 ) -> IntentAudit:
     """Prompt intent vs. touched-path coverage for one session.
 
     Never raises on odd input — uncomputable cases return ``SKIPPED``
-    with a ``reason``.
+    with a ``reason``. ``repo_names`` carries extra workspace/repo
+    names beyond the evidence working dir (Devin ``workspace_dirs``).
     """
-    nodes = list(nodes)
-    states = list(states)
-    audit = IntentAudit(session_id=session.id, status=SKIPPED)
+    messages = list(evidence.messages)
+    calls = list(evidence.tool_calls)
+    audit = IntentAudit(session_id=evidence.native_id, status=SKIPPED)
 
-    prompt = first_user_prompt(nodes)
-    if prompt is None:
-        audit.reason = "no user message found in message_nodes"
+    found = first_user_prompt(messages)
+    if found is None:
+        audit.reason = "no user message found"
         return audit
-    _, text = _decode_message(prompt.chat_message)
-    audit.prompt_node_id = prompt.node_id
-    audit.prompt_excerpt = _excerpt(text)
+    node_id, prompt = found
+    audit.prompt_node_id = node_id
+    audit.prompt_excerpt = _excerpt(prompt.text)
 
-    refs = extract_prompt_refs(text, _repo_names(session))
+    refs = extract_prompt_refs(
+        prompt.text, _repo_names(evidence.working_dir, repo_names)
+    )
     audit.referenced = refs
     if not refs:
         audit.reason = "prompt names no paths, modules or repo names"
         return audit
 
-    if not states:
-        audit.reason = "no tool_call_state rows — nothing to compare"
+    if not calls:
+        audit.reason = "no tool calls recorded — nothing to compare"
         return audit
 
-    cwd = _normalize(getattr(session, "working_directory", "") or "")
-    touched = extract_touched_paths(states, cwd)
+    cwd = _normalize(evidence.working_dir or "")
+    touched = extract_touched_paths(calls, cwd)
     audit.touched = sorted(touched)
     audit.notes.append(
         "heuristic: touched = any path referenced by a tool-call "

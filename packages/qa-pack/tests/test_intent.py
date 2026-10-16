@@ -15,12 +15,17 @@ Fixture sessions (built on the real v17 DDL via
 
 import json
 import sqlite3
-import types
 
 import pytest
 from devin_internals.fixtures import _BASE_TS_MS, create_sessions_db
-from devin_internals.parsers.sessions import MessageNode, ToolCallState
+
 from devin_qa_pack.cli import main
+from devin_qa_pack.evidence import (
+    EvidenceMessage,
+    EvidenceToolCall,
+    SessionEvidence,
+    normalize_role,
+)
 from devin_qa_pack.intent import (
     ALIGNED,
     FLAGGED,
@@ -89,27 +94,20 @@ def intent_db(tmp_path):
 # -- unit: prompt + touched extraction ----------------------------------------
 
 
-def _node(role: str, text: str, node_id: int = 1) -> MessageNode:
-    return MessageNode(
-        row_id=node_id,
-        session_id="s",
-        node_id=node_id,
-        parent_node_id=None,
-        chat_message=json.dumps({"role": role, "text": text}),
-        created_at=node_id,
-        metadata=None,
-    )
+def _node(role: str, text: str, node_id: int = 1) -> EvidenceMessage:
+    # ``node_id`` is positional now — the index tracks the argument order.
+    del node_id
+    return EvidenceMessage(role=normalize_role(role), text=text, ts_ms=None)
 
 
 def _state(tcid: str, call: dict | None = None,
-           update: dict | None = None) -> ToolCallState:
-    return ToolCallState(
-        session_id="s",
+           update: dict | None = None) -> EvidenceToolCall:
+    return EvidenceToolCall(
         tool_call_id=tcid,
-        tool_call_json=json.dumps(call) if call is not None else None,
-        tool_call_update_json=(
-            json.dumps(update) if update is not None else None
-        ),
+        kind="",
+        payload=call or {},
+        update_payload=update,
+        ts_ms=None,
     )
 
 
@@ -119,8 +117,8 @@ def test_first_user_prompt_picks_first_user_message():
         _node("user", "fix src/app.py", 2),
         _node("user", "also tests/x.py", 3),
     ]
-    node = first_user_prompt(nodes)
-    assert node is not None and node.node_id == 2
+    found = first_user_prompt(nodes)
+    assert found is not None and found[0] == 2
 
 
 def test_first_user_prompt_none_when_no_user():
@@ -177,18 +175,26 @@ def test_extract_touched_drops_vcs_internals():
     assert extract_touched_paths(states, "/repo") == set()
 
 
-# -- unit: audit_intent on dataclasses ----------------------------------------
+# -- unit: audit_intent on evidence -------------------------------------------
 
 
-def _session(wd="/repo/qa-pack"):
-    return types.SimpleNamespace(
-        id="s", working_directory=wd, workspace_dirs=json.dumps([wd])
+def _audit(nodes, states, wd="/repo/qa-pack"):
+    evidence = SessionEvidence(
+        surface="devin-cli",
+        native_id="s",
+        ref="",
+        started_at=None,
+        working_dir=wd,
+        messages=list(nodes),
+        tool_calls=list(states),
     )
+    # The Devin row's workspace_dirs used to feed _repo_names — the CLI
+    # passes workspace_dir_names(session); the basename of wd stands in.
+    return audit_intent(evidence, repo_names=["qa-pack"])
 
 
 def test_audit_aligned():
-    audit = audit_intent(
-        _session(),
+    audit = _audit(
         [_node("user", "fix src/app.py")],
         [_state("t1", _edit("src/app.py"))],
     )
@@ -198,8 +204,7 @@ def test_audit_aligned():
 
 
 def test_audit_missed_path():
-    audit = audit_intent(
-        _session(),
+    audit = _audit(
         [_node("user", "fix src/app.py and docs/guide.md")],
         [_state("t1", _edit("src/app.py"))],
     )
@@ -208,8 +213,7 @@ def test_audit_missed_path():
 
 
 def test_audit_drift_path():
-    audit = audit_intent(
-        _session(),
+    audit = _audit(
         [_node("user", "fix src/app.py")],
         [_state("t1", _edit("src/app.py")),
          _state("t2", _edit("web/landing.html"))],
@@ -219,18 +223,15 @@ def test_audit_drift_path():
 
 
 def test_audit_skips_without_prompt_or_refs():
-    a = audit_intent(_session(), [_node("agent", "hi")], [])
+    a = _audit([_node("agent", "hi")], [])
     assert a.status == SKIPPED and "user" in a.reason
-    b = audit_intent(
-        _session(), [_node("user", "make it faster")], [_state("t1")]
-    )
+    b = _audit([_node("user", "make it faster")], [_state("t1")])
     assert b.status == SKIPPED and "paths" in b.reason
 
 
 def test_weak_refs_never_reported_missed():
     """Extensionless dir mentions can't produce a possibly_missed flag."""
-    audit = audit_intent(
-        _session(),
+    audit = _audit(
         [_node("user", "work under src/sub/dir only")],
         [_state("t1", _edit("other/file.py"))],
     )
@@ -238,8 +239,7 @@ def test_weak_refs_never_reported_missed():
 
 
 def test_bare_filename_covered_by_basename():
-    audit = audit_intent(
-        _session(),
+    audit = _audit(
         [_node("user", "fix app.py")],
         [_state("t1", _edit("src/app.py"))],
     )
@@ -247,8 +247,7 @@ def test_bare_filename_covered_by_basename():
 
 
 def test_prompt_excerpt_and_node_id():
-    audit = audit_intent(
-        _session(),
+    audit = _audit(
         [_node("agent", "hi", 1), _node("user", "fix src/app.py", 2)],
         [_state("t1", _edit("src/app.py"))],
     )
@@ -257,8 +256,7 @@ def test_prompt_excerpt_and_node_id():
 
 
 def test_intent_dict_shape_and_heuristic_label():
-    audit = audit_intent(
-        _session(),
+    audit = _audit(
         [_node("user", "fix src/app.py")],
         [_state("t1", _edit("src/app.py"))],
     )
@@ -272,8 +270,7 @@ def test_intent_dict_shape_and_heuristic_label():
 
 
 def test_render_intent_lines():
-    audit = audit_intent(
-        _session(),
+    audit = _audit(
         [_node("user", "fix src/app.py and docs/guide.md")],
         [_state("t1", _edit("src/app.py"))],
     )
@@ -281,7 +278,7 @@ def test_render_intent_lines():
     assert "FLAGGED" in out
     assert "[missed] docs/guide.md" in out
     skipped = render_intent(
-        audit_intent(_session(), [_node("agent", "hi")], [])
+        _audit([_node("agent", "hi")], [])
     )
     assert skipped.startswith("SKIPPED")
 

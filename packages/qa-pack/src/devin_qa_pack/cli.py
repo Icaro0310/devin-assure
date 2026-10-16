@@ -1,11 +1,14 @@
 """Thin CLI wrapper — all logic lives in the library modules.
 
-``devin-qa-pack audit`` reads a sessions.db (explicit or auto-detected),
-verifies deliverable claims against tool_call_state ground truth and
-prints a verdict per session. Read-only. Exit codes: 0 = every audited
-session PASS · 1 = audit ran, some session PARTIAL/UNVERIFIED · 2 = the
-audit could not run (missing/unknown store, unknown session, or no
-session matched the scope — e.g. an empty db or ``--within``).
+``devin-qa-pack audit`` reads session evidence through surface
+providers (``--surface``, default ``auto`` = every detected store:
+devin-cli sessions.db, copilot-cli, codex-cli, vscode-chat), verifies
+deliverable claims against tool-call ground truth and prints a verdict
+per session. An explicit ``--sessions-db`` alone keeps the Devin fast
+path (bare ids, exactly the pre-surface behavior). Read-only. Exit
+codes: 0 = every audited session PASS · 1 = audit ran, some session
+PARTIAL/UNVERIFIED · 2 = the audit could not run (missing/unknown
+store, unknown session, or no session matched the scope).
 
 ``devin-qa-pack session-end`` is the SessionEnd hook variant: it audits
 only the session that just ended, writes the verdict to a JSON side
@@ -31,6 +34,12 @@ from devin_internals.parsers.sessions import Session
 from devin_internals.schema import SchemaError
 
 from devin_qa_pack import __version__
+from devin_qa_pack.evidence import (
+    Surface,
+    collect_evidences,
+    match_evidence,
+)
+from devin_qa_pack.evidence.devin_cli import session_evidence
 from devin_qa_pack.html_report import render_html
 from devin_qa_pack.intent import (
     FLAGGED,
@@ -38,14 +47,17 @@ from devin_qa_pack.intent import (
     audit_intent,
     intent_dict,
     render_intent,
+    workspace_dir_names,
 )
 from devin_qa_pack.paths import default_sessions_db
 from devin_qa_pack.report import (
     PASS,
     audit_all,
+    audit_evidence,
     audit_session,
     audit_source,
     audits_payload,
+    filter_evidences,
     render_text,
 )
 from devin_qa_pack.session_end import run_session_end, summary_line
@@ -65,7 +77,18 @@ def _build_parser() -> argparse.ArgumentParser:
     audit.add_argument(
         "--sessions-db",
         metavar="PATH",
-        help="path to sessions.db (default: auto-detect Devin data dir)",
+        help="path to sessions.db (default: auto-detect Devin data dir); "
+        "on its own this stays the Devin fast path — pass --surface to "
+        "combine it with other surfaces",
+    )
+    audit.add_argument(
+        "--surface",
+        choices=Surface.CHOICES,
+        default=None,
+        metavar="S",
+        help="evidence surface: devin-cli | copilot-cli | codex-cli | "
+        "vscode-chat | auto (default: auto — every detected store; "
+        "provider-mode ids are namespaced as surface:native_id)",
     )
     scope = audit.add_mutually_exclusive_group(required=True)
     scope.add_argument("--session", metavar="ID", help="audit one session "
@@ -111,6 +134,15 @@ def _build_parser() -> argparse.ArgumentParser:
         "--sessions-db",
         metavar="PATH",
         help="path to sessions.db (default: auto-detect Devin data dir)",
+    )
+    report.add_argument(
+        "--surface",
+        choices=Surface.CHOICES,
+        default=None,
+        metavar="S",
+        help="evidence surface to report on (default: auto — every "
+        "detected store; explicit --sessions-db alone keeps the Devin "
+        "fast path)",
     )
     report.add_argument(
         "--out", metavar="PATH", default="qa-report.html",
@@ -227,6 +259,55 @@ def _audit_scope(store: SessionsStore, args: argparse.Namespace):
     return audit_all(store, limit=getattr(args, "limit", None), **kw)
 
 
+def _provider_mode(args: argparse.Namespace) -> bool:
+    """True when audit goes through evidence providers rather than the
+    legacy sessions.db path: an explicit ``--surface``, or auto mode
+    without a pinned ``--sessions-db``."""
+    return getattr(args, "surface", None) is not None or (
+        not getattr(args, "sessions_db", None)
+    )
+
+
+def _provider_audits(args: argparse.Namespace, kw: dict):
+    """``(audits, label)`` for provider mode; ``(None, None)`` after a
+    printed error."""
+    surface = args.surface or Surface.AUTO
+    evidences, warnings = collect_evidences(
+        surface, sessions_db=getattr(args, "sessions_db", None)
+    )
+    for warning in warnings:
+        print(f"warning: {warning}", file=sys.stderr)
+    session_arg = getattr(args, "session", None)
+    if session_arg:
+        found = match_evidence(evidences, session_arg)
+        if isinstance(found, str):
+            print(
+                f"error: session prefix '{session_arg}' is ambiguous",
+                file=sys.stderr,
+            )
+            return None, None
+        if found is None:
+            print(
+                f"error: unknown session '{session_arg}'", file=sys.stderr
+            )
+            return None, None
+        evidences = [found]
+    else:
+        evidences = filter_evidences(
+            evidences,
+            within=getattr(args, "within", None),
+            limit=getattr(args, "limit", None),
+        )
+    db_arg = getattr(args, "sessions_db", None)
+    label = (
+        str(Path(db_arg).expanduser())
+        if db_arg
+        else ("surfaces: auto" if surface == Surface.AUTO
+              else f"surface: {surface}")
+    )
+    return [audit_evidence(e, **kw) for e in evidences], label
+
+
 def _load_transcript(path_arg: str, fmt: str | None, cwd: str | None):
     """Resolve ``--transcript`` into a SourceSession via the adapters."""
     from devin_qa_pack.adapters import aider, claude_code
@@ -290,6 +371,12 @@ def _cmd_audit(args: argparse.Namespace) -> int:
             )
         ]
         db = Path(args.transcript).expanduser()
+    elif _provider_mode(args):
+        kw = {"online": args.online,
+              "allow_domains": tuple(args.allow_domain)}
+        audits, db = _provider_audits(args, kw)
+        if audits is None:
+            return 2
     else:
         db, store = _open_store(args.sessions_db)
         if store is None:
@@ -319,13 +406,20 @@ def _cmd_audit(args: argparse.Namespace) -> int:
 
 
 def _cmd_report(args: argparse.Namespace) -> int:
-    db, store = _open_store(args.sessions_db)
-    if store is None:
-        return 2
-    with store:
-        audits = _audit_scope(store, args)
+    if _provider_mode(args):
+        kw = {"online": args.online,
+              "allow_domains": tuple(args.allow_domain)}
+        audits, db = _provider_audits(args, kw)
         if audits is None:
             return 2
+    else:
+        db, store = _open_store(args.sessions_db)
+        if store is None:
+            return 2
+        with store:
+            audits = _audit_scope(store, args)
+            if audits is None:
+                return 2
     out = Path(args.out).expanduser()
     try:
         out.write_text(render_html(audits, db), encoding="utf-8")
@@ -346,9 +440,8 @@ def _cmd_intent(args: argparse.Namespace) -> int:
         if session is None:
             return 2
         audit = audit_intent(
-            session,
-            store.message_nodes(session.id),
-            store.tool_call_state(session.id),
+            session_evidence(store, session),
+            repo_names=workspace_dir_names(session),
         )
     if args.json:
         print(json.dumps(intent_dict(audit), indent=2))

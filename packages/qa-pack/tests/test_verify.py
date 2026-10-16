@@ -1,9 +1,7 @@
 """verify.py — cross-checking claims against tool_call_state + git log."""
 
-import json
-
-from devin_internals.parsers.sessions import ToolCallState
 from devin_qa_pack.claims import COMMIT, FILE, HTTP, PUSH, TESTS, Claim
+from devin_qa_pack.evidence import EvidenceToolCall
 from devin_qa_pack.verify import (
     DISPUTED,
     UNVERIFIABLE,
@@ -19,11 +17,13 @@ def claim(kind, detail=""):
 
 
 def tstate(tcid, call=None, update=None):
-    return ToolCallState(
-        session_id="s",
+    """Already-decoded payloads — the JSON decode lives in providers now."""
+    return EvidenceToolCall(
         tool_call_id=tcid,
-        tool_call_json=json.dumps(call) if call is not None else None,
-        tool_call_update_json=json.dumps(update) if update is not None else None,
+        kind="",
+        payload=call if isinstance(call, dict) else {},
+        update_payload=update if isinstance(update, dict) else None,
+        ts_ms=None,
     )
 
 
@@ -90,7 +90,9 @@ def test_null_payloads_parse_to_none():
 
 
 def test_unparseable_payloads_parse_to_none():
-    assert parse_tool_call(tstate("tc", "{not json", "{also not")) is None
+    # a row whose payloads failed to decode upstream arrives as empty
+    # dicts — still counted, then dropped here as unreadable
+    assert parse_tool_call(tstate("tc")) is None
 
 
 # -- tests claims ------------------------------------------------------------
@@ -277,13 +279,13 @@ def test_url_allowlist_subdomain():
 
 
 def test_url_claim_extracted_from_deploy_text():
-    from devin_internals.parsers.sessions import MessageNode
     from devin_qa_pack.claims import extract_claims
-    node = MessageNode(
-        row_id=1, session_id="s", node_id=1, parent_node_id=None,
-        chat_message='{"role":"assistant","content":"Deployed to https://demo.example.com/app — it is live."}',
-        created_at=0, metadata=None,
+    from devin_qa_pack.evidence import EvidenceMessage
+    msg = EvidenceMessage(
+        role="assistant",
+        text="Deployed to https://demo.example.com/app — it is live.",
+        ts_ms=None,
     )
-    claims = extract_claims([node])
+    claims = extract_claims([msg])
     urls = [c.detail for c in claims if c.kind == "url"]
     assert urls == ["https://demo.example.com/app"]

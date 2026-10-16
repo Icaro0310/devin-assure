@@ -1,9 +1,9 @@
-"""claims.py — extraction of deliverable claims from message_nodes."""
+"""claims.py — extraction of deliverable claims from evidence messages."""
 
 import json
 
 from devin_internals.parsers import SessionsStore
-from devin_internals.parsers.sessions import MessageNode
+
 from devin_qa_pack.claims import (
     COMMIT,
     FILE,
@@ -12,28 +12,33 @@ from devin_qa_pack.claims import (
     TESTS,
     extract_claims,
 )
+from devin_qa_pack.evidence import EvidenceMessage, normalize_role
+from devin_qa_pack.evidence.devin_cli import _decode_message, session_evidence
 
 
 def make_node(text, role="agent", node_id=1, sid="s", created_at=0):
-    if isinstance(text, str):
-        chat_message = json.dumps({"role": role, "text": text})
-    else:
-        chat_message = text  # raw payload, for the non-JSON path
-    return MessageNode(
-        row_id=node_id,
-        session_id=sid,
-        node_id=node_id,
-        parent_node_id=None,
-        chat_message=chat_message,
-        created_at=created_at,
-        metadata=None,
+    """An EvidenceMessage the way the devin-cli provider decodes it —
+    the chat_message JSON layer is exercised here via ``_decode_message``
+    so the raw-payload paths keep coverage."""
+    del node_id, sid, created_at
+    chat_message = (
+        json.dumps({"role": role, "text": text})
+        if isinstance(text, str)
+        else text  # raw payload, for the non-JSON path
+    )
+    decoded_role, decoded_text = _decode_message(chat_message)
+    return EvidenceMessage(
+        role=normalize_role(decoded_role), text=decoded_text, ts_ms=None
     )
 
 
 def test_extracts_all_claim_kinds(sessions_db):
     with SessionsStore(sessions_db) as store:
-        nodes = store.message_nodes("sess-verified")
-    claims = extract_claims(nodes)
+        session = next(
+            s for s in store.sessions() if s.id == "sess-verified"
+        )
+        evidence = session_evidence(store, session)
+    claims = extract_claims(evidence.messages, "sess-verified")
     by_kind = {c.kind: c for c in claims}
     assert by_kind[TESTS].detail == "pytest"
     assert by_kind[FILE].detail == "src/report.html"
