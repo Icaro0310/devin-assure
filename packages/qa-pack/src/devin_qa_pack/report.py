@@ -174,7 +174,20 @@ def filter_evidences(
     limit: int | None = None,
 ) -> list[SessionEvidence]:
     """``--within``/``--limit`` scoping over provider sessions — same
-    rule as the store path: within filters working_dir first, then cap."""
+    rule as the store path: within filters working_dir first, then cap.
+
+    Multi-surface merge order is per-provider (each surface lists its
+    own newest first), so ``--limit`` on the raw list would take the
+    first provider's sessions rather than the globally newest — an
+    older PASS could mask a newer PARTIAL. Sort by ``started_at``
+    (descending, unknown last) *before* any cap so scoping sees the
+    true newest sessions across surfaces.
+    """
+    evidences = sorted(
+        evidences,
+        key=lambda e: (e.started_at or "", e.native_id),
+        reverse=True,
+    )
     if within is not None:
         root = Path(within).expanduser().resolve()
         evidences = [

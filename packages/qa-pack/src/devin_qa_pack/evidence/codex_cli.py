@@ -178,9 +178,31 @@ def _normalize_call(payload: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+_EXIT_CODE_RE = re.compile(
+    r"(?:exit(?:[_ ]?code|ed)?\s*[:=]?\s*)(-?\d+)", re.IGNORECASE
+)
+
+
+def _sniff_exit_text(text: str) -> int | None:
+    """Exit code from a plain-text tool output: ``Exit code: 1``-style
+    phrasing first, then a bare trailing integer (``"0"``-only output)."""
+    m = _EXIT_CODE_RE.search(text)
+    if m is not None:
+        return int(m.group(1))
+    stripped = text.strip()
+    if re.fullmatch(r"-?\d+", stripped):
+        return int(stripped)
+    return None
+
+
 def _normalize_output(payload: dict[str, Any]) -> dict[str, Any]:
     """Decode a JSON-string ``output`` and lift a recorded exit code to
-    the top level where the verifier's status sniffing reads it."""
+    the top level where the verifier's status sniffing reads it.
+
+    A JSON ``metadata.exit_code`` wins when present; plain-text outputs
+    (``"Exit code: 1"``, a bare ``"0"``) are sniffed so shell calls keep
+    a verifiable status instead of reading as unknown.
+    """
     out = dict(payload)
     value = _json_dict_value(out.get("output"))
     if isinstance(value, dict):
@@ -190,6 +212,14 @@ def _normalize_output(payload: dict[str, Any]) -> dict[str, Any]:
             out.setdefault("exit_code", meta["exit_code"])
         if isinstance(value.get("exit_code"), int):
             out.setdefault("exit_code", value["exit_code"])
+    elif isinstance(out.get("output"), str):
+        code = _sniff_exit_text(out["output"])
+        if code is not None:
+            out.setdefault("exit_code", code)
+    for key in ("exit_code", "exitCode"):
+        code = out.get(key)
+        if isinstance(code, int) and not isinstance(code, bool):
+            out["exit_code"] = code
     return out
 
 

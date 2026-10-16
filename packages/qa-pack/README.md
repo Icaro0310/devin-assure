@@ -158,6 +158,30 @@ evidence and the source excerpt for every checked claim.
 `$XDG_DATA_HOME/devin/cli/sessions.db` on Linux (default
 `~/.local/share/devin/cli/sessions.db`). Always read-only.
 
+### Surfaces (`--surface`)
+
+`audit`/`report` are surface-agnostic. Without an explicit
+`--sessions-db` the default `--surface auto` discovers **every**
+supported agent store — Devin CLI plus Copilot CLI
+(`$COPILOT_DIR`/`$COPILOT_HOME`/`~/.copilot` session-state), Codex CLI
+(`$CODEX_HOME`/`~/.codex` state db + rollout JSONL) and VS Code chat
+(`User/workspaceStorage|globalStorage` chat sessions, incl.
+`.vscode-server`). A surface whose store is absent simply contributes
+nothing — discovery never errors on a missing store.
+
+```bash
+devin-qa-pack audit --all                      # every detected surface
+devin-qa-pack audit --surface copilot-cli --all
+devin-qa-pack audit --surface auto --session vscode-chat:abc123
+```
+
+In provider mode session ids are namespaced `surface:native_id`
+(e.g. `codex-cli:019ae…`); `--session` accepts a bare native prefix or a
+`surface:`-scoped ref. Passing `--sessions-db` *alone* keeps the Devin
+fast path (bare ids, no other surfaces) — pass `--surface` to combine
+a pinned store with the rest. The `qa_audit` MCP tool takes the same
+`surface` argument.
+
 No Devin installed? Try it on a synthetic fixture:
 
 ```bash

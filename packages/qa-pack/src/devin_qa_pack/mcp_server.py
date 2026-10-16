@@ -99,10 +99,13 @@ def do_audit(
         )
         if session_id:
             found = match_evidence(evidences, session_id)
-            if isinstance(found, str):
+            if isinstance(found, list):
+                refs = ", ".join(
+                    f"{e.surface}:{e.native_id}" for e in found
+                )
                 return {"error": "ambiguous_session",
-                        "detail": f"session prefix '{session_id}' is "
-                        "ambiguous"}
+                        "detail": f"session '{session_id}' is "
+                        f"ambiguous: {refs}"}
             if found is None:
                 return {"error": "unknown_session",
                         "detail": f"unknown session '{session_id}'"}
@@ -111,6 +114,12 @@ def do_audit(
             evidences = filter_evidences(
                 evidences, limit=limit or None
             )
+        if not evidences:
+            # Mirror the CLI's fail-closed rule: an audit that matched
+            # nothing must report an error, not an empty success.
+            return {"error": "no_sessions",
+                    "detail": "no sessions found on the queried "
+                    "surface(s)"}
         audits = [audit_evidence(e, claim_limit, **kw) for e in evidences]
         label = (
             str(Path(sessions_db).expanduser())

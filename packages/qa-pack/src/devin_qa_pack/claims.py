@@ -98,7 +98,7 @@ class Claim:
     kind: str
     detail: str
     session_id: str
-    node_id: int
+    node_id: int | str
     excerpt: str
 
 
@@ -142,7 +142,7 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
 
 def _collect(
     session_id: str,
-    node_id: int,
+    node_id: int | str,
     text: str,
     claims: list[Claim],
     seen: set[tuple[str, str]],
@@ -168,15 +168,22 @@ def extract_claims(
 ) -> list[Claim]:
     """All claims across ``messages``, deduplicated by ``(kind, detail)``.
 
-    ``node_id`` is synthesized per message so excerpts remain traceable
-    back to their position in the transcript (same convention as
-    :func:`claims_from_pairs`).
+    ``Claim.node_id`` cites the surface's real node id
+    (``EvidenceMessage.source_id``, e.g. the devin-cli
+    ``message_nodes.node_id``) when the provider supplies one; otherwise
+    the message's positional index — same convention as
+    :func:`claims_from_pairs`.
     """
     claims: list[Claim] = []
     seen: set[tuple[str, str]] = set()
-    for node_id, message in enumerate(messages, 1):
+    for position, message in enumerate(messages, 1):
         if message.role in _SKIP_ROLES:
             continue
+        node_id = (
+            message.source_id
+            if message.source_id is not None
+            else position
+        )
         _collect(session_id, node_id, message.text, claims, seen)
     return claims
 

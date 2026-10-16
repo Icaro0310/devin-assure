@@ -280,9 +280,12 @@ def _provider_audits(args: argparse.Namespace, kw: dict):
     session_arg = getattr(args, "session", None)
     if session_arg:
         found = match_evidence(evidences, session_arg)
-        if isinstance(found, str):
+        if isinstance(found, list):
+            refs = ", ".join(
+                f"{e.surface}:{e.native_id}" for e in found
+            )
             print(
-                f"error: session prefix '{session_arg}' is ambiguous",
+                f"error: session '{session_arg}' is ambiguous: {refs}",
                 file=sys.stderr,
             )
             return None, None

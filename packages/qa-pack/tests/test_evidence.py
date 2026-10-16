@@ -521,9 +521,25 @@ def test_match_evidence_exact_prefix_and_surface_scope():
     assert match_evidence(pool, "abc123") is ev_a
     assert match_evidence(pool, "devin-cli:abc123") is ev_a
     assert match_evidence(pool, "copilot-cli:abc") is ev_b
-    assert match_evidence(pool, "abc") == "ambiguous"
+    ambiguous = match_evidence(pool, "abc")
+    assert isinstance(ambiguous, list)
+    assert len(ambiguous) == 2 and ev_a in ambiguous and ev_b in ambiguous
     assert match_evidence(pool, "devin-cli:abc") is ev_a
     assert match_evidence(pool, "nope") is None
+
+
+def test_match_evidence_same_native_id_on_two_surfaces_is_ambiguous():
+    """An exact native-id hit on several surfaces must not silently pick
+    the first — the caller lists the candidates."""
+    ev_a = SessionEvidence(surface="devin-cli", native_id="dup",
+                           ref="", started_at=None, working_dir=None)
+    ev_b = SessionEvidence(surface="codex-cli", native_id="dup",
+                           ref="", started_at=None, working_dir=None)
+    found = match_evidence([ev_a, ev_b], "dup")
+    assert isinstance(found, list)
+    assert len(found) == 2 and ev_a in found and ev_b in found
+    # a surface-scoped ref still resolves uniquely
+    assert match_evidence([ev_a, ev_b], "codex-cli:dup") is ev_b
 
 
 # -- smoke: audit --surface auto ---------------------------------------------------
@@ -604,3 +620,141 @@ def test_mcp_do_audit_surface(monkeypatch, tmp_path, sessions_db):
     assert out["sessions"][0]["verdict"] == "PASS"
     bad = do_audit(surface="not-a-surface")
     assert bad["error"] == "usage"
+
+
+# -- review fixes ------------------------------------------------------------
+
+
+def test_filter_evidences_sorts_globally_newest_before_limit():
+    """Cross-surface ``--limit`` must see the globally newest session —
+    an older PASS in the first provider's list must not mask a newer
+    PARTIAL on another surface."""
+    from devin_qa_pack.report import filter_evidences
+
+    old = SessionEvidence(
+        surface="devin-cli", native_id="old", ref="",
+        started_at="2026-01-01T00:00:00.000Z", working_dir=None,
+    )
+    newest = SessionEvidence(
+        surface="copilot-cli", native_id="new", ref="",
+        started_at="2026-01-03T00:00:00.000Z", working_dir=None,
+    )
+    no_ts = SessionEvidence(
+        surface="codex-cli", native_id="no-ts", ref="",
+        started_at=None, working_dir=None,
+    )
+    # devin provider order comes first in the merged list
+    out = filter_evidences([old, newest, no_ts], limit=2)
+    assert [e.native_id for e in out] == ["new", "old"]
+
+
+def test_codex_output_textual_exit_code(tmp_path):
+    """``function_call_output``/shell outputs carrying a plain-text exit
+    code normalize into a verifiable status."""
+    root = tmp_path / "codex"
+    records = [
+        {"type": "session_meta", "payload": {"id": "s1",
+                                             "cwd": "/repo/x"}},
+        {"type": "response_item",
+         "payload": {"type": "local_shell_call", "call_id": "c1",
+                     "action": {"command": ["pytest", "-q"]}}},
+        {"type": "response_item",
+         "payload": {"type": "local_shell_call_output", "call_id": "c1",
+                     "output": "12 passed\nExit code: 0"}},
+        {"type": "event_msg",
+         "payload": {"type": "agent_message",
+                     "message": "All tests passed under pytest."}},
+    ]
+    _codex_rollout(root, "s1", records)
+    (ev,) = CodexCliProvider(root).sessions({})
+    (call,) = ev.tool_calls
+    assert call.update_payload["exit_code"] == 0
+    audit = audit_evidence(ev)
+    assert audit.verdict == "PASS"
+
+
+def test_codex_output_bare_zero_exit_code(tmp_path):
+    root = tmp_path / "codex"
+    records = [
+        {"type": "session_meta", "payload": {"id": "s2"}},
+        {"type": "response_item",
+         "payload": {"type": "local_shell_call", "call_id": "c1",
+                     "action": {"command": ["pytest"]}}},
+        {"type": "response_item",
+         "payload": {"type": "local_shell_call_output", "call_id": "c1",
+                     "output": "1"}},
+    ]
+    _codex_rollout(root, "s2", records)
+    (ev,) = CodexCliProvider(root).sessions({})
+    assert ev.tool_calls[0].update_payload["exit_code"] == 1
+
+
+def test_vscode_hashed_workspace_id_yields_no_working_dir(tmp_path):
+    """A hashed workspaceStorage id without workspace.json must not
+    fabricate a working_dir — it would break --within and file checks."""
+    user = tmp_path / "Code" / "User"
+    ws = user / "workspaceStorage" / "e9f4a1b2c3d4e5f6a7b8c9d0e1f2a3b4"
+    chat_dir = ws / "chatSessions"
+    chat_dir.mkdir(parents=True)
+    (chat_dir / "h.json").write_text(json.dumps({
+        "requests": [{"message": {"text": "hi"},
+                      "response": [{"value": "hello"}]}],
+    }), encoding="utf-8")
+    (ev,) = VscodeChatProvider([user]).sessions({})
+    assert ev.working_dir is None
+    assert any("no resolvable folder path" in w for w in ev.warnings)
+
+
+def test_vscode_decoded_path_like_ws_dir_still_works(tmp_path):
+    user, ws = _vscode_layout(tmp_path)  # "%2Frepo%2Fproj" decodes to a path
+    chat_dir = ws / "chatSessions"
+    chat_dir.mkdir()
+    (chat_dir / "p.json").write_text(json.dumps({"requests": []}),
+                                     encoding="utf-8")
+    (ev,) = VscodeChatProvider([user]).sessions({})
+    assert ev.working_dir == "/repo/proj"
+    assert ev.warnings == []
+
+
+def test_mcp_do_audit_no_sessions_fails_closed(monkeypatch, tmp_path):
+    """Provider-mode do_audit mirrors the CLI: zero sessions matched is
+    an error, not an empty success."""
+    _isolated_home(monkeypatch, tmp_path)
+    from devin_qa_pack.mcp_server import do_audit
+
+    out = do_audit(audit_all_sessions=True, surface="auto")
+    assert out["error"] == "no_sessions"
+
+
+def test_claim_node_id_cites_source_id(sessions_db):
+    """devin-cli populates source_id from message_nodes.node_id so audit
+    JSON points at the real node, not the positional index."""
+    import sqlite3
+
+    from conftest import add_message, add_session
+    from devin_qa_pack.claims import extract_claims
+
+    con = sqlite3.connect(sessions_db)
+    with con:
+        add_session(con, "sess-sparse", "/repo/x", "Sparse")
+        # node ids deliberately non-contiguous with positions
+        add_message(con, "sess-sparse", 10, "agent", "Tests passed.")
+    con.close()
+    provider = DevinCliProvider(sessions_db)
+    ev = next(e for e in provider.sessions({})
+              if e.native_id == "sess-sparse")
+    assert ev.messages[0].source_id == 10
+    claims = extract_claims(ev.messages, "sess-sparse")
+    assert claims[0].node_id == 10
+
+
+def test_claim_node_id_falls_back_to_position():
+    from devin_qa_pack.claims import extract_claims
+
+    msgs = [
+        EvidenceMessage(role="user", text="do it", ts_ms=None),
+        EvidenceMessage(role="assistant", text="Tests passed.",
+                        ts_ms=None),
+    ]
+    claims = extract_claims(msgs, "s")
+    assert claims[0].node_id == 2

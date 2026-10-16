@@ -32,11 +32,17 @@ from typing import Any, Protocol
 
 @dataclass(frozen=True)
 class EvidenceMessage:
-    """One normalized message: the claim and prompt source."""
+    """One normalized message: the claim and prompt source.
+
+    ``source_id`` is the surface's own node/message id when one exists
+    (devin-cli ``message_nodes.node_id``); ``None`` leaves the claim to
+    cite the positional index, which is all position-only surfaces have.
+    """
 
     role: str  # "user" | "assistant" | "tool" | "system" (normalized)
     text: str
     ts_ms: float | None
+    source_id: int | str | None = None
 
 
 @dataclass(frozen=True)
@@ -305,11 +311,16 @@ def collect_evidences(
 
 def match_evidence(
     evidences: list[SessionEvidence], query: str
-) -> SessionEvidence | None | str:
+) -> SessionEvidence | list[SessionEvidence] | None:
     """Resolve ``--session`` across surfaces: exact native id, exact
     ``surface:native`` id, or unique prefix within (optionally)
-    ``surface:``-scoped candidates. Returns the match, ``None`` when no
-    candidate matches, or ``"ambiguous"``."""
+    ``surface:``-scoped candidates.
+
+    Returns the single matching evidence, ``None`` when no candidate
+    matches, or the *list* of candidates when the query is ambiguous —
+    including several exact native-id hits on different surfaces, which
+    must never resolve silently to the first one.
+    """
     surface: str | None = None
     sid = query
     if ":" in query:
@@ -321,9 +332,15 @@ def match_evidence(
         for e in evidences
         if surface is None or e.surface == surface
     ]
-    for e in pool:
-        if e.native_id == sid or f"{e.surface}:{e.native_id}" == query:
-            return e
+    exact = [
+        e
+        for e in pool
+        if e.native_id == sid or f"{e.surface}:{e.native_id}" == query
+    ]
+    if len(exact) == 1:
+        return exact[0]
+    if len(exact) > 1:
+        return exact  # same id on several surfaces — ambiguous
     matches = [
         e
         for e in pool
@@ -334,5 +351,5 @@ def match_evidence(
     if len(matches) == 1:
         return matches[0]
     if len(matches) > 1:
-        return "ambiguous"
+        return matches
     return None

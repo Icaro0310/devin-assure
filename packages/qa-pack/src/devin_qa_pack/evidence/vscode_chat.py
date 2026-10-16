@@ -9,10 +9,11 @@ file is a session snapshot; a ``.jsonl`` is a mutation log replayed in
 order (kind 0 replace · 1 set · 2 append — truncating to ``i`` first ·
 3 delete). For one id the ``.jsonl`` wins.
 
-``<wsDir>`` is VS Code's stable workspace id — URL-decoded for
-``working_dir``; a sibling ``workspace.json`` ``folder`` URI wins when
-present (it carries the real path). globalStorage sessions get no
-working dir.
+``<wsDir>`` is VS Code's stable workspace id — a sibling
+``workspace.json`` ``folder`` URI wins when present (it carries the
+real path); otherwise the URL-decoded dir name is used only when it
+still looks like a path — a bare hash id resolves to ``None`` +
+warning, never a fake path. globalStorage sessions get no working dir.
 
 ``requests[].message`` text becomes user messages, ``requests[].
 response`` part text becomes assistant messages, and response parts
@@ -25,6 +26,7 @@ command string is sniffed into ``command`` for the verifier.
 from __future__ import annotations
 
 import json
+import re
 import urllib.parse
 from collections.abc import Iterable, Iterator, Mapping
 from pathlib import Path
@@ -261,10 +263,18 @@ def _chat_files(
     return out
 
 
-def _workspace_dir(ws_dir: Path | None) -> str | None:
+_PATH_LIKE_RE = re.compile(r"(?:[A-Za-z]:[\\/]|/|\\\\|file:)")
+
+
+def _workspace_dir(
+    ws_dir: Path | None, warnings: list[str]
+) -> str | None:
     """Real path for a ``workspaceStorage/<wsDir>`` entry: the sibling
     ``workspace.json`` ``folder`` URI wins; else the URL-decoded dir
-    name (it IS the workspace id the store offers)."""
+    name *only when it still looks like a path* — a bare hash id (the
+    name VS Code actually mints for hashed workspaces) is not a path,
+    and returning it would feed a fake working_dir into ``--within``
+    and file checks. Unresolvable → ``None`` + warning."""
     if ws_dir is None:
         return None
     ws_json = ws_dir / "workspace.json"
@@ -282,7 +292,18 @@ def _workspace_dir(ws_dir: Path | None) -> str | None:
                 return urllib.parse.unquote(parsed.path)
             if not parsed.scheme:
                 return folder
-    return urllib.parse.unquote(ws_dir.name)
+    name = urllib.parse.unquote(ws_dir.name)
+    if name.startswith("file:"):
+        parsed = urllib.parse.urlparse(name)
+        if parsed.path:
+            return urllib.parse.unquote(parsed.path)
+    elif _PATH_LIKE_RE.search(name):
+        return name
+    warnings.append(
+        f"workspaceStorage/{ws_dir.name}: no resolvable folder path "
+        "(hashed workspace id) — working_dir left unset"
+    )
+    return None
 
 
 def _strings(node: Any) -> Iterator[str]:
@@ -490,7 +511,7 @@ class VscodeChatProvider:
             out.append(
                 _session_evidence(
                     doc, session_id, str(path),
-                    _workspace_dir(ws_dir), warnings,
+                    _workspace_dir(ws_dir, warnings), warnings,
                 )
             )
         out.sort(key=lambda s: (s.started_at or "", s.native_id),

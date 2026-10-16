@@ -102,6 +102,7 @@ def session_evidence(
                 role=normalize_role(role),
                 text=text,
                 ts_ms=epoch_ms(node.created_at),
+                source_id=node.node_id,
             )
         )
     tool_calls = []
