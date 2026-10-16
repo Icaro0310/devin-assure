@@ -61,6 +61,9 @@ font-size:.7rem;font-weight:600;border:1px solid var(--border)}
 .st-disputed{color:var(--bad)}
 .st-unverifiable{color:var(--mut)}
 .excerpt{color:var(--mut);font-size:.72rem}
+.surface{color:var(--mut);font-size:.65rem;border:1px solid var(--border);
+border-radius:4px;padding:.05rem .4rem;margin-right:.4rem;
+text-transform:none;letter-spacing:.02em;vertical-align:middle}
 .empty{color:var(--mut);font-size:.8rem;padding:.5rem 0}
 footer{margin-top:2rem;color:var(--mut);font-size:.7rem;
 border-top:1px solid var(--border);padding-top:1rem}
@@ -83,7 +86,7 @@ __CSS__
 <main>
 """
 
-_PAGE_TAIL = """<footer>devin-qa-pack · generated locally from Devin's own stores \
+_PAGE_TAIL = """<footer>devin-qa-pack · generated locally from on-disk agent stores \
 · zero telemetry · open this file anywhere, no server needed</footer>
 </main>
 </body>
@@ -128,7 +131,7 @@ def _sessions_table(audits: list[SessionAudit]) -> str:
         rows.append(
             "<tr>"
             f"<td>{_badge(a.verdict)}</td>"
-            f"<td>{_e(a.session_id)}</td>"
+            f"<td>{_surface_label(a)}{_e(a.session_id)}</td>"
             f"<td>{_e(a.title or '—')}</td>"
             f'<td class="num">{len(a.results)}</td>'
             f'<td class="num st-verified">{c[VERIFIED]}</td>'
@@ -161,6 +164,13 @@ def _claim_rows(audit: SessionAudit) -> str:
             f'<td class="excerpt">{_e(r.claim.excerpt)}</td>'
             "</tr>"
         )
+    for w in audit.warnings:
+        rows.append(
+            "<tr>"
+            '<td class="st-unverifiable">warning</td>'
+            f'<td colspan="4">{_e(w)}</td>'
+            "</tr>"
+        )
     if not rows:
         return '<div class="empty">no deliverable claims found</div>'
     return (
@@ -170,16 +180,29 @@ def _claim_rows(audit: SessionAudit) -> str:
     )
 
 
+def _surface_label(audit: SessionAudit) -> str:
+    surface = audit.surface
+    if not surface and ":" in audit.session_id:
+        surface = audit.session_id.split(":", 1)[0]
+    return f'<span class="surface">{_e(surface)}</span>' if surface else ""
+
+
 def _session_detail(audit: SessionAudit) -> str:
     title = f" — {_e(audit.title)}" if audit.title else ""
     return (
-        f'<section class="panel"><h2>{_e(audit.session_id)}{title} '
+        f'<section class="panel"><h2>{_surface_label(audit)}'
+        f'{_e(audit.session_id)}{title} '
         f"{_badge(audit.verdict)}</h2>{_claim_rows(audit)}</section>"
     )
 
 
 def render_html(audits: list[SessionAudit], sessions_db: str | Path) -> str:
-    """One deterministic, self-contained HTML report for ``audits``."""
+    """One deterministic, self-contained HTML report for ``audits``.
+
+    ``sessions_db`` is the source label shown in the header — the Devin
+    store path for ``--sessions-db`` runs, a surface description for
+    provider discovery runs.
+    """
     parts = [
         _PAGE_HEAD.replace("__CSS__", _CSS.strip()),
         "<header><h1>devin-qa-pack — audit report</h1>",

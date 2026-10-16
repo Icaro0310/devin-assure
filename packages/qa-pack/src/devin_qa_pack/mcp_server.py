@@ -18,12 +18,19 @@ from pathlib import Path
 from devin_internals.parsers import SessionsStore
 from devin_internals.schema import SchemaError
 
+from devin_qa_pack.evidence import (
+    Surface,
+    collect_evidences,
+    match_evidence,
+)
 from devin_qa_pack.paths import default_sessions_db
 from devin_qa_pack.report import (
     audit_all,
+    audit_evidence,
     audit_session,
     audit_source,
     audits_payload,
+    filter_evidences,
 )
 
 
@@ -45,6 +52,7 @@ def do_audit(
     limit: int = 0,
     sessions_db: str = "",
     source: str = "local",
+    surface: str = "",
     online: bool = False,
     allow_domains: list[str] | None = None,
     claim_limit: int | None = None,
@@ -53,9 +61,12 @@ def do_audit(
 
     Mirrors ``devin-qa-pack audit``: ``source="local"`` reads a sessions.db
     (explicit or auto-detected), ``source="mcp"`` audits a cloud session
-    through the hosted Devin MCP (needs ``DEVIN_API_KEY``). Failures that
-    the CLI reports as exit code 2 surface here as ``{"error": ...}`` —
-    the tool boundary never raises.
+    through the hosted Devin MCP (needs ``DEVIN_API_KEY``), and
+    ``surface`` selects evidence providers — ``"auto"`` (the default when
+    no ``sessions_db`` is pinned) queries every detected store and
+    namespaces ids as ``surface:native_id``. Failures that the CLI
+    reports as exit code 2 surface here as ``{"error": ...}`` — the tool
+    boundary never raises.
     """
     domains = tuple(allow_domains or ())
     kw = {"online": online, "allow_domains": domains}
@@ -76,6 +87,52 @@ def do_audit(
         return {"error": "conflicting_scope",
                 "detail": "session_id and audit_all_sessions are mutually "
                 "exclusive (CLI: --session / --all)"}
+
+    provider_mode = bool(surface) or not sessions_db
+    if provider_mode:
+        if surface and surface not in Surface.CHOICES:
+            return {"error": "usage",
+                    "detail": f"unknown surface '{surface}' "
+                    f"(one of {', '.join(Surface.CHOICES)})"}
+        evidences, warnings = collect_evidences(
+            surface or Surface.AUTO, sessions_db=sessions_db or None
+        )
+        if session_id:
+            found = match_evidence(evidences, session_id)
+            if isinstance(found, list):
+                refs = ", ".join(
+                    e.ref or f"{e.surface}:{e.native_id}" for e in found
+                )
+                return {"error": "ambiguous_session",
+                        "detail": f"session '{session_id}' is "
+                        f"ambiguous: {refs}"}
+            if found is None:
+                return {"error": "unknown_session",
+                        "detail": f"unknown session '{session_id}'"}
+            evidences = [found]
+        else:
+            evidences = filter_evidences(
+                evidences, limit=limit or None
+            )
+        if not evidences:
+            # Mirror the CLI's fail-closed rule: an audit that matched
+            # nothing must report an error, not an empty success.
+            return {"error": "no_sessions",
+                    "detail": "no sessions found on the queried "
+                    "surface(s)"}
+        audits = [audit_evidence(e, claim_limit, **kw) for e in evidences]
+        label = (
+            str(Path(sessions_db).expanduser())
+            if sessions_db
+            else "surfaces: auto"
+            if not surface or surface == Surface.AUTO
+            else f"surface: {surface}"
+        )
+        payload = audits_payload(audits, label)
+        if warnings:
+            payload["warnings"] = warnings
+        return payload
+
     db = Path(sessions_db).expanduser() if sessions_db else (
         default_sessions_db())
     if db is None or not db.is_file():
@@ -133,6 +190,7 @@ def build_server():
         limit: int = 0,
         sessions_db: str = "",
         source: str = "local",
+        surface: str = "",
         online: bool = False,
         allow_domains: list[str] | None = None,
         claim_limit: int | None = None,
@@ -144,6 +202,9 @@ def build_server():
         ``source="mcp"`` audits a cloud session via the hosted Devin MCP
         (requires DEVIN_API_KEY); default ``source="local"`` reads a
         sessions.db (explicit ``sessions_db`` or auto-detected).
+        ``surface`` selects an evidence provider: ``devin-cli``,
+        ``copilot-cli``, ``codex-cli``, ``vscode-chat`` or ``auto``
+        (every detected store; ids come back ``surface:native_id``).
         """
         try:
             return do_audit(
@@ -152,6 +213,7 @@ def build_server():
                 limit=limit,
                 sessions_db=sessions_db,
                 source=source,
+                surface=surface,
                 online=online,
                 allow_domains=allow_domains,
                 claim_limit=claim_limit,

@@ -7,9 +7,9 @@ import atheris
 with atheris.instrument_imports():
     from devin_qa_pack.claims import (
         _claims_in_line,
-        _decode_message,
         claims_from_pairs,
     )
+    from devin_qa_pack.evidence.devin_cli import _decode_message
 
 
 def TestOneInput(data: bytes) -> None:

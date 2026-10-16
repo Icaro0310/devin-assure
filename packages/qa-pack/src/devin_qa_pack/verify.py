@@ -11,15 +11,14 @@ successfully. Claims resolve to one of three statuses:
 - ``unverifiable`` — the evidence needed is absent or unreadable (NULL or
   unparseable tool-call payloads, file claims with no working dir on disk).
 
-``tool_call_json``/``tool_call_update_json`` are *unstable* per
-devin-internals-spec SCHEMA.md, so parsing tries the common ACP field
-names and degrades gracefully: a row whose payloads both fail to decode is
-dropped and counted as unreadable ground truth.
+The input is the canonical :class:`EvidenceToolCall` — already-decoded
+payload dicts from whatever store the evidence provider read. Decoding
+the raw payloads is the provider's job; a call whose payloads are empty
+is dropped and counted as unreadable ground truth.
 """
 
 from __future__ import annotations
 
-import json
 import re
 import subprocess
 import urllib.request
@@ -29,9 +28,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from devin_internals.parsers.sessions import ToolCallState
-
 from devin_qa_pack.claims import COMMIT, FILE, HTTP, PUSH, TESTS, Claim
+from devin_qa_pack.evidence import EvidenceToolCall
 
 VERIFIED = "verified"
 DISPUTED = "disputed"
@@ -194,31 +192,27 @@ def _kind_of(payload: dict[str, Any], commands: list[str]) -> str:
     return "execute" if commands else "unknown"
 
 
-def parse_tool_call(state: ToolCallState) -> ParsedToolCall | None:
-    """Decode one ``tool_call_state`` row; ``None`` when both payloads are
-    absent or fail to decode (unreadable ground truth)."""
+def parse_tool_call(call: EvidenceToolCall) -> ParsedToolCall | None:
+    """Decode one tool call; ``None`` when both payloads are empty
+    (unreadable ground truth — an empty dict carries no evidence)."""
     payloads: list[dict[str, Any]] = []
     strings: list[str] = []
-    for raw in (state.tool_call_update_json, state.tool_call_json):
-        if raw is None:
+    for payload in (call.update_payload, call.payload):
+        if not isinstance(payload, dict) or not payload:
             continue
-        try:
-            data = json.loads(raw)
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if isinstance(data, dict):
-            payloads.append(data)
-            strings.extend(_strings(data))
+        payloads.append(payload)
+        strings.extend(_strings(payload))
     if not payloads:
         return None
     commands = tuple(
         dict.fromkeys(c for p in payloads for c in _dig_command(p))
     )
     call_payload = payloads[-1] if len(payloads) > 1 else payloads[0]
-    search = " ".join(strings + [state.tool_call_id])
+    tool_call_id = call.tool_call_id or ""
+    search = " ".join(strings + [tool_call_id])
     statuses = tuple(sorted({s for p in payloads for s in _http_statuses(p)}))
     return ParsedToolCall(
-        tool_call_id=state.tool_call_id,
+        tool_call_id=tool_call_id,
         kind=_kind_of(call_payload, list(commands)),
         status=_status_of(payloads),
         commands=commands,
@@ -227,8 +221,10 @@ def parse_tool_call(state: ToolCallState) -> ParsedToolCall | None:
     )
 
 
-def parse_tool_calls(states: Iterable[ToolCallState]) -> list[ParsedToolCall]:
-    return [p for p in (parse_tool_call(s) for s in states) if p is not None]
+def parse_tool_calls(
+    calls: Iterable[EvidenceToolCall],
+) -> list[ParsedToolCall]:
+    return [p for p in (parse_tool_call(c) for c in calls) if p is not None]
 
 
 def _git(args: list[str], cwd: Path) -> subprocess.CompletedProcess | None:

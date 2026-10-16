@@ -1,28 +1,23 @@
 """The Devin adapter — the native ``sessions.db`` source.
 
 Claims come from ``message_nodes`` (agent-role text); ground truth comes
-from ``tool_call_state`` rows decoded via devin-internals-spec parsers.
+from ``tool_call_state`` rows decoded via devin-internals-spec parsers —
+both through the devin-cli evidence provider.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from devin_internals.parsers import SessionsStore
 from devin_internals.parsers.sessions import Session
 
-from devin_qa_pack.adapters.base import SourceSession
-from devin_qa_pack.claims import extract_claims
-from devin_qa_pack.verify import parse_tool_calls
+from devin_qa_pack.adapters.base import SourceSession, source_view
+from devin_qa_pack.evidence.devin_cli import session_evidence
 
 
 def session_view(store: SessionsStore, session: Session) -> SourceSession:
-    nodes = store.message_nodes(session.id)
-    states = store.tool_call_state(session.id)
-    return SourceSession(
-        source="devin",
-        session_id=session.id,
-        title=session.title,
-        working_directory=session.working_directory,
-        claims=tuple(extract_claims(nodes)),
-        calls=tuple(parse_tool_calls(states)),
-        raw_call_count=len(states),
-    )
+    """The store-backed view: bare session id + title (the legacy path —
+    provider audits namespace ids as ``devin-cli:<id>`` instead)."""
+    view = source_view(session_evidence(store, session), session.id)
+    return replace(view, title=session.title)

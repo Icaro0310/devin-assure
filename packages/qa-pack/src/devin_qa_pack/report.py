@@ -20,8 +20,9 @@ from devin_internals.parsers import SessionsStore
 from devin_internals.parsers.sessions import Session
 
 from devin_qa_pack import __version__
-from devin_qa_pack.adapters.base import SourceSession
+from devin_qa_pack.adapters.base import SourceSession, source_view
 from devin_qa_pack.adapters.devin import session_view
+from devin_qa_pack.evidence import SessionEvidence
 from devin_qa_pack.verify import (
     DISPUTED,
     UNVERIFIABLE,
@@ -44,6 +45,8 @@ class SessionAudit:
     working_directory: str
     verdict: str
     results: list[VerifiedClaim] = field(default_factory=list)
+    surface: str | None = None
+    warnings: list[str] = field(default_factory=list)
 
     def counts(self) -> dict[str, int]:
         return {
@@ -87,7 +90,29 @@ def audit_source(
         working_directory=source.working_directory,
         verdict=_verdict(results),
         results=results,
+        surface=source.source,
     )
+
+
+def audit_evidence(
+    evidence: SessionEvidence,
+    claim_limit: int | None = None,
+    *,
+    online: bool = False,
+    allow_domains: tuple[str, ...] = (),
+) -> SessionAudit:
+    """Audit one provider-produced session — ids are namespaced as
+    ``surface:native_id`` so multi-surface output stays unambiguous."""
+    audit = audit_source(
+        source_view(
+            evidence, f"{evidence.surface}:{evidence.native_id}"
+        ),
+        claim_limit,
+        online=online,
+        allow_domains=allow_domains,
+    )
+    audit.warnings = list(evidence.warnings)
+    return audit
 
 
 def audit_session(
@@ -142,6 +167,37 @@ def audit_all(
     ]
 
 
+def filter_evidences(
+    evidences: list[SessionEvidence],
+    *,
+    within: str | Path | None = None,
+    limit: int | None = None,
+) -> list[SessionEvidence]:
+    """``--within``/``--limit`` scoping over provider sessions — same
+    rule as the store path: within filters working_dir first, then cap.
+
+    Multi-surface merge order is per-provider (each surface lists its
+    own newest first), so ``--limit`` on the raw list would take the
+    first provider's sessions rather than the globally newest — an
+    older PASS could mask a newer PARTIAL. Sort by ``started_at``
+    (descending, unknown last) *before* any cap so scoping sees the
+    true newest sessions across surfaces.
+    """
+    evidences = sorted(
+        evidences,
+        key=lambda e: (e.started_at or "", e.native_id),
+        reverse=True,
+    )
+    if within is not None:
+        root = Path(within).expanduser().resolve()
+        evidences = [
+            e
+            for e in evidences
+            if e.working_dir and _is_within(Path(e.working_dir), root)
+        ]
+    return evidences[:limit] if limit is not None else evidences
+
+
 def _claim_dict(r: VerifiedClaim) -> dict[str, Any]:
     return {
         "kind": r.claim.kind,
@@ -154,14 +210,18 @@ def _claim_dict(r: VerifiedClaim) -> dict[str, Any]:
 
 
 def audit_dict(audit: SessionAudit) -> dict[str, Any]:
-    return {
+    out = {
         "session_id": audit.session_id,
+        "surface": audit.surface,
         "title": audit.title,
         "working_directory": audit.working_directory,
         "verdict": audit.verdict,
         "summary": audit.counts(),
         "claims": [_claim_dict(r) for r in audit.results],
     }
+    if audit.warnings:
+        out["warnings"] = list(audit.warnings)
+    return out
 
 
 def audits_payload(
@@ -189,6 +249,8 @@ def render_audit(audit: SessionAudit) -> str:
         lines.append(
             f"  [{r.status:<12}] {r.claim.kind}/{detail}: {r.evidence}"
         )
+    for warning in audit.warnings:
+        lines.append(f"  [warning    ] {warning}")
     return "\n".join(lines)
 
 

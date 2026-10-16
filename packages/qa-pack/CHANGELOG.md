@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `evidence/` — a surface-agnostic evidence layer:
+  `EvidenceMessage`/`EvidenceToolCall`/`SessionEvidence` normalize what
+  an audit needs, and one read-only provider per store reads it.
+  Providers: `devin-cli` (sessions.db via `SessionsStore`),
+  `copilot-cli` (`session-state/<uuid>/events.jsonl` plus flat and
+  `history-session-state` layouts under `$COPILOT_DIR`/`$COPILOT_HOME`/
+  `~/.copilot`, `workspace.yaml` workspace seed), `codex-cli`
+  (newest `~/.codex/state_<N>.sqlite` threads merged with
+  `rollout-*.jsonl` under sessions/archived/`$CODEX_SESSIONS_DIR`) and
+  `vscode-chat` (`chatSessions` `.json` snapshots + `.jsonl`
+  mutation-log replay, workspace from `workspace.json` folder URI or a
+  path-like decoded `<wsDir>`).
+- `audit`/`report --surface {devin-cli,copilot-cli,codex-cli,vscode-chat,
+  auto}` — default `auto` discovers every detected store when no
+  `--sessions-db` is pinned; absent stores contribute nothing.
+  Provider-mode session ids are namespaced `surface:native_id`;
+  `--session` prefix-matches across surfaces or scopes with
+  `surface:id`. `--within`/`--limit` apply to the merged,
+  newest-first list. Reports and `audit_dict` carry a `surface` label;
+  the HTML report shows it as a chip.
+- The `qa_audit` MCP tool takes `surface` and fails closed
+  (`no_sessions`) when a provider-mode query matches nothing, like the
+  CLI's exit-2 rule.
+
+### Changed
+
+- `claims`/`verify`/`intent` consume the evidence model instead of raw
+  `message_nodes`/`tool_call_state` rows — the `chat_message` JSON
+  decode moved into the devin-cli provider; claim detection and verdict
+  logic are unchanged (a golden test asserts identical verdicts through
+  both paths). `Claim.node_id` cites the provider's real source id when
+  available (devin `message_nodes.node_id`), else the message position.
+- An explicit `--sessions-db` alone keeps the Devin fast path (bare
+  session ids, no other surfaces queried) so existing automation sees
+  identical output; combine it with `--surface` to widen scope.
+
 ### Fixed
 
 - `devin-qa-pack-mcp` exits with a one-line install hint when the `mcp`
