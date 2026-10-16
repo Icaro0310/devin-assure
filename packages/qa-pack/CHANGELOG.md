@@ -47,6 +47,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `vscode-chat` extracted exit status (`terminalCommandState.exitCode`,
+  `resultDetails`, `isComplete`) now lands in
+  `EvidenceToolCall.update_payload` — the canonical home per
+  SESSION-EVIDENCE §4 — instead of inside the raw invocation `payload`.
 - `devin-qa-pack-mcp` exits with a one-line install hint when the `mcp`
   extra is missing instead of dumping a traceback; startup
   `ImportError`s from `.run()` keep their traceback.
