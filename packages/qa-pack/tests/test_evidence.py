@@ -556,6 +556,23 @@ def test_match_evidence_same_native_id_on_two_surfaces_is_ambiguous():
     assert match_evidence([ev_a, ev_b], "codex-cli:dup") is ev_b
 
 
+def test_match_evidence_same_surface_dup_resolves_by_ref():
+    """Same native id on one surface twice (copilot keeps an id across
+    workspaces): scoped surface:id stays ambiguous in candidates, but a
+    canonical-ref (or unique ref-prefix) query singles one out — the ref
+    embeds the workspace hash."""
+    ev_a = SessionEvidence(surface="copilot-cli", native_id="dup",
+                           ref="copilot-cli:ws-aaa:native:dup",
+                           started_at=None, working_dir=None)
+    ev_b = SessionEvidence(surface="copilot-cli", native_id="dup",
+                           ref="copilot-cli:ws-bbb:native:dup",
+                           started_at=None, working_dir=None)
+    pool = [ev_a, ev_b]
+    assert isinstance(match_evidence(pool, "copilot-cli:dup"), list)
+    assert match_evidence(pool, "copilot-cli:ws-aaa:native:dup") is ev_a
+    assert match_evidence(pool, "copilot-cli:ws-bbb") is ev_b
+
+
 # -- smoke: audit --surface auto ---------------------------------------------------
 
 
@@ -701,6 +718,24 @@ def test_codex_output_bare_zero_exit_code(tmp_path):
     _codex_rollout(root, "s2", records)
     (ev,) = CodexCliProvider(root).sessions({})
     assert ev.tool_calls[0].update_payload["exit_code"] == 1
+
+
+def test_codex_output_embedded_exit_code_is_not_status(tmp_path):
+    """Stdout that merely *contains* an exit-code line (mid-output, more
+    output after) is not a status — a failed run must not verify."""
+    root = tmp_path / "codex"
+    records = [
+        {"type": "session_meta", "payload": {"id": "s3"}},
+        {"type": "response_item",
+         "payload": {"type": "local_shell_call", "call_id": "c1",
+                     "action": {"command": ["grep", "-c", "ok", "log"]}}},
+        {"type": "response_item",
+         "payload": {"type": "local_shell_call_output", "call_id": "c1",
+                     "output": "Exit code: 0\n3\nreal tail"}},
+    ]
+    _codex_rollout(root, "s3", records)
+    (ev,) = CodexCliProvider(root).sessions({})
+    assert "exit_code" not in ev.tool_calls[0].update_payload
 
 
 def test_vscode_hashed_workspace_id_yields_no_working_dir(tmp_path):

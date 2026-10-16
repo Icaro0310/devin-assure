@@ -335,16 +335,25 @@ def match_evidence(
     exact = [
         e
         for e in pool
-        if e.native_id == sid or f"{e.surface}:{e.native_id}" == query
+        if e.native_id == sid
+        or f"{e.surface}:{e.native_id}" == query
+        or e.ref == query
     ]
     if len(exact) == 1:
         return exact[0]
     if len(exact) > 1:
-        return exact  # same id on several surfaces — ambiguous
+        # Same native id retained across workspaces (or surfaces): the
+        # canonical ref — which embeds the workspace hash — is still
+        # unique, so a ref-prefix query disambiguates before we give up.
+        refined = [e for e in exact if e.ref.startswith(query)]
+        if len(refined) == 1:
+            return refined[0]
+        return exact  # genuinely ambiguous — never resolve silently
     matches = [
         e
         for e in pool
         if e.native_id.startswith(sid)
+        or e.ref.startswith(query)
         or (surface is None
             and f"{e.surface}:{e.native_id}".startswith(query))
     ]

@@ -178,20 +178,24 @@ def _normalize_call(payload: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
-_EXIT_CODE_RE = re.compile(
-    r"(?:exit(?:[_ ]?code|ed)?\s*[:=]?\s*)(-?\d+)", re.IGNORECASE
+_EXIT_STATUS_RE = re.compile(
+    r"exit(?:ed)?(?:[_ ]?with)?[_ ]?code[:=]?\s*(-?\d+)\s*", re.IGNORECASE
 )
 
 
 def _sniff_exit_text(text: str) -> int | None:
-    """Exit code from a plain-text tool output: ``Exit code: 1``-style
-    phrasing first, then a bare trailing integer (``"0"``-only output)."""
-    m = _EXIT_CODE_RE.search(text)
-    if m is not None:
-        return int(m.group(1))
+    """Exit code from a plain-text output: Codex appends the status as the
+    output's LAST line (``stdout...\nExit code: 0``). Only a full-match on
+    the last line — or a bare-integer whole output — counts: an ``exit
+    code: 0`` substring *inside* real stdout (a failed run can print one)
+    must stay unverifiable, never read as success."""
     stripped = text.strip()
     if re.fullmatch(r"-?\d+", stripped):
         return int(stripped)
+    if stripped:
+        m = _EXIT_STATUS_RE.fullmatch(stripped.rsplit("\n", 1)[-1])
+        if m is not None:
+            return int(m.group(1))
     return None
 
 
