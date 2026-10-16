@@ -438,11 +438,13 @@ def _session_evidence(
             if not isinstance(request, dict):
                 continue
             ts = epoch_ms(request.get("timestamp")) or created
+            # Every request IS a user turn — text may be unrecoverable
+            # (metadata-only turns); emit the turn with empty text rather
+            # than dropping the evidence that the turn existed.
             user_text = _field_text(request.get("message"))
-            if user_text.strip():
-                messages.append(
-                    EvidenceMessage(role="user", text=user_text, ts_ms=ts)
-                )
+            messages.append(
+                EvidenceMessage(role="user", text=user_text, ts_ms=ts)
+            )
             resp_ts = epoch_ms(request.get("responseTimestamp")) or ts
             response = request.get("response")
             if isinstance(response, list):
