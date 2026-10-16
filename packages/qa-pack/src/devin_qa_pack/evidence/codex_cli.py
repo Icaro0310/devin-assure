@@ -207,6 +207,12 @@ def _normalize_output(payload: dict[str, Any]) -> dict[str, Any]:
     keep a verifiable status instead of reading as unknown.
     """
     out = dict(payload)
+    # ``exitCode`` alias normalized up front so every later read sees
+    # ``exit_code``; the alias wins over a pre-existing ``exit_code``
+    # (verify.py probes exitCode first — same precedence).
+    alt = out.pop("exitCode", None)
+    if isinstance(alt, int) and not isinstance(alt, bool):
+        out["exit_code"] = alt
     value = _json_dict_value(out.get("output"))
     if isinstance(value, dict):
         out["output"] = value
@@ -219,10 +225,6 @@ def _normalize_output(payload: dict[str, Any]) -> dict[str, Any]:
         code = _sniff_exit_text(out["output"])
         if code is not None:
             out.setdefault("exit_code", code)
-    for key in ("exit_code", "exitCode"):
-        code = out.get(key)
-        if isinstance(code, int) and not isinstance(code, bool):
-            out["exit_code"] = code
     return out
 
 
