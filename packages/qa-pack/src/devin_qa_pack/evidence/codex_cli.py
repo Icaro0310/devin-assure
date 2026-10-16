@@ -185,10 +185,10 @@ _EXIT_STATUS_RE = re.compile(
 
 def _sniff_exit_text(text: str) -> int | None:
     """Exit code from a plain-text output: Codex appends the status as the
-    output's LAST line (``stdout...\nExit code: 0``). Only a full-match on
-    the last line — or a bare-integer whole output — counts: an ``exit
-    code: 0`` substring *inside* real stdout (a failed run can print one)
-    must stay unverifiable, never read as success."""
+    output's LAST line (``stdout...\nExit code: 0``) — only a full-match
+    on that line counts. An ``exit code: 0`` substring *inside* real
+    stdout, or a bare-integer output (command stdout, not a status
+    envelope), must stay unverifiable, never read as success."""
     stripped = text.strip()
     if not stripped:
         return None
