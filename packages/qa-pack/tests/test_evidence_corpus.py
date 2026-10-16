@@ -16,9 +16,9 @@ exists but does not corroborate, ``no-evidence`` means no tool call was
 recorded — so the distinction is asserted on ``tool_calls`` presence,
 never on the auditor's status name.
 
-Manifest-vs-implementation drift is xfalled strictly (the vendored
-manifest is verbatim — never edited to match) and reported upstream;
-see ``_KNOWN_DRIFT``.
+Manifest-vs-implementation drift would be xfalled strictly (the
+vendored manifest is verbatim — never edited to match) and reported
+upstream; ``_KNOWN_DRIFT`` is currently empty.
 """
 
 from __future__ import annotations
@@ -67,15 +67,11 @@ _NON_CORROBORATED = frozenset({DISPUTED, UNVERIFIABLE})
 # not meet today. The vendored manifest is verbatim — drift is reported
 # to the corpus owners, not papered over here.
 #
-# - vscode-chat 40b09524 / d7ec266f: the manifest expects a ``user``
-#   message role, but these sessions' ``requests`` carry no ``message``
-#   text (metadata-only turns — d7ec266f's third request is the
-#   truncated tail). Spec §6.5 maps only ``request.message`` text to
-#   user messages, so the provider emits none.
-_KNOWN_DRIFT = {
-    ("vscode-chat", "40b09524-422d-534f-8e21-bdb5d16bd8ab"),
-    ("vscode-chat", "d7ec266f-fbf0-5639-8e82-7ef445ba605d"),
-}
+# Known manifest-vs-implementation drift lives here as xfail(strict) —
+# empty today: the only drift found (vscode-chat user turns without
+# recoverable message text) was resolved impl-side: a request IS a user
+# turn, so providers emit it even when text is empty.
+_KNOWN_DRIFT: set[tuple[str, str]] = set()
 
 _session_cache: dict[tuple[str, str], list[SessionEvidence]] = {}
 
