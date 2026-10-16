@@ -704,7 +704,9 @@ def test_codex_output_textual_exit_code(tmp_path):
     assert audit.verdict == "PASS"
 
 
-def test_codex_output_bare_zero_exit_code(tmp_path):
+def test_codex_output_bare_integer_is_not_status(tmp_path):
+    """``"1"`` alone is stdout, not a status envelope — a bare integer
+    must never fabricate an exit code."""
     root = tmp_path / "codex"
     records = [
         {"type": "session_meta", "payload": {"id": "s2"}},
@@ -717,7 +719,7 @@ def test_codex_output_bare_zero_exit_code(tmp_path):
     ]
     _codex_rollout(root, "s2", records)
     (ev,) = CodexCliProvider(root).sessions({})
-    assert ev.tool_calls[0].update_payload["exit_code"] == 1
+    assert "exit_code" not in ev.tool_calls[0].update_payload
 
 
 def test_codex_output_embedded_exit_code_is_not_status(tmp_path):

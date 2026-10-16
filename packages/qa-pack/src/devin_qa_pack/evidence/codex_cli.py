@@ -190,22 +190,21 @@ def _sniff_exit_text(text: str) -> int | None:
     code: 0`` substring *inside* real stdout (a failed run can print one)
     must stay unverifiable, never read as success."""
     stripped = text.strip()
-    if re.fullmatch(r"-?\d+", stripped):
-        return int(stripped)
-    if stripped:
-        m = _EXIT_STATUS_RE.fullmatch(stripped.rsplit("\n", 1)[-1])
-        if m is not None:
-            return int(m.group(1))
-    return None
+    if not stripped:
+        return None
+    # A bare-integer output is command stdout, not a status envelope —
+    # a failed run that prints ``0`` must not read as exit 0.
+    m = _EXIT_STATUS_RE.fullmatch(stripped.rsplit("\n", 1)[-1])
+    return int(m.group(1)) if m is not None else None
 
 
 def _normalize_output(payload: dict[str, Any]) -> dict[str, Any]:
     """Decode a JSON-string ``output`` and lift a recorded exit code to
     the top level where the verifier's status sniffing reads it.
 
-    A JSON ``metadata.exit_code`` wins when present; plain-text outputs
-    (``"Exit code: 1"``, a bare ``"0"``) are sniffed so shell calls keep
-    a verifiable status instead of reading as unknown.
+    A JSON ``metadata.exit_code`` wins when present; an ``Exit code: N``
+    status appended as the output's last line is sniffed so shell calls
+    keep a verifiable status instead of reading as unknown.
     """
     out = dict(payload)
     value = _json_dict_value(out.get("output"))
