@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-16
+
+### Fixed
+
+- Lockstep bump of the bundled CLI floor targets `devin-qa-pack 0.2.1`:
+  an unreadable or non-SQLite `--sessions-db` now fails closed with
+  `error: cannot open …` + exit 2 on every entrypoint instead of a raw
+  `sqlite3.DatabaseError` traceback. No extension-side code changes.
+
 ## [0.2.0] - 2026-10-16
 
 ### Fixed
