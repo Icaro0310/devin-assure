@@ -262,3 +262,36 @@ def test_verdicts_ledger_follows_out_override(sessions_db, tmp_path, capsys):
         (tmp_path / "custom" / "verdicts.jsonl")
         .read_text().splitlines()[0])
     assert rec["session_id"] == "sess-verified"
+
+
+def test_fallback_latest_session_still_writes_artifacts(
+    sessions_db, tmp_path, capsys,
+):
+    """No id anywhere → audit resolves the most recent session; the
+    verdict must still land in the side file AND the ledger (Devin
+    Review: the resolved-session path previously wrote nothing)."""
+    data_dir = tmp_path / "data"
+    rc = main(["session-end", "--sessions-db", str(sessions_db),
+               "--data-dir", str(data_dir)])
+    assert rc == 0
+    side_files = [p for p in (data_dir / "qa").glob("*.json")]
+    assert len(side_files) == 1
+    payload = _read(side_files[0])
+    lines = (data_dir / "qa" / "verdicts.jsonl").read_text().splitlines()
+    assert len(lines) == 1
+    rec = json.loads(lines[0])
+    assert rec["session_id"] == payload["session_id"]
+    assert rec["verdict"] == payload["verdict"]
+
+
+def test_out_named_verdicts_jsonl_stays_valid_json(
+    sessions_db, tmp_path, capsys,
+):
+    """--out pointing at verdicts.jsonl itself must not corrupt the
+    side file by appending a ledger line to it."""
+    out = tmp_path / "qa" / "verdicts.jsonl"
+    rc = main(["session-end", "--sessions-db", str(sessions_db),
+               "--session-id", "sess-verified", "--out", str(out)])
+    assert rc == 0
+    payload = _read(out)  # still valid JSON — no appended line
+    assert payload["verdict"] == "PASS"

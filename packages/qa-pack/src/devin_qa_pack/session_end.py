@@ -291,15 +291,22 @@ def run_session_end(
             reason=reason,
         )
 
+    # Fallback resolution (no id, no --out): the verdict belongs in the
+    # default side-file location derived from the *resolved* session id,
+    # otherwise the audit would be computed and silently dropped.
+    if result.out_path is None and result.session_id:
+        result.out_path = default_out_path(result.session_id, data_dir)
+
     if result.out_path is not None:
         _write_json(result.out_path, result.payload)
         # Ledger lives next to the side file: default data-dir runs get
         # <data-dir>/qa/verdicts.jsonl; an --out override relocates both
         # together, so the append never escapes the caller's chosen root.
         verdicts = result.out_path.parent / "verdicts.jsonl"
-        try:
-            _append_jsonl(verdicts, _verdict_record(result))
-            result.verdicts_path = verdicts
-        except OSError:
-            pass  # ledger is best-effort; the side file is the contract
+        if verdicts != result.out_path:
+            try:
+                _append_jsonl(verdicts, _verdict_record(result))
+                result.verdicts_path = verdicts
+            except OSError:
+                pass  # ledger is best-effort; the side file is the contract
     return result
