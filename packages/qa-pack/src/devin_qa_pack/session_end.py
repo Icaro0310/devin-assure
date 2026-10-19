@@ -7,7 +7,9 @@ Default path: ``<data-dir>/qa/<session-id>.json`` (``--out`` overrides;
 carries ``{session_id, verdict, claims: [...], audited_at}`` — plus an
 optional ``intent`` field (QA-4 prompt-vs-touched-paths analysis) when
 the session could be resolved — and the command also prints a one-line
-summary.
+summary. A compact copy of each verdict is also appended to
+``verdicts.jsonl`` next to the side file (``<data-dir>/qa/verdicts.jsonl``
+by default) — a machine-readable ledger for dashboards and triggers.
 
 Session resolution order: ``--session-id`` → the hook payload on stdin
 (``{"session_id": "..."}``, what the hook dispatcher pipes in) → the
@@ -160,6 +162,30 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     tmp.replace(path)
 
 
+def _append_jsonl(path: Path, record: dict[str, Any]) -> None:
+    """Append one compact JSON line to the verdicts ledger."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, separators=(",", ":")) + "\n")
+
+
+def _verdict_record(result: "SessionEndResult") -> dict[str, Any]:
+    """The compact per-session line appended to ``verdicts.jsonl``."""
+    counts = result.payload.get("summary") or {}
+    record: dict[str, Any] = {
+        "session_id": result.session_id,
+        "verdict": result.verdict,
+        "audited_at": result.payload.get("audited_at"),
+        "claims": len(result.payload.get("claims") or []),
+        "verified": counts.get("verified", 0),
+        "disputed": counts.get("disputed", 0),
+        "unverifiable": counts.get("unverifiable", 0),
+    }
+    if result.reason:
+        record["reason"] = result.reason
+    return record
+
+
 @dataclass
 class SessionEndResult:
     session_id: str | None
@@ -167,6 +193,7 @@ class SessionEndResult:
     payload: dict[str, Any]
     out_path: Path | None
     reason: str | None = None
+    verdicts_path: Path | None = None
 
 
 def summary_line(result: SessionEndResult) -> str:
@@ -266,4 +293,13 @@ def run_session_end(
 
     if result.out_path is not None:
         _write_json(result.out_path, result.payload)
+        # Ledger lives next to the side file: default data-dir runs get
+        # <data-dir>/qa/verdicts.jsonl; an --out override relocates both
+        # together, so the append never escapes the caller's chosen root.
+        verdicts = result.out_path.parent / "verdicts.jsonl"
+        try:
+            _append_jsonl(verdicts, _verdict_record(result))
+            result.verdicts_path = verdicts
+        except OSError:
+            pass  # ledger is best-effort; the side file is the contract
     return result

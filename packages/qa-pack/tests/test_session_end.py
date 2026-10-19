@@ -208,3 +208,57 @@ def test_usage_error_exits_two(sessions_db):
     with pytest.raises(SystemExit) as exc:
         main(["session-end", "--bogus-flag"])
     assert exc.value.code == 2
+
+
+# -- verdicts.jsonl ledger -----------------------------------------------------
+
+
+def test_session_end_appends_verdicts_ledger(sessions_db, tmp_path, capsys):
+    data_dir = tmp_path / "data"
+    rc = main(["session-end", "--sessions-db", str(sessions_db),
+               "--session-id", "sess-verified", "--data-dir", str(data_dir)])
+    assert rc == 0
+    lines = (data_dir / "qa" / "verdicts.jsonl").read_text().splitlines()
+    assert len(lines) == 1
+    rec = json.loads(lines[0])
+    assert rec["session_id"] == "sess-verified"
+    assert rec["verdict"] == "PASS"
+    assert rec["audited_at"]
+    assert rec["verified"] >= 1
+    assert "claims" in rec
+
+
+def test_verdicts_ledger_appends_per_session(sessions_db, tmp_path, capsys):
+    data_dir = tmp_path / "data"
+    for sid in ("sess-verified", "sess-disputed"):
+        rc = main(["session-end", "--sessions-db", str(sessions_db),
+                   "--session-id", sid, "--data-dir", str(data_dir)])
+        assert rc == 0
+    lines = (data_dir / "qa" / "verdicts.jsonl").read_text().splitlines()
+    assert len(lines) == 2
+    assert [json.loads(line)["session_id"] for line in lines] == [
+        "sess-verified", "sess-disputed"]
+
+
+def test_verdicts_ledger_records_skipped(sessions_db, tmp_path, capsys):
+    data_dir = tmp_path / "data"
+    rc = main(["session-end", "--sessions-db", str(sessions_db),
+               "--session-id", "sess-gone", "--data-dir", str(data_dir)])
+    assert rc == 0
+    rec = json.loads(
+        (data_dir / "qa" / "verdicts.jsonl").read_text().splitlines()[0])
+    assert rec["verdict"] == SKIPPED
+    assert rec["reason"]
+
+
+def test_verdicts_ledger_follows_out_override(sessions_db, tmp_path, capsys):
+    """--out relocates the ledger with the side file: the append never
+    escapes the caller's chosen root into a real data dir."""
+    out = tmp_path / "custom" / "v.json"
+    rc = main(["session-end", "--sessions-db", str(sessions_db),
+               "--session-id", "sess-verified", "--out", str(out)])
+    assert rc == 0
+    rec = json.loads(
+        (tmp_path / "custom" / "verdicts.jsonl")
+        .read_text().splitlines()[0])
+    assert rec["session_id"] == "sess-verified"
