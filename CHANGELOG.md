@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Docs** — root README embeds the agent-assurance demo gif under the
+  top badge block; the qa-pack package README demo embed now uses
+  absolute URLs so it renders on the PyPI project page.
 - **CI** — `ci.yml` calls the reusable `adapters-check` sensor (`devin-powerups` `@v1`): scans distributed adapter/skill files for personal paths, internal names, token shapes and SKILL.md command coherence.
 - **Feature** — `devin-metrics digest --weekly` composes the existing
   `summary`/`daily`/`watch` outputs into one markdown report
