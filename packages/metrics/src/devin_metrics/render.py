@@ -74,6 +74,8 @@ def render_summary_md(s: dict[str, Any]) -> str:
         ["Sessions with cost data", fmt_int(s["sessions_with_cost"])],
         ["Messages", fmt_int(s["messages"])],
         ["Tool calls", fmt_int(s["tool_calls"])],
+        ["Sessions with commits", fmt_int(s["sessions_with_commits"])],
+        ["Unique commit SHAs", fmt_int(s["unique_commit_shas"])],
         ["Total duration", fmt_duration_ms(s["duration_ms_total"])],
         ["Cost (all acp usage)", fmt_usd(s["cost_usd_total"])],
         ["Cost (attributed to sessions)", fmt_usd(s["cost_usd_by_sessions"])],
@@ -152,6 +154,63 @@ def render_projects_md(rows: list[dict[str, Any]]) -> str:
             for r in rows
         ],
     )
+
+
+def render_commits_md(report: dict[str, Any]) -> str:
+    """``commits_report`` as markdown: headline stats + sessions + repos."""
+    parts = [
+        "## devin-metrics commits",
+        "",
+        md_table(
+            ["METRIC", "VALUE"],
+            [
+                ["Sessions with commits",
+                 fmt_int(report["sessions_with_commits"])],
+                ["Unique commit SHAs", fmt_int(report["unique_shas"])],
+                ["Commit references", fmt_int(report["commit_refs"])],
+            ],
+        ),
+    ]
+    sessions = report["sessions"]
+    if not sessions:
+        parts += ["", "_no commit references found in tool_call_state_"]
+        return "\n".join(parts)
+    parts += [
+        "",
+        "### Sessions",
+        "",
+        md_table(
+            ["SESSION", "PROJECT", "COMMITS", "SHAS", "REPOS"],
+            [
+                [
+                    s["title"] or s["id"][:8],
+                    s["project"] or "-",
+                    fmt_int(s["n_commits"]),
+                    ", ".join(sha[:7] for sha in s["shas"]),
+                    ", ".join(s["repos"]) or "-",
+                ]
+                for s in sessions
+            ],
+        ),
+    ]
+    if report["repos"]:
+        parts += [
+            "",
+            "### Repos",
+            "",
+            md_table(
+                ["REPO", "UNIQUE SHAS", "SESSIONS"],
+                [
+                    [
+                        r["repo"],
+                        fmt_int(r["unique_shas"]),
+                        fmt_int(r["sessions"]),
+                    ]
+                    for r in report["repos"]
+                ],
+            ),
+        ]
+    return "\n".join(parts)
 
 
 def render_daily_md(rows: list[dict[str, Any]]) -> str:

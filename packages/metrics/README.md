@@ -83,6 +83,7 @@ pipx install devin-metrics
 devin-metrics summary                  # headline numbers + top-5 lists
 devin-metrics projects                 # per-project session/activity table
 devin-metrics daily --days 14          # activity over time
+devin-metrics commits                  # sessions → git commits (SHAs + repos)
 devin-metrics dashboard --out usage.html
 
 devin-dashboard build --out usage.html # dashboard executable alias
@@ -127,6 +128,16 @@ also checked. Override with `--sessions-db` or `--acp-dir`.
 
 
 The dashboard also charts **peak `num_tokens_preceding` per day** — the only token signal persisted locally (verified: no cost fields are stored). Cost charts show a "no data" note rather than fake zeros.
+
+
+### `devin-metrics commits`
+
+Session→commit correlation: full 40-hex SHAs and `/commit/<sha>` repo URLs
+are extracted from `tool_call_state` payloads (via `devin-internals-spec`'s
+`commit_references`). The report lists each session's commits (short SHA +
+repo) plus a per-repo rollup; short 7-hex SHAs are ignored on purpose —
+they are too ambiguous to attribute safely. `summary` also reports
+"Sessions with commits" / "Unique commit SHAs" headline counts.
 
 
 ### `devin-metrics churn` (needs `devin-graph build`)

@@ -6,6 +6,13 @@
 
 ## Unreleased
 
+- `devin-metrics commits`: session→commit correlation. 40-hex SHAs and
+  `/commit/<sha>` repo URLs are extracted from `tool_call_state` payloads
+  via `devin_internals.commits.commit_references`; the report shows each
+  session's commits (short SHA + repo) and a per-repo rollup, with
+  `--json` for scripting. `summary` gains "Sessions with commits" and
+  "Unique commit SHAs" headline rows.
+
 - `devin-metrics-mcp` exits with a one-line install hint when the `mcp`
   extra is missing instead of dumping a traceback; startup
   `ImportError`s from `.run()` keep their traceback.

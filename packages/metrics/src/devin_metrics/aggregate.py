@@ -78,6 +78,8 @@ def summarize(snap: MetricsSnapshot) -> dict[str, Any]:
         "sessions_with_context": sum(
             1 for s in sessions if s.context_tokens is not None
         ),
+        "sessions_with_commits": len({r.session_id for r in snap.commits}),
+        "unique_commit_shas": len({r.sha for r in snap.commits}),
         "avg_duration_ms": (_sum(s.duration_ms for s in sessions) / n) if n else None,
         "avg_messages": (_sum(s.n_messages for s in sessions) / n) if n else None,
         "avg_cost_usd": (
@@ -181,6 +183,65 @@ def by_day(snap: MetricsSnapshot, days: int | None = None) -> list[dict[str, Any
         }
         for d in dates
     ]
+
+
+def commits_report(snap: MetricsSnapshot) -> dict[str, Any]:
+    """Session→commit correlation over ``snap.commits`` (tool_call_state refs).
+
+    - ``sessions`` lists every session id with ≥1 ref, most commits first;
+      ``top_sessions`` is the first 5 of that same ordering. ``title`` and
+      ``project`` join back to session rows and stay ``None`` for refs whose
+      session is no longer in ``sessions`` (same orphan policy as acp usage).
+    - ``repos`` counts *unique SHAs* per repo URL — a bare SHA never seen
+      inside a ``/commit/<sha>`` URL is unattributed and appears under no
+      repo (it still counts toward ``unique_shas``).
+    """
+    titles = {s.id: s.title for s in snap.sessions}
+    projects = {s.id: s.working_directory for s in snap.sessions}
+    by_session: dict[str, dict[str, set[str]]] = {}
+    sha_repo: dict[str, str] = {}
+    for ref in snap.commits:
+        entry = by_session.setdefault(
+            ref.session_id, {"shas": set(), "repos": set()}
+        )
+        entry["shas"].add(ref.sha)
+        if ref.repo_url:
+            entry["repos"].add(ref.repo_url)
+            sha_repo.setdefault(ref.sha, ref.repo_url)
+    sessions = [
+        {
+            "id": sid,
+            "title": titles.get(sid),
+            "project": projects.get(sid),
+            "n_commits": len(entry["shas"]),
+            "shas": sorted(entry["shas"]),
+            "repos": sorted(entry["repos"]),
+        }
+        for sid, entry in by_session.items()
+    ]
+    sessions.sort(key=lambda r: (-r["n_commits"], r["id"]))
+    repo_shas: dict[str, set[str]] = {}
+    for sha, repo in sha_repo.items():
+        repo_shas.setdefault(repo, set()).add(sha)
+    repos = [
+        {
+            "repo": repo,
+            "unique_shas": len(shas),
+            "sessions": sum(
+                1 for e in by_session.values() if repo in e["repos"]
+            ),
+        }
+        for repo, shas in repo_shas.items()
+    ]
+    repos.sort(key=lambda r: (-r["unique_shas"], r["repo"]))
+    return {
+        "sessions_with_commits": len(by_session),
+        "unique_shas": len({r.sha for r in snap.commits}),
+        "commit_refs": len(snap.commits),
+        "repos": repos,
+        "sessions": sessions,
+        "top_sessions": sessions[:5],
+    }
 
 
 def watch_report(

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Feature** — `devin-metrics commits`: session→commit correlation.
+  40-hex SHAs and `/commit/<sha>` repo URLs are extracted from
+  `tool_call_state` payloads via
+  `devin_internals.commits.commit_references` (devin-internals-spec); the
+  report lists each session's commits (short SHA + repo) plus a per-repo
+  rollup, `--json` supported, and `summary` gains "Sessions with
+  commits" / "Unique commit SHAs" rows.
 - **Docs** — root README embeds the agent-assurance demo gif under the
   top badge block; the qa-pack package README demo embed now uses
   absolute URLs so it renders on the PyPI project page.
