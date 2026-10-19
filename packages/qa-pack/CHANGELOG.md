@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `README.md` demo embed and its surrounding link used repo-relative
+  paths, which do not resolve on the PyPI project page; they now use
+  absolute `raw.githubusercontent.com`/`github.com` URLs.
+
 ## [0.2.1] - 2026-10-16
 
 ### Fixed

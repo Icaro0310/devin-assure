@@ -94,11 +94,13 @@ curl -fsSL https://raw.githubusercontent.com/Icaro0310/devin-assure/main/install
 ship the wheel, sdist and CycloneDX SBOM per tag.
 
 **See it in action** — run the reproducible
-[Agent Assurance demo](examples/agent-assurance): one command generates a
+[Agent Assurance demo](https://github.com/Icaro0310/devin-assure/tree/main/packages/qa-pack/examples/agent-assurance): one command generates a
 deliberately flawed agent session, then independently verifies what the
 agent actually did. No Devin install needed.
 
-<a href="examples/agent-assurance"><img src="examples/agent-assurance/demo.gif" alt="agent-assurance demo — UNVERIFIED, PARTIAL, PASS" width="80%"/></a>
+<div align="center">
+<a href="https://github.com/Icaro0310/devin-assure/tree/main/packages/qa-pack/examples/agent-assurance"><img src="https://raw.githubusercontent.com/Icaro0310/devin-assure/main/packages/qa-pack/examples/agent-assurance/demo.gif" alt="agent-assurance demo — UNVERIFIED, PARTIAL, PASS" width="80%"/></a>
+</div>
 
 ## Usage
 
