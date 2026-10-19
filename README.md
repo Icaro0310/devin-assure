@@ -13,6 +13,14 @@
 <a href="https://github.com/Icaro0310/devin-assure/issues"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen" alt="PRs welcome"/></a>
 </div>
 
+<div align="center">
+
+<a href="packages/qa-pack/examples/agent-assurance/demo.gif"><img src="packages/qa-pack/examples/agent-assurance/demo.gif" alt="devin-qa-pack demo: session audit against tool-call evidence" width="80%"/></a>
+
+<sub>**devin-qa-pack**: audits what a session claims it delivered against what its tool calls actually did. Verdict per session: PASS / PARTIAL / UNVERIFIED · [reproducible example](packages/qa-pack/examples/agent-assurance)</sub>
+
+</div>
+
 <!-- DEVIN-ECO:BEGIN -->
 > **Part of the [DEVIN ecosystem](https://github.com/Icaro0310/awesome-devin)**  
 > Track: Verify · Nature: product  
