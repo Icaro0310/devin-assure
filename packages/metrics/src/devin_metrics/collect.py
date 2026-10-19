@@ -13,6 +13,9 @@ Two sources:
 - ``message_nodes.metadata.num_tokens_preceding`` — the **only** persisted
   token signal (cumulative context size per node). Reported per session as
   ``context_tokens`` = the session's peak value.
+- ``tool_call_state`` payloads also carry git commit references (40-hex
+  SHAs, ``/commit/<sha>`` repo URLs); they are extracted into
+  ``snap.commits`` via :func:`devin_internals.commits.commit_references`.
 
 acp DBs are linked to sessions by **filename stem** = session id.
 """
@@ -25,6 +28,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from devin_internals.commits import CommitRef, commit_references
 from devin_internals.parsers import AcpMessagesStore, SessionsStore
 from devin_internals.schema import SchemaError
 
@@ -78,6 +82,7 @@ class MetricsSnapshot:
     orphan_dbs: int
     sessions: tuple[SessionMetrics, ...]
     usage: tuple[UsageRecord, ...]
+    commits: tuple[CommitRef, ...] = ()
 
 
 def _rows(store: Any, streaming: str, legacy: str) -> Any:
@@ -153,6 +158,13 @@ def extract_usage(
     return record
 
 
+def _count_tool_calls(rows: Any, counts: dict[str, int]) -> Any:
+    """Count rows as they stream — one pass, payloads never retained."""
+    for tc in rows:
+        counts[tc.session_id] = counts.get(tc.session_id, 0) + 1
+        yield tc
+
+
 def _scan_acp_dir(acp_dir: Path | None) -> tuple[list[UsageRecord], int, int, int]:
     """Return (usage records, db file count, parse errors, orphan dbs)."""
     if acp_dir is None or not acp_dir.is_dir():
@@ -208,9 +220,18 @@ def collect(sessions_db: str | Path, acp_dir: str | Path | None) -> MetricsSnaps
                     node.session_id, 0
                 ):
                     context_peak[node.session_id] = ntp
+        # One streaming pass feeds both the row count and the commit-ref
+        # extraction — tool_call_json payloads are MB-scale, materializing
+        # them all would be an OOM regression on large stores.
         tool_counts: dict[str, int] = {}
-        for tc in _rows(store, "iter_tool_call_state", "tool_call_state"):
-            tool_counts[tc.session_id] = tool_counts.get(tc.session_id, 0) + 1
+        commits = tuple(
+            commit_references(
+                _count_tool_calls(
+                    _rows(store, "iter_tool_call_state", "tool_call_state"),
+                    tool_counts,
+                )
+            )
+        )
 
     usage, files, errors, _ = _scan_acp_dir(acp_path)
     acp_available = acp_path is not None and acp_path.is_dir()
@@ -256,4 +277,5 @@ def collect(sessions_db: str | Path, acp_dir: str | Path | None) -> MetricsSnaps
         orphan_dbs=orphan_dbs,
         sessions=metrics,
         usage=tuple(usage),
+        commits=commits,
     )
