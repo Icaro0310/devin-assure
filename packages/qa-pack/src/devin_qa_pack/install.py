@@ -17,6 +17,7 @@ store, so the job does NOT require Devin closed.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -41,6 +42,26 @@ def _audit_command(surface: str, data_dir: str | None) -> str:
     """
     root = Path(data_dir).expanduser() if data_dir else default_data_dir()
     out = root / "qa" / OUT_NAME
+    # Every interpolated value lands inside a double-quoted command that
+    # cron runs via /bin/sh and Task Scheduler feeds to cmd. Inside
+    # double quotes, $.../backticks still expand under sh and %VAR%
+    # under cmd — a metacharacter in --data-dir (or a poisoned
+    # DEVIN_DATA_DIR) would inject commands into the user's crontab.
+    # Refuse instead of quoting around it (shlex output isn't portable
+    # to schtasks).
+    unsafe = re.compile(r'["`$%\r\n]')
+    for value in (
+        str(sys.executable),
+        str(root / "cli" / "sessions.db"),
+        str(out),
+        surface,
+    ):
+        if unsafe.search(value):
+            raise ValueError(
+                "path cannot be embedded in a scheduled command: "
+                f"{value!r} — pick a --data-dir without shell "
+                "metacharacters"
+            )
     return (
         f'"{sys.executable}" -m devin_qa_pack.cli audit --all '
         f'--surface {surface} --sessions-db "{root / "cli" / "sessions.db"}" '

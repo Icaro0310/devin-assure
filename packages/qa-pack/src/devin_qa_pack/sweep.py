@@ -68,12 +68,19 @@ def write_sweep_out(
     stamped = _utc_now()
     payload = audits_payload(audits, label)
     payload["audited_at"] = stamped
-    _write_json(out_path, payload)
     # Ledger lives next to the payload — <out-dir>/verdicts.jsonl — so a
     # default <data-dir>/qa/ run feeds the same ledger as session-end,
     # and an --out override relocates both together (the append never
-    # escapes the caller's chosen root).
+    # escapes the caller's chosen root). An --out naming an existing
+    # verdicts.jsonl would clobber the ledger with a payload — refuse
+    # before writing anything.
     verdicts = out_path.parent / "verdicts.jsonl"
+    if verdicts == out_path and out_path.is_file():
+        raise OSError(
+            f"{out_path} is the verdict ledger — refusing to overwrite "
+            "it with a sweep payload; choose a different --out name"
+        )
+    _write_json(out_path, payload)
     if verdicts != out_path:
         try:
             for audit in audits:

@@ -31,6 +31,7 @@ import os
 import re
 import sqlite3
 import sys
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -155,11 +156,21 @@ def _resolve_session(
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    """Atomic-ish side-file write: tmp file + replace, parents created."""
+    """Atomic side-file write: unique tmp file + replace, parents
+    created. Concurrent writers to the same destination never share a
+    temp name — a fixed ``.tmp`` suffix let one sweep consume the
+    other's staging file mid-write."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=path.parent, prefix=path.name + ".", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, indent=2) + "\n")
+        os.replace(tmp_name, path)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
 
 
 def _append_jsonl(path: Path, record: dict[str, Any]) -> None:

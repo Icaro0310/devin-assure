@@ -292,3 +292,47 @@ def test_scheduled_sweep_no_stores_exits_two_writes_nothing(
     assert "no sessions to audit" in capsys.readouterr().err
     assert not out.exists()
     assert not (tmp_path / "qa" / "verdicts.jsonl").exists()
+
+
+def test_audit_out_existing_verdicts_ledger_is_never_clobbered(
+        sessions_db, tmp_path, capsys):
+    """--out naming a populated verdicts.jsonl must refuse BEFORE the
+    payload write — the pre-existing ledger survives byte-for-byte."""
+    out = tmp_path / "qa" / "verdicts.jsonl"
+    out.parent.mkdir(parents=True)
+    out.write_text('{"verdict":"PASS"}\n', encoding="utf-8")
+    rc = main(["audit", "--sessions-db", str(sessions_db),
+               "--session", "sess-verified", "--out", str(out)])
+    err = capsys.readouterr().err
+    assert rc == 2
+    assert "verdict ledger" in err
+    assert out.read_text(encoding="utf-8") == '{"verdict":"PASS"}\n'
+
+
+def test_write_json_never_shares_a_stale_tmp(sessions_db, tmp_path,
+                                             capsys):
+    """A leftover <name>.tmp from a crashed/concurrent run is neither
+    consumed nor overwritten — temp names are unique per writer."""
+    out = tmp_path / "qa" / "audit-sweep.json"
+    out.parent.mkdir(parents=True)
+    stale = out.with_name(out.name + ".tmp")
+    stale.write_text("SENTINEL", encoding="utf-8")
+    rc = main(["audit", "--sessions-db", str(sessions_db),
+               "--session", "sess-verified", "--out", str(out)])
+    capsys.readouterr()
+    assert rc == 0
+    assert json.loads(out.read_text(encoding="utf-8"))["sessions"]
+    assert stale.read_text(encoding="utf-8") == "SENTINEL"
+
+
+def test_install_data_dir_shell_metachars_rejected(tmp_path):
+    """A --data-dir that would inject into cron's /bin/sh (or cmd's
+    %VAR%) must be refused before any job is registered."""
+    with pytest.raises(ValueError):
+        install.install_daily(
+            data_dir=str(tmp_path / 'evil"$(touch /tmp/pwned)"'),
+            config_dir=str(tmp_path / "cfg"),
+            backend="elapsed",
+        )
+    assert not (tmp_path / "cfg").exists() or "jobs" not in _registry(
+        tmp_path / "cfg")
