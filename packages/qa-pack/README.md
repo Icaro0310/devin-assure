@@ -244,6 +244,12 @@ when the session resolves. A one-line
 summary is also printed. `--limit N` bounds the number of claims
 verified.
 
+Each run also appends one compact JSON line to `verdicts.jsonl` next to
+the side file (`<data-dir>/qa/verdicts.jsonl` by default) — a
+machine-readable ledger with `session_id`, `verdict`, `audited_at`,
+claim counts and the skip `reason`, for dashboards and triggers. The
+append is best-effort; the side file remains the contract.
+
 **Fail-soft:** `session-end` always exits `0` once it ran — the verdict
 travels in the side file, so a hook can never fail the host session. A
 session that cannot be resolved produces a `SKIPPED` verdict (still

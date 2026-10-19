@@ -5,6 +5,13 @@
 - **Docs** — root README embeds the agent-assurance demo gif under the
   top badge block; the qa-pack package README demo embed now uses
   absolute URLs so it renders on the PyPI project page.
+- **Feature** — `devin-qa-pack session-end` now appends one compact JSON
+  line per verdict to `verdicts.jsonl` next to the side file
+  (`<data-dir>/qa/verdicts.jsonl` by default; an `--out` override
+  relocates both together). Records carry `session_id`, `verdict`,
+  `audited_at`, claim counts and the skip `reason` — a machine-readable
+  per-session ledger for dashboards and the `qa.session-end` trigger.
+  The append is best-effort: the side file remains the contract.
 - **CI** — `ci.yml` calls the reusable `adapters-check` sensor (`devin-powerups` `@v1`): scans distributed adapter/skill files for personal paths, internal names, token shapes and SKILL.md command coherence.
 - **Feature** — `devin-metrics digest --weekly` composes the existing
   `summary`/`daily`/`watch` outputs into one markdown report
