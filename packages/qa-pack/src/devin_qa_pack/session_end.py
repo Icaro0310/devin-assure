@@ -169,7 +169,7 @@ def _append_jsonl(path: Path, record: dict[str, Any]) -> None:
         fh.write(json.dumps(record, separators=(",", ":")) + "\n")
 
 
-def _verdict_record(result: "SessionEndResult") -> dict[str, Any]:
+def _verdict_record(result: SessionEndResult) -> dict[str, Any]:
     """The compact per-session line appended to ``verdicts.jsonl``."""
     counts = result.payload.get("summary") or {}
     record: dict[str, Any] = {
