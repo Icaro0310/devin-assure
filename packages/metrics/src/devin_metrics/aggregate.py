@@ -192,14 +192,17 @@ def commits_report(snap: MetricsSnapshot) -> dict[str, Any]:
       ``top_sessions`` is the first 5 of that same ordering. ``title`` and
       ``project`` join back to session rows and stay ``None`` for refs whose
       session is no longer in ``sessions`` (same orphan policy as acp usage).
-    - ``repos`` counts *unique SHAs* per repo URL — a bare SHA never seen
-      inside a ``/commit/<sha>`` URL is unattributed and appears under no
-      repo (it still counts toward ``unique_shas``).
+      Each session row keeps the sha→repo linkage as
+      ``commits: [{"sha": ..., "repos": [...]}]``.
+    - ``repos`` counts *unique SHAs* per repo URL. A SHA published under
+      several repo URLs credits **every** repo (mirrors, forks); it still
+      counts once in the global ``unique_shas``. A bare SHA never seen
+      inside a ``/commit/<sha>`` URL appears under no repo.
     """
     titles = {s.id: s.title for s in snap.sessions}
     projects = {s.id: s.working_directory for s in snap.sessions}
     by_session: dict[str, dict[str, set[str]]] = {}
-    sha_repo: dict[str, str] = {}
+    sha_repos: dict[str, set[str]] = {}
     for ref in snap.commits:
         entry = by_session.setdefault(
             ref.session_id, {"shas": set(), "repos": set()}
@@ -207,22 +210,26 @@ def commits_report(snap: MetricsSnapshot) -> dict[str, Any]:
         entry["shas"].add(ref.sha)
         if ref.repo_url:
             entry["repos"].add(ref.repo_url)
-            sha_repo.setdefault(ref.sha, ref.repo_url)
+            sha_repos.setdefault(ref.sha, set()).add(ref.repo_url)
     sessions = [
         {
             "id": sid,
             "title": titles.get(sid),
             "project": projects.get(sid),
             "n_commits": len(entry["shas"]),
-            "shas": sorted(entry["shas"]),
+            "commits": [
+                {"sha": sha, "repos": sorted(sha_repos.get(sha, ()))}
+                for sha in sorted(entry["shas"])
+            ],
             "repos": sorted(entry["repos"]),
         }
         for sid, entry in by_session.items()
     ]
     sessions.sort(key=lambda r: (-r["n_commits"], r["id"]))
     repo_shas: dict[str, set[str]] = {}
-    for sha, repo in sha_repo.items():
-        repo_shas.setdefault(repo, set()).add(sha)
+    for sha, repos_for_sha in sha_repos.items():
+        for repo in repos_for_sha:
+            repo_shas.setdefault(repo, set()).add(sha)
     repos = [
         {
             "repo": repo,

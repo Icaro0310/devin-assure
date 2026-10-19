@@ -156,6 +156,12 @@ def render_projects_md(rows: list[dict[str, Any]]) -> str:
     )
 
 
+def _fmt_commit(commit: dict[str, Any]) -> str:
+    """``abc1234@github.com/o/r`` — the repo rides with its SHA."""
+    sha = commit["sha"][:7]
+    return f"{sha}@{'+'.join(commit['repos'])}" if commit["repos"] else sha
+
+
 def render_commits_md(report: dict[str, Any]) -> str:
     """``commits_report`` as markdown: headline stats + sessions + repos."""
     parts = [
@@ -180,14 +186,13 @@ def render_commits_md(report: dict[str, Any]) -> str:
         "### Sessions",
         "",
         md_table(
-            ["SESSION", "PROJECT", "COMMITS", "SHAS", "REPOS"],
+            ["SESSION", "PROJECT", "COMMITS", "SHAS"],
             [
                 [
                     s["title"] or s["id"][:8],
                     s["project"] or "-",
                     fmt_int(s["n_commits"]),
-                    ", ".join(sha[:7] for sha in s["shas"]),
-                    ", ".join(s["repos"]) or "-",
+                    ", ".join(_fmt_commit(c) for c in s["commits"]),
                 ]
                 for s in sessions
             ],

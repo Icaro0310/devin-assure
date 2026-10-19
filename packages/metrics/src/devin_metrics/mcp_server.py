@@ -1,7 +1,8 @@
 """devin-metrics as an MCP server: the ``--json`` payloads as one tool.
 
 One tool, ``metrics_query`` — reads the local session stores and returns
-the same JSON payloads as ``devin-metrics summary|projects|daily --json``.
+the same JSON payloads as ``devin-metrics summary|projects|daily|commits
+--json``.
 Read-only: the stores are only ever opened for reading; nothing is
 written, no network, no sessions are spawned.
 
@@ -19,7 +20,12 @@ from typing import Any
 
 from devin_internals.schema import SchemaError
 
-from devin_metrics.aggregate import by_day, by_project, summarize
+from devin_metrics.aggregate import (
+    by_day,
+    by_project,
+    commits_report,
+    summarize,
+)
 from devin_metrics.collect import collect
 from devin_metrics.paths import (
     default_acp_messages_dir,
@@ -27,7 +33,7 @@ from devin_metrics.paths import (
     sessions_db_path,
 )
 
-_KINDS = ("summary", "projects", "daily")
+_KINDS = ("summary", "projects", "daily", "commits")
 
 
 def _resolve_stores(sessions_db: str, acp_dir: str) -> tuple[Path, Path]:
@@ -50,9 +56,10 @@ def do_query(
     """Query the session stores and return the ``--json`` payload.
 
     ``kind`` selects the rollup: ``summary`` (headline counts, per-model
-    table, top-5 lists), ``projects`` (one row per working directory) or
+    table, top-5 lists), ``projects`` (one row per working directory),
     ``daily`` (one row per UTC activity day — ``days`` keeps the N most
-    recent activity days, 0 or negative means all). Failures the CLI
+    recent activity days, 0 or negative means all) or ``commits``
+    (session→commit correlation). Failures the CLI
     reports as exit 1 (missing or unreadable sessions.db) surface here
     as ``{"error": ...}``; a missing acp dir degrades gracefully, same as
     the CLI.
@@ -73,6 +80,8 @@ def do_query(
         return summarize(snap)
     if kind == "projects":
         return by_project(snap)
+    if kind == "commits":
+        return commits_report(snap)
     return by_day(snap, days=days if days > 0 else None)
 
 
@@ -117,7 +126,9 @@ def build_server():
         ``summary`` (headline counts, per-model table, top-5 longest and
         costliest sessions), ``projects`` (per-project session/activity
         rows) or ``daily`` (per-day activity; ``days`` keeps the N most
-        recent activity days, 0 = all). ``sessions_db``/``acp_dir``
+        recent activity days, 0 = all) or ``commits`` (session→commit
+        correlation: SHAs + repo URLs from tool_call_state).
+        ``sessions_db``/``acp_dir``
         default to the platform Devin data dirs. Cost/token fields are
         ``null`` when the local ACP logs carry none — never a bill.
         """

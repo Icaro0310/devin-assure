@@ -158,6 +158,13 @@ def extract_usage(
     return record
 
 
+def _count_tool_calls(rows: Any, counts: dict[str, int]) -> Any:
+    """Count rows as they stream — one pass, payloads never retained."""
+    for tc in rows:
+        counts[tc.session_id] = counts.get(tc.session_id, 0) + 1
+        yield tc
+
+
 def _scan_acp_dir(acp_dir: Path | None) -> tuple[list[UsageRecord], int, int, int]:
     """Return (usage records, db file count, parse errors, orphan dbs)."""
     if acp_dir is None or not acp_dir.is_dir():
@@ -213,13 +220,18 @@ def collect(sessions_db: str | Path, acp_dir: str | Path | None) -> MetricsSnaps
                     node.session_id, 0
                 ):
                     context_peak[node.session_id] = ntp
-        tool_calls = list(
-            _rows(store, "iter_tool_call_state", "tool_call_state")
-        )
+        # One streaming pass feeds both the row count and the commit-ref
+        # extraction — tool_call_json payloads are MB-scale, materializing
+        # them all would be an OOM regression on large stores.
         tool_counts: dict[str, int] = {}
-        for tc in tool_calls:
-            tool_counts[tc.session_id] = tool_counts.get(tc.session_id, 0) + 1
-        commits = tuple(commit_references(tool_calls))
+        commits = tuple(
+            commit_references(
+                _count_tool_calls(
+                    _rows(store, "iter_tool_call_state", "tool_call_state"),
+                    tool_counts,
+                )
+            )
+        )
 
     usage, files, errors, _ = _scan_acp_dir(acp_path)
     acp_available = acp_path is not None and acp_path.is_dir()

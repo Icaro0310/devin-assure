@@ -69,12 +69,42 @@ def test_commits_rollup(snap, session_ids):
     assert s0["title"] == "alpha-1"
     assert s0["project"] == "/work/alpha"
     assert s0["n_commits"] == 1
-    assert s0["shas"] == [SHA_A]
+    # sha↔repo linkage is kept per commit
+    assert s0["commits"] == [{"sha": SHA_A, "repos": [REPO_ALPHA]}]
     assert s0["repos"] == [REPO_ALPHA]
     s2 = sessions[session_ids[2]]
     assert s2["n_commits"] == 2
-    assert s2["shas"] == [SHA_B, SHA_C]  # sorted
+    assert s2["commits"] == [  # sorted by sha
+        {"sha": SHA_B, "repos": [REPO_BETA]},
+        {"sha": SHA_C, "repos": []},  # bare sha, no repo context
+    ]
     assert s2["repos"] == [REPO_BETA]
+
+
+def test_shared_sha_credits_every_repo():
+    """One SHA under two repo URLs counts toward both repos — but only
+    once in the global unique_shas."""
+    from devin_internals.commits import CommitRef
+    from devin_metrics.collect import MetricsSnapshot
+
+    refs = (
+        CommitRef("s1", "tc1", "call", SHA_A, "github.com/a/one"),
+        CommitRef("s1", "tc2", "call", SHA_A, "github.com/b/two"),
+    )
+    snap = MetricsSnapshot(
+        sessions_db="-", acp_dir=None, acp_available=False,
+        acp_db_files=0, acp_db_errors=0, matched_sessions=0,
+        orphan_dbs=0, sessions=(), usage=(), commits=refs,
+    )
+    report = commits_report(snap)
+    assert report["unique_shas"] == 1
+    repos = {r["repo"]: r["unique_shas"] for r in report["repos"]}
+    assert repos == {"github.com/a/one": 1, "github.com/b/two": 1}
+    s = report["sessions"][0]
+    assert s["n_commits"] == 1
+    assert s["commits"] == [
+        {"sha": SHA_A, "repos": ["github.com/a/one", "github.com/b/two"]}
+    ]
 
 
 def test_commits_rollup_repos(snap):
@@ -108,8 +138,10 @@ def test_summary_reports_commit_counts(snap):
 def test_render_commits_md(snap, session_ids):
     md = render_commits_md(commits_report(snap))
     assert "## devin-metrics commits" in md
-    assert SHA_A[:7] in md and SHA_B[:7] in md and SHA_C[:7] in md
-    assert REPO_ALPHA in md and REPO_BETA in md
+    # sha@repo keeps the per-commit linkage visible
+    assert f"{SHA_A[:7]}@{REPO_ALPHA}" in md
+    assert f"{SHA_B[:7]}@{REPO_BETA}" in md
+    assert SHA_C[:7] in md
     assert "alpha-1" in md and "beta-1" in md
 
 
@@ -147,8 +179,9 @@ def test_commits_cli_json(sessions_db, acp_dir, session_ids, capsys):
         session_ids[0], session_ids[2],
     }
     assert set(data["sessions"][0]) == {
-        "id", "title", "project", "n_commits", "shas", "repos",
+        "id", "title", "project", "n_commits", "commits", "repos",
     }
+    assert set(data["sessions"][0]["commits"][0]) == {"sha", "repos"}
     assert set(data["repos"][0]) == {"repo", "unique_shas", "sessions"}
 
 
