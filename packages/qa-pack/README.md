@@ -119,6 +119,10 @@ devin-qa-pack report --sessions-db path/to/sessions.db --out report.html
 # (hook mode — writes a JSON side file, never touches the session)
 devin-qa-pack session-end
 
+# schedule a daily audit sweep over every detected store
+# (cron / Task Scheduler / elapsed registry — opt-in)
+devin-qa-pack install --daily
+
 # intent vs. coverage (QA-4): did the agent touch what the prompt named?
 devin-qa-pack intent <session> --sessions-db path/to/sessions.db
 
@@ -276,6 +280,41 @@ stdin and exports `DEVIN_SESSION_ID`):
   ]
 }
 ```
+
+## Scheduled audit sweep (`install --daily`)
+
+The `SessionEnd` hook audits live; `devin-qa-pack install --daily` adds
+the complementary **scheduled sweep** — a daily `devin-qa-pack audit
+--all` over every detected surface (`--surface` narrows it) for
+sessions the hook missed (Devin closed early, hook not wired, foreign
+stores). It writes the full payload to
+`<data-dir>/qa/audit-sweep.json` and appends one compact verdict line
+per session (`origin: "sweep"`) to the same
+`<data-dir>/qa/verdicts.jsonl` ledger `session-end` feeds. Read-only on
+every store: the only writes are under the data dir's `qa/` folder, and
+the job does not need Devin closed.
+
+```bash
+devin-qa-pack install --daily                  # auto-detect backend
+devin-qa-pack install --daily --backend cron   # pin one backend
+devin-qa-pack install --daily --data-dir /custom/devin --surface devin-cli
+```
+
+Backend selection follows the shared `devin-install-scheduler`
+convention (same as devin-state's `devin-janitor`/`devin-backup`): a
+tagged `@daily` **crontab** line on Linux/macOS, a daily **Task
+Scheduler** entry on Windows, or — on locked-down machines without
+either — a job record in `<config-dir>/.devin-ecosystem/scheduled.json`
+(the `elapsed` backend) that devin-powerups' `UserPromptSubmit` hook
+ticks (`python tools/schedule.py check --run`). `--backend` pins a
+backend, `--config-dir` relocates the registry, `--data-dir` reshapes
+where the registered command writes, `--json` prints the job record.
+Both `--sessions-db` and `--out` in the registered command are baked to
+absolute paths at install time, so the job does not depend on
+`DEVIN_DATA_DIR`/XDG env surviving into the scheduler's minimal
+environment (re-run `install` if the data dir ever moves).
+The sweep exits `1` when any session is `PARTIAL`/`UNVERIFIED` — the
+verdicts land in the artifacts, the exit code is informational.
 
 ## Pre-commit gate
 
