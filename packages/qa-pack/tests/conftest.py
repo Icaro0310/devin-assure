@@ -109,6 +109,8 @@ def sessions_db(tmp_path: Path) -> Path:
       calls, working dir not on disk).
     - ``sess-opaque``: a tests claim whose only tool-call row has NULL
       payloads (interrupted call — ground truth unreadable).
+    - ``sess-counted``: a counted tests claim ("12 tests passed") backed
+      by a pytest call whose output records ``12 passed, 1 skipped``.
     - ``sess-http``: an "API returned 200" claim backed by a curl call
       whose recorded output carries ``HTTP/1.1 200 OK``.
     """
@@ -168,6 +170,24 @@ def sessions_db(tmp_path: Path) -> Path:
                     created=_BASE_TS_MS + 10_800_000)
         add_message(con, "sess-opaque", 1, "agent", "Tests passed.")
         add_tool_call(con, "sess-opaque", "tc-null")
+
+        add_session(con, "sess-counted", missing_wd, "Counted session",
+                    created=_BASE_TS_MS + 12_600_000)
+        add_message(
+            con,
+            "sess-counted",
+            1,
+            "agent",
+            "Done — all 12 tests passed under pytest.",
+        )
+        add_tool_call(
+            con,
+            "sess-counted",
+            "tc-pytest",
+            exec_call(
+                "python -m pytest -q", output="12 passed, 1 skipped in 0.8s"
+            ),
+        )
 
         add_session(con, "sess-http", missing_wd, "HTTP session",
                     created=_BASE_TS_MS + 14_400_000)

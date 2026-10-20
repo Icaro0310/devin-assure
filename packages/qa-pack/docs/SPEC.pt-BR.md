@@ -37,9 +37,11 @@ diretório de trabalho em disco.
 `src/devin_qa_pack/`:
 
 - `claims.py` — extrai afirmações de entrega dos `message_nodes`:
-  afirmações de teste (`tests`, com o runner quando citado), de commit
-  (`commit` + hash), de ficheiro (`file` + path) e de push (`push`).
-  Só mensagens de papel agente; dedup por `(kind, detail)`.
+  afirmações de teste (`tests`, com o runner quando citado), afirmações
+  de teste com contagem (`tests_passed` + nº de testes, ex. "47
+  passed"), de commit (`commit` + hash), de ficheiro (`file` + path) e
+  de push (`push`). Só mensagens de papel agente; dedup por
+  `(kind, detail)`.
 - `verify.py` — resolve cada afirmação contra `tool_call_state`, mais
   `git` quando `sessions.working_directory` é um repo em disco:
   `verified` / `disputed` / `unverifiable`.

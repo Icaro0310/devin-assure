@@ -36,7 +36,7 @@ def test_audit_all_json_shape(sessions_db, capsys):
     payload = json.loads(capsys.readouterr().out)
     assert rc == 1  # not every session is PASS
     assert payload["sessions_db"].endswith("sessions.db")
-    assert len(payload["sessions"]) == 5
+    assert len(payload["sessions"]) == 6
     assert {s["verdict"] for s in payload["sessions"]} == {
         "PASS", "PARTIAL", "UNVERIFIED"
     }
@@ -181,7 +181,7 @@ def test_report_writes_html_file(sessions_db, tmp_path, capsys):
     rc = main(["report", "--sessions-db", str(sessions_db),
                "--out", str(out)])
     assert rc == 1  # not every session is PASS
-    assert "5 session(s)" in capsys.readouterr().out
+    assert "6 session(s)" in capsys.readouterr().out
     html = out.read_text(encoding="utf-8")
     assert html.startswith("<!DOCTYPE html>")
     assert "<style>" in html and "<script" not in html

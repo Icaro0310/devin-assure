@@ -172,12 +172,12 @@ def test_audit_out_writes_payload_and_ledger(sessions_db, tmp_path, capsys):
     capsys.readouterr()
     assert rc == 1  # fixture mixes PASS/PARTIAL/UNVERIFIED
     payload = json.loads(out.read_text(encoding="utf-8"))
-    assert len(payload["sessions"]) == 5
+    assert len(payload["sessions"]) == 6
     assert payload["audited_at"]
     assert payload["version"]
     lines = (tmp_path / "qa" / "verdicts.jsonl").read_text(
         encoding="utf-8").splitlines()
-    assert len(lines) == 5
+    assert len(lines) == 6
     rec = json.loads(lines[0])
     for key in ("session_id", "verdict", "audited_at", "claims",
                 "verified", "disputed", "unverifiable", "origin"):

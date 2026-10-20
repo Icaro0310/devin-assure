@@ -30,9 +30,10 @@ Updated: 2026-10-04 · Milestone: **M1 (done) + QA-1 + QA-4** · Version: 0.1.0
 
 - `src/devin_qa_pack/`:
   - `claims.py` — extracts deliverable claims from `message_nodes`
-    (`tests` + runner · `commit` + hash · `file` + path · `push`);
-    agent-role messages only, dedup by `(kind, detail)`, defensive decode
-    of the unstable `chat_message` format.
+    (`tests` + runner · `tests_passed` + count · `commit` + hash ·
+    `file` + path · `push` · `http` + status · `url`); agent-role
+    messages only, dedup by `(kind, detail)`, defensive decode of the
+    unstable `chat_message` format.
   - `verify.py` — resolves claims against `tool_call_state` ground truth
     (parsed via devin-internals-spec `SessionsStore`) plus `git
     cat-file`/existence checks when `working_directory` is on disk:

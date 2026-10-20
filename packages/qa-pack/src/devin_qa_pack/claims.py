@@ -19,13 +19,14 @@ from dataclasses import dataclass
 from devin_qa_pack.evidence import EvidenceMessage, normalize_role
 
 TESTS = "tests"
+TESTS_PASSED = "tests_passed"
 COMMIT = "commit"
 FILE = "file"
 PUSH = "push"
 HTTP = "http"
 URL = "url"
 
-CLAIM_KINDS = (TESTS, COMMIT, FILE, PUSH, HTTP, URL)
+CLAIM_KINDS = (TESTS, TESTS_PASSED, COMMIT, FILE, PUSH, HTTP, URL)
 
 _RUNNER_TOKENS = (
     "cargo test",
@@ -44,6 +45,15 @@ _TESTISH = r"(?:tests?|test suite|pytest|unittest|jest|vitest|mocha|tox|nose)"
 _TESTS_RE = re.compile(
     rf"\b{_TESTISH}\b[^.\n]*?\b(?:pass(?:ed|es|ing)?|green|succeed(?:ed|ing)?|ok)\b"
     rf"|\b\d+\s+(?:{_TESTISH}\s+)?passed\b",
+    re.IGNORECASE,
+)
+# "47 tests passed" / "108 passed, 1 skipped" — the captured group is the
+# claimed pass count; like an `http` claim it checks *output values*, so
+# it needs a recorded "N passed" in tool-call output to verify. Grouped
+# totals ("1,234 tests passed") normalize to the plain integer — the tail
+# of a comma group must never read as a smaller claim.
+_PASSED_COUNT_RE = re.compile(
+    r"(?<![\w,])(\d{1,3}(?:,\d{3})+|\d+)\s+(?:tests?\s+)?pass(?:ed|es)?\b",
     re.IGNORECASE,
 )
 _COMMIT_WORD_RE = re.compile(r"\bcommit(?:s|ted|ting)?\b", re.IGNORECASE)
@@ -122,6 +132,8 @@ def _runner_in(line: str) -> str | None:
 def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
     if _TESTS_RE.search(line):
         yield TESTS, _runner_in(line) or TESTS
+    for m in _PASSED_COUNT_RE.finditer(line):
+        yield TESTS_PASSED, m.group(1).replace(",", "")
     if _COMMIT_WORD_RE.search(line):
         for m in _HEX_RE.finditer(line):
             yield COMMIT, m.group(0).lower()

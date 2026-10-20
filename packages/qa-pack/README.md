@@ -66,7 +66,8 @@ Devin persists every tool call in `sessions.db → tool_call_state`. This
 tool reads that table via
 [devin-internals-spec](https://github.com/Icaro0310/devin-internals-spec)
 and treats it as **ground truth**: a "tests passed" claim must be backed
-by a run/execute call that ran a test runner and completed; "committed
+by a run/execute call that ran a test runner and completed; "47 tests
+passed" must match a recorded `47 passed` in the tool output; "committed
 `sha`" must show the hash in a call or in `git log`. Text-only auditors
 *cannot* do this — remove Devin's store and the check disappears.
 
@@ -416,6 +417,9 @@ network is off by default and the audit is fully offline otherwise.
   output: a claim is `verified` when a recorded status matches,
   `disputed` when outputs record a different status and `unverifiable`
   when no output records any status. No request is ever replayed.
+- Counted test claims work the same way: "47 tests passed" is `verified`
+  when recorded output reports `47 passed`, `disputed` when it reports
+  a different count and `unverifiable` when no output records a count.
 - File/commit checks use `sessions.working_directory` only when it
   exists on disk and is a git repo — otherwise they rely on tool-call
   evidence alone.
