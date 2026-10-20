@@ -154,9 +154,10 @@ def test_regen_verify_flag(tmp_path):
 
 
 def test_check_tolerates_uri_special_chars_in_path(tmp_path):
-    """A '?' or '#' in --corpus-dir must not break the db dump — the raw
-    path was leaking into SQLite's URI parser and reading a different db."""
-    dest = tmp_path / "corpus?with#special-chars"
+    """A '#' in --corpus-dir must not break the db dump — the raw path
+    was leaking into SQLite's URI parser as a fragment separator and
+    reading a different db ('#' unlike '?' is legal in Windows names)."""
+    dest = tmp_path / "corpus#with-special-chars"
     shutil.copytree(CORPUS, dest)
     rc = _run("--check", "--corpus-dir", str(dest))
     assert rc.returncode == 0, rc.stderr
