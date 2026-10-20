@@ -189,6 +189,60 @@ def test_tests_passed_claim_unverifiable_when_ground_truth_unreadable():
     assert result.status == UNVERIFIABLE
 
 
+def test_tests_passed_claim_not_verified_by_count_in_command():
+    # a command echoing "47 passed" is the invocation — only recorded
+    # OUTPUT counts as evidence
+    calls = parse_tool_calls(
+        [exec_state("echo '47 passed'", output="done")]
+    )
+    result = verify_claim(claim(TESTS_PASSED, "47"), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+def test_tests_passed_claim_not_verified_by_count_in_title():
+    calls = parse_tool_calls(
+        [tstate("tc", {"kind": "execute", "title": "suite: 47 passed",
+                       "status": "completed",
+                       "rawOutput": {"output": "ok"}})]
+    )
+    result = verify_claim(claim(TESTS_PASSED, "47"), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+def test_tests_passed_claim_verified_by_labeled_count_output():
+    calls = parse_tool_calls(
+        [exec_state("pytest -q", output="47 tests passed")]
+    )
+    result = verify_claim(claim(TESTS_PASSED, "47"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_tests_passed_claim_unverifiable_when_mismatch_and_unreadable_row():
+    # the NULL row could hold the corroborating run — a mismatch in a
+    # decoded call is not conclusive while ground truth stays opaque
+    states = [
+        exec_state("pytest -q", output="46 passed"),
+        tstate("tc-null"),
+    ]
+    result = verify_claim(claim(TESTS_PASSED, "47"),
+                          parse_tool_calls(states),
+                          "/nonexistent", raw_call_count=len(states))
+    assert result.status == UNVERIFIABLE
+
+
+def test_tests_passed_claim_normalizes_grouped_totals():
+    calls = parse_tool_calls(
+        [exec_state("pytest -q", output="1,234 passed in 3.2s")]
+    )
+    assert verify_claim(
+        claim(TESTS_PASSED, "1234"), calls, "/nonexistent"
+    ).status == VERIFIED
+    # a comma group's tail is not a smaller count — 234 ≠ 1,234
+    assert verify_claim(
+        claim(TESTS_PASSED, "234"), calls, "/nonexistent"
+    ).status == DISPUTED
+
+
 # -- push claims -------------------------------------------------------------
 
 
@@ -298,6 +352,19 @@ def test_http_claim_unverifiable_when_no_status_recorded():
 
 def test_http_claim_unverifiable_when_ground_truth_unreadable():
     states = [tstate("tc-null")]  # NULL payloads → dropped
+    result = verify_claim(claim(HTTP, "200"), parse_tool_calls(states),
+                          "/nonexistent", raw_call_count=len(states))
+    assert result.status == UNVERIFIABLE
+
+
+def test_http_claim_unverifiable_when_mismatch_and_unreadable_row():
+    # same rule as tests_passed: unreadable rows may hold the matching
+    # response, so a decoded mismatch is unverifiable, not disputed
+    states = [
+        exec_state("curl -i https://api.example.test/x",
+                   output="HTTP/1.1 500 Internal Server Error"),
+        tstate("tc-null"),
+    ]
     result = verify_claim(claim(HTTP, "200"), parse_tool_calls(states),
                           "/nonexistent", raw_call_count=len(states))
     assert result.status == UNVERIFIABLE

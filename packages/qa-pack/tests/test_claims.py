@@ -139,6 +139,15 @@ def test_bare_tests_claim_yields_no_count_claim():
     assert [c.kind for c in claims] == [TESTS]
 
 
+def test_grouped_total_claim_normalizes_to_plain_count():
+    # "1,234" is one claim of 1234 — the tail "234" is not a claim
+    claims = extract_claims([make_node("1,234 tests passed.")])
+    assert [(c.kind, c.detail) for c in claims] == [
+        (TESTS, "tests"),
+        (TESTS_PASSED, "1234"),
+    ]
+
+
 # -- http claims ---------------------------------------------------------------
 
 

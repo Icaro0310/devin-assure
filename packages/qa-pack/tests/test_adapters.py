@@ -298,6 +298,120 @@ def test_mcp_failed_exit_disputes(monkeypatch) -> None:
     assert audit.results[0].status != VERIFIED
 
 
+def _b64(text: str) -> str:
+    import base64
+
+    return base64.b64encode(text.encode()).decode()
+
+
+def _mcp_counted_details() -> str:
+    """A shell process whose terminal_update chunks split "47 passed"
+    mid-token — counts only surface if the stream is joined."""
+    return f"""\
+Event details (6 events):
+
+--- event-aaa1 ---
+  type: initial_user_message (message)
+  direction: incoming
+  created_at: 2026-10-06 14:44:45 UTC
+  contents: {{
+  "type": "initial_user_message",
+  "message": "run the suite",
+  "timestamp": "2026-10-06T14:44:45.000000Z"
+}}
+
+--- event-aaa2 ---
+  type: shell_process_started (shell)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:46 UTC
+  contents: {{
+  "type": "shell_process_started",
+  "command": "python -m pytest -q",
+  "shell_id": "s1",
+  "process_id": "proc-1",
+  "starting_dir": "/home/ubuntu",
+  "is_major_action": true
+}}
+
+--- event-aaa3 ---
+  type: terminal_update (shell)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:47 UTC
+  contents: {{
+  "type": "terminal_update",
+  "contents": "{_b64('=== 47 pa')}",
+  "process_id": "proc-1"
+}}
+
+--- event-aaa4 ---
+  type: terminal_update (shell)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:47 UTC
+  contents: {{
+  "type": "terminal_update",
+  "contents": "{_b64('ssed in 0.3s ===')}",
+  "process_id": "proc-1"
+}}
+
+--- event-aaa5 ---
+  type: shell_process_completed (shell)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:48 UTC
+  contents: {{
+  "type": "shell_process_completed",
+  "exit_code": "0",
+  "output_trunc": "(truncated)",
+  "process_id": "proc-1"
+}}
+
+--- event-aaa6 ---
+  type: devin_message (message)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:49 UTC
+  contents: {{
+  "type": "devin_message",
+  "message": "47 tests passed.",
+  "timestamp": "2026-10-06T14:44:49.000000Z"
+}}
+"""
+
+
+MCP_COUNTED_LIST = f"""\
+Total: 6
+Showing 6
+No more results (last page).
+
+[event-aaa1] 2026-10-06 14:44:45 UTC {IN} initial_user_message (message): user: run the suite
+[event-aaa2] 2026-10-06 14:44:46 UTC {OUT} shell_process_started (shell): exec: python -m pytest -q (shell: s1)
+[event-aaa3] 2026-10-06 14:44:47 UTC {OUT} terminal_update (shell): terminal output update (shell: s1)
+[event-aaa4] 2026-10-06 14:44:47 UTC {OUT} terminal_update (shell): terminal output update (shell: s1)
+[event-aaa5] 2026-10-06 14:44:48 UTC {OUT} shell_process_completed (shell): exit_code=0
+[event-aaa6] 2026-10-06 14:44:49 UTC {OUT} devin_message (message): devin: 47 tests passed.
+"""
+
+
+def test_mcp_count_split_across_terminal_chunks(monkeypatch) -> None:
+    from devin_qa_pack.adapters import mcp
+
+    def client(name, args, *, api_key, base_url, _rid=None):
+        if name == "devin_session_interact":
+            return MCP_META
+        if args.get("action") == "list":
+            return MCP_COUNTED_LIST
+        return _mcp_counted_details()
+
+    monkeypatch.setenv("DEVIN_API_KEY", "cog_test")
+    view = mcp.load("abc", _client=client)
+
+    assert view.calls[0].passed_counts == (47,)
+    audit = audit_source(view)
+    assert audit.verdict == PASS
+    counted = next(
+        r for r in audit.results if r.claim.kind == "tests_passed"
+    )
+    assert counted.status == VERIFIED
+
+
 def test_mcp_missing_key_errors(monkeypatch) -> None:
     from devin_qa_pack.adapters import mcp
 

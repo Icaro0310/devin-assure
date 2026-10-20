@@ -409,8 +409,9 @@ def load(
         ]
         texts: list[str] = list(_strings(started)) + outputs
         statuses: set[int] = set(_http_statuses(started))
-        counts: set[int] = set(_passed_counts(started))
-        counts |= set(_passed_counts(outputs))
+        # Terminal chunks are one contiguous stdout stream — join before
+        # extracting, or a "47 passed" split across updates is missed.
+        counts: set[int] = set(_passed_counts("".join(outputs)))
         status = "unknown"
         if completed is not None:
             texts.extend(_strings(completed))

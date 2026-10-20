@@ -122,9 +122,9 @@ def load(path: str | Path, working_directory: str | None = None) -> SourceSessio
                 http_statuses=tuple(sorted(
                     {*_http_statuses(inp), *_http_statuses(output)}
                 )),
-                passed_counts=tuple(sorted(
-                    {*_passed_counts(inp), *_passed_counts(output)}
-                )),
+                # counts come from the tool_result, never the tool_use
+                # input (a Write's `content` is the request, not output)
+                passed_counts=tuple(sorted(set(_passed_counts(output)))),
             )
         )
 
