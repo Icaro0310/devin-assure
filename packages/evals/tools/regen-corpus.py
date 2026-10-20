@@ -2,9 +2,10 @@
 """Regenerate the committed golden corpus (``corpus/``) — EV-3.
 
 The corpus is *versioned*: ``corpus/evals/*.json`` and ``corpus/corpus.json``
-are committed; the generated ``sessions*.db`` files are not (they are
-rebuilt in place — ``*.db`` is gitignored and committing binaries is
-against repo policy anyway).
+are committed; the ``sessions*.db`` files are too (the
+``!corpus/*.db`` gitignore exception), so ``--check`` compares their
+logical content — a sorted ``iterdump`` — not bytes, which vary with
+the local SQLite version.
 
 Usage::
 
@@ -23,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 import tempfile
 from pathlib import Path
@@ -89,8 +91,26 @@ def regenerate(corpus_dir: Path, seed: int) -> dict:
     return generate_corpus(corpus_dir, seed=seed)
 
 
+def _db_dumps(corpus_dir: Path) -> dict[str, list[str]]:
+    """Committed binary half, compared semantically: each
+    ``sessions*.db`` becomes its sorted ``iterdump`` so the gate is
+    immune to SQLite page-layout/version noise."""
+    out: dict[str, list[str]] = {}
+    for p in sorted(corpus_dir.glob("sessions*.db")):
+        # ``as_uri`` percent-encodes the path — a raw ``file:{p}`` lets a
+        # '?' or '#' in the directory name leak into SQLite's URI parser
+        # as query/fragment separators and silently read a different db.
+        con = sqlite3.connect(f"{p.resolve().as_uri()}?mode=ro", uri=True)
+        try:
+            out[p.name] = sorted(con.iterdump())
+        finally:
+            con.close()
+    return out
+
+
 def check(corpus_dir: Path, seed: int) -> list[str]:
-    """Diff committed text artifacts against a fresh regeneration."""
+    """Diff committed artifacts — text files byte-for-byte, databases
+    by logical dump — against a fresh regeneration."""
     committed = _text_artifacts(corpus_dir)
     if not committed:
         return [(f"{corpus_dir}: no committed corpus found — "
@@ -98,6 +118,7 @@ def check(corpus_dir: Path, seed: int) -> list[str]:
     with tempfile.TemporaryDirectory(prefix="devin-evals-corpus-") as tmp:
         generate_corpus(tmp, seed=seed)
         regenerated = _text_artifacts(Path(tmp))
+        regenerated_dbs = _db_dumps(Path(tmp))
     drift: list[str] = []
     for name in sorted(set(committed) | set(regenerated)):
         if name not in committed:
@@ -106,6 +127,14 @@ def check(corpus_dir: Path, seed: int) -> list[str]:
             drift.append(f"{name}: committed but no longer generated")
         elif committed[name] != regenerated[name]:
             drift.append(f"{name}: committed content differs from regenerated")
+    committed_dbs = _db_dumps(corpus_dir)
+    for name in sorted(set(committed_dbs) | set(regenerated_dbs)):
+        if name not in committed_dbs:
+            drift.append(f"{name}: regenerated but not committed")
+        elif name not in regenerated_dbs:
+            drift.append(f"{name}: committed but no longer generated")
+        elif committed_dbs[name] != regenerated_dbs[name]:
+            drift.append(f"{name}: committed db content differs from regenerated")
     return drift
 
 
