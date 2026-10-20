@@ -209,6 +209,17 @@ def test_tests_passed_claim_not_verified_by_count_in_title():
     assert result.status == UNVERIFIABLE
 
 
+def test_tests_passed_claim_not_verified_by_count_in_args():
+    # container keys (args/input/parameters) are invocation too — a
+    # count inside them is the request, not recorded output
+    calls = parse_tool_calls(
+        [tstate("tc", {"kind": "execute", "status": "completed",
+                       "args": {"command": "run.sh # 47 passed"}})]
+    )
+    result = verify_claim(claim(TESTS_PASSED, "47"), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
 def test_tests_passed_claim_verified_by_labeled_count_output():
     calls = parse_tool_calls(
         [exec_state("pytest -q", output="47 tests passed")]

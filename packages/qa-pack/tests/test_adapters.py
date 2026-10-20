@@ -147,6 +147,29 @@ def test_claude_code_failed_result_disputes(tmp_path: Path) -> None:
     assert tests.status == "disputed"
 
 
+def test_claude_code_command_text_not_pass_evidence(tmp_path: Path) -> None:
+    # the tool_use input is the invocation — "echo 47 passed" in the
+    # command must not corroborate the claim; only tool_result output can
+    entries = [
+        {"type": "assistant",
+         "message": {"role": "assistant", "content": [
+             {"type": "tool_use", "id": "tu1", "name": "Bash",
+              "input": {"command": "echo 47 passed"}}]}},
+        {"type": "user",
+         "message": {"role": "user", "content": [
+             {"type": "tool_result", "tool_use_id": "tu1",
+              "content": "done", "is_error": False}]}},
+        {"type": "assistant",
+         "message": {"role": "assistant", "content": [
+             {"type": "text", "text": "all 47 tests passed"}]}},
+    ]
+    f = _write_jsonl(tmp_path / "session.jsonl", entries)
+    audit = audit_source(claude_code.load(f))
+    counted = next(r for r in audit.results
+                   if r.claim.kind == "tests_passed")
+    assert counted.status != VERIFIED
+
+
 def test_cli_transcript_mode(tmp_path: Path, capsys) -> None:
     f = _write_jsonl(tmp_path / "session.jsonl", CLAUDE_TRANSCRIPT)
 
@@ -410,6 +433,89 @@ def test_mcp_count_split_across_terminal_chunks(monkeypatch) -> None:
         r for r in audit.results if r.claim.kind == "tests_passed"
     )
     assert counted.status == VERIFIED
+
+
+def _mcp_echo_details() -> str:
+    """A shell call whose *command* echoes "47 passed" — the invocation
+    text must never corroborate the count claim."""
+    return """\
+Event details (4 events):
+
+--- event-ddd1 ---
+  type: initial_user_message (message)
+  direction: incoming
+  created_at: 2026-10-06 14:44:45 UTC
+  contents: {
+  "type": "initial_user_message",
+  "message": "hi",
+  "timestamp": "2026-10-06T14:44:45.000000Z"
+}
+
+--- event-ddd2 ---
+  type: shell_process_started (shell)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:46 UTC
+  contents: {
+  "type": "shell_process_started",
+  "command": "echo 47 passed",
+  "shell_id": "s1",
+  "process_id": "proc-10"
+}
+
+--- event-ddd3 ---
+  type: shell_process_completed (shell)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:47 UTC
+  contents: {
+  "type": "shell_process_completed",
+  "exit_code": "0",
+  "output_trunc": "",
+  "process_id": "proc-10"
+}
+
+--- event-ddd4 ---
+  type: devin_message (message)
+  direction: outgoing
+  created_at: 2026-10-06 14:44:48 UTC
+  contents: {
+  "type": "devin_message",
+  "message": "all 47 tests passed",
+  "timestamp": "2026-10-06T14:44:48.000000Z"
+}
+"""
+
+
+MCP_ECHO_LIST = f"""\
+Total: 4
+Showing 4
+No more results (last page).
+
+[event-ddd1] 2026-10-06 14:44:45 UTC {IN} initial_user_message (message): user: hi
+[event-ddd2] 2026-10-06 14:44:46 UTC {OUT} shell_process_started (shell): exec: echo 47 passed (shell: s1)
+[event-ddd3] 2026-10-06 14:44:47 UTC {OUT} shell_process_completed (shell): exit_code=0
+[event-ddd4] 2026-10-06 14:44:48 UTC {OUT} devin_message (message): devin: all 47 tests passed
+"""
+
+
+def test_mcp_command_text_not_pass_evidence(monkeypatch) -> None:
+    # the command in shell_process_started is the invocation — a bare
+    # "echo 47 passed" must not corroborate the count claim
+    from devin_qa_pack.adapters import mcp
+
+    def client(name, args, *, api_key, base_url, _rid=None):
+        if name == "devin_session_interact":
+            return MCP_META
+        if args.get("action") == "list":
+            return MCP_ECHO_LIST
+        return _mcp_echo_details()
+
+    monkeypatch.setenv("DEVIN_API_KEY", "cog_test")
+    view = mcp.load("abc", _client=client)
+
+    assert view.calls[0].passed_counts == ()
+    counted = next(r for r in audit_source(view).results
+                   if r.claim.kind == "tests_passed")
+    assert counted.status != VERIFIED
 
 
 def test_mcp_missing_key_errors(monkeypatch) -> None:
