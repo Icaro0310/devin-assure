@@ -20,14 +20,20 @@ from devin_evals.corpus import (
     generate_corpus,
     verify_corpus,
 )
+from devin_evals.dream.defects import FAKE_AWS_KEY
 from devin_evals.graders import _SECRET_PATTERNS
 from devin_evals.runner import _message_text, run_evals
 from devin_internals.parsers.sessions import SessionsStore
 from devin_internals.schema import UnknownSchemaVersionError
 
 EXPECTED_MATCHES = {"D01", "D02", "D03", "D04", "D05", "D06", "D07",
-                    "D08", "D09", "D10"}
+                    "D08", "D09", "D10", "D11"}
+# Cases whose expected verdict is *unreached* (verify reports "gap").
 EXPECTED_GAPS: set[str] = set()
+# Defects with a documented modeling limit in manifest.known_gaps —
+# the D11 golden still matches; the gap text explains that graders are
+# single-session so the reuse itself is not what gets detected.
+KNOWN_GAP_DEFECTS = {"D11"}
 
 
 @pytest.fixture
@@ -58,8 +64,8 @@ def test_manifest_is_synthetic_and_seeded(corpus_dir: Path):
     assert manifest["synthetic_only"] is True
     assert manifest["generator"] == "dream"
     assert isinstance(manifest["seed"], int)
-    assert len(manifest["cases"]) == 10
-    assert set(manifest["known_gaps"]) == EXPECTED_GAPS
+    assert len(manifest["cases"]) == 11
+    assert set(manifest["known_gaps"]) == KNOWN_GAP_DEFECTS
 
 
 def test_dream_specs_cover_all_defects():
@@ -114,7 +120,9 @@ def test_verify_matches_expressible_verdicts(corpus_dir: Path):
     assert s["ok"] is True
 
 
-def test_verify_strict_passes_with_no_gaps(corpus_dir: Path):
+def test_verify_strict_passes_when_all_verdicts_match(corpus_dir: Path):
+    # D11 carries a documented known_gap but still reaches its verdict —
+    # strict only fails on gap *outcomes* (expected unreached).
     report = verify_corpus(corpus_dir, strict=True)
     assert report["summary"]["ok"] is True
     assert report["summary"]["mismatched"] == 0
@@ -143,6 +151,32 @@ def test_d06_db_is_refused_loudly(corpus_dir: Path):
     assert "refused" in d06["detail"]
 
 
+def test_d11_reused_secret_recurs_across_sessions(corpus_dir: Path):
+    """D11's premise is real in the corpus db: the same fake credential
+    appears in two different sessions' rows (dream-d04 + dream-d11)."""
+    with SessionsStore(corpus_dir / "sessions.db") as st:
+        carriers = set()
+        for tc in st.tool_call_state():
+            blob = f"{tc.tool_call_json}{tc.tool_call_update_json}"
+            if FAKE_AWS_KEY in blob:
+                carriers.add(tc.session_id)
+        for n in st.message_nodes():
+            if FAKE_AWS_KEY in n.chat_message:
+                carriers.add(n.session_id)
+    assert {"dream-d04", "dream-d11"} <= carriers
+
+
+def test_d11_golden_matches_with_documented_gap(corpus_dir: Path):
+    """The golden fails on in-session presence + the reuse claim; the
+    cross-session detection itself is a documented modeling limit."""
+    report = verify_corpus(corpus_dir)
+    d11 = next(c for c in report["cases"] if c["defect"] == "D11")
+    assert d11["result"] == "match"
+    assert d11["expected_status"] == "fail"
+    assert d11["actual_status"] == "fail"
+    assert "cross-session" in d11["known_gap"]
+
+
 def test_verify_missing_corpus_raises(tmp_path: Path):
     with pytest.raises(FileNotFoundError, match="corpus generate"):
         verify_corpus(tmp_path / "nope")
@@ -152,7 +186,7 @@ def test_verify_writes_report(corpus_dir: Path, tmp_path: Path):
     out = tmp_path / "vout"
     verify_corpus(corpus_dir, out_dir=out)
     report = json.loads((out / "verify-report.json").read_text())
-    assert report["summary"]["total"] == 10
+    assert report["summary"]["total"] == 11
 
 
 # -- the corpus dbs grade as advertised under plain `run` --------------------
@@ -186,7 +220,7 @@ def test_cli_generate_and_verify(tmp_path: Path, capsys):
     assert "golden case(s)" in capsys.readouterr().out
     assert main(["corpus", "verify", "--corpus", str(out)]) == 0
     stdout = capsys.readouterr().out
-    assert "MATCH" in stdout and "10/10" in stdout
+    assert "MATCH" in stdout and "11/11" in stdout
     # strict passes now that D05/D07/D09 gaps are closed by real graders
     assert main(["corpus", "verify", "--corpus", str(out), "--strict"]) == 0
 

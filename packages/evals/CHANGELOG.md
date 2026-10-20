@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Defect class **D11 — cross-session secret reuse** (dream's original
+  D10, "segredo reutilizado entre sessões", closes a coverage gap the
+  absorbed catalogue left between D04's secret-in-output and D09's
+  split-secret): the session pastes the same fake credential an earlier
+  session printed and a grep over session history surfaces it inside
+  `dream-d04`'s transcript — the corpus db genuinely carries the token
+  in two sessions. Golden case `golden-d11-cross-session-secret` expects
+  `fail` (reuse is a leak) and documents in `known_gaps` that graders
+  are single-session: presence + the reuse claim are graded, the
+  traversal that proves recurrence is not. `devin-evals dream unit
+  --defect all` now emits eleven defects.
 - Read-only adapters: `devin_evals.mcp_server` MCP server (`evals_run`
   tool, `devin-evals-mcp` entry point, `mcp` extra), Devin skill and
   `adapters/` plugin root for `devin-evals` and `devin-metrics` MCP

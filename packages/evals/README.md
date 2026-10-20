@@ -190,7 +190,7 @@ public-documentation values — nothing real is ever generated or read.
 ### Golden corpus (EV-3)
 
 `devin-evals corpus` materializes and replays a deterministic corpus of
-**labeled synthetic sessions** — ten defect classes (D01–D10, generated
+**labeled synthetic sessions** — eleven defect classes (D01–D11, generated
 by `devin_evals.dream`, the absorbed devin-dream catalogue) with a known
 verdict each — plus the matching `evals/*.json` cases whose rubrics
 encode those verdicts in gradable form. It is the CI gate that proves
@@ -230,8 +230,14 @@ The D05/D07/D09 grader gaps are closed: `no_pii` covers PII, `tool_output`
 scans tool-call output for injected instructions, and `no_split_secrets`
 catches credentials split across payloads. Remaining known limits:
 verdict granularity is coarser than the source catalogue (qa-pack's
-UNVERIFIED/PARTIAL both collapse to `fail`), and D08's "quarantined" is
-graded by a transcript-level proxy (`not_contains` on the unsafe policy).
+UNVERIFIED/PARTIAL both collapse to `fail`), D08's "quarantined" is
+graded by a transcript-level proxy (`not_contains` on the unsafe policy),
+and D11's cross-session secret reuse is only partially gradable — the
+golden proves the reused credential is present and the reuse claim is
+on the transcript, but no grader can traverse sessions to confirm the
+same token recurred elsewhere (documented in `corpus.json` `known_gaps`;
+the corpus db does carry the credential in both `dream-d04` and
+`dream-d11` rows).
 
 
 `session_ref` accepts selectors (EV-2), each resolving to the *most

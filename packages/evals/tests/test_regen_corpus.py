@@ -44,7 +44,7 @@ def _copy_committed_text(dest: Path) -> Path:
 
 def test_committed_corpus_cases_load():
     cases = load_cases(CORPUS / "evals")
-    assert len(cases) == 10
+    assert len(cases) == 11
     assert all(c.checks for c in cases)
     # D03 exercises the EV-4 packs wiring end-to-end.
     d03 = next(c for c in cases if c.id == "golden-d03-verified-claim")
@@ -57,7 +57,7 @@ def test_committed_manifest_is_seeded_and_synthetic():
     assert manifest["synthetic_only"] is True
     assert manifest["generator"] == "dream"
     assert manifest["seed"] == 0xDEE4
-    assert len(manifest["cases"]) == 10
+    assert len(manifest["cases"]) == 11
 
 
 def test_committed_corpus_has_no_real_session_data():
@@ -134,4 +134,4 @@ def test_regen_verify_flag(tmp_path):
     dest = tmp_path / "corpus"
     rc = _run("--verify", "--corpus-dir", str(dest))
     assert rc.returncode == 0, rc.stderr
-    assert "10/10 matched, 0 known gap(s), 0 mismatch(es)" in rc.stdout
+    assert "11/11 matched, 0 known gap(s), 0 mismatch(es)" in rc.stdout
