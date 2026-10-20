@@ -204,11 +204,12 @@ devin-evals corpus verify  --corpus .corpus # expected-vs-actual per case
 Everything is deterministic given `--seed` and **synthetic only**: the
 corpus must never point at a real `sessions.db`.
 
-The corpus is also **versioned** in the repo: `corpus/evals/*.json` and
-`corpus/corpus.json` are committed, while the `sessions*.db` files are
-always regenerated in place (never committed — `*.db` is gitignored).
-`tools/regen-corpus.py` rebuilds them deterministically and gates CI on
-drift:
+The corpus is also **versioned** in the repo: `corpus/evals/*.json`,
+`corpus/corpus.json` and the `sessions*.db` binaries are all committed
+(the `!corpus/*.db` gitignore exception). `tools/regen-corpus.py`
+rebuilds them deterministically and gates CI on drift — JSON
+byte-for-byte, databases by sorted `iterdump` so SQLite version noise
+never false-positives:
 
 ```bash
 python tools/regen-corpus.py          # rebuild corpus/ in place
