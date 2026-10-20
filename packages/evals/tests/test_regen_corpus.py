@@ -98,6 +98,22 @@ def test_check_detects_missing_and_extra_files(tmp_path):
     assert "no longer generated" in rc.stderr
 
 
+def test_check_detects_db_drift(tmp_path):
+    """The drift gate now covers the committed sessions*.db files —
+    a mutated row must fail --check even though JSON matches."""
+    dest = tmp_path / "corpus"
+    shutil.copytree(CORPUS, dest)
+    import sqlite3
+    con = sqlite3.connect(dest / "sessions.db")
+    with con:
+        con.execute(
+            "DELETE FROM message_nodes WHERE rowid = (SELECT MAX(rowid) FROM message_nodes)")
+    con.close()
+    rc = _run("--check", "--corpus-dir", str(dest))
+    assert rc.returncode == 1
+    assert "sessions.db" in rc.stderr
+
+
 def test_check_fails_when_no_committed_corpus(tmp_path):
     rc = _run("--check", "--corpus-dir", str(tmp_path / "empty"))
     assert rc.returncode == 1

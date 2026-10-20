@@ -587,7 +587,10 @@ def verify_corpus(
                 n_checks = len(res["checks"])
             if actual == exp.expected_status:
                 outcome = "match"
-            elif exp.known_gap:
+            elif exp.known_gap and actual != "error":
+                # A modeling gap tolerates an unprovable *verdict* —
+                # never an infrastructure failure: a missing/refused
+                # sessions.db would otherwise skip grading the case.
                 outcome = "gap"
             else:
                 outcome = "mismatch"

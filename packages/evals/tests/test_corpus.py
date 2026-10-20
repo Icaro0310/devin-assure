@@ -177,6 +177,18 @@ def test_d11_golden_matches_with_documented_gap(corpus_dir: Path):
     assert "cross-session" in d11["known_gap"]
 
 
+def test_missing_db_is_mismatch_not_tolerated_gap(corpus_dir: Path):
+    """D11 documents a modeling gap — but a *missing* sessions.db is
+    infrastructure error, not an unprovable verdict. It must surface as
+    mismatch, never ride the known_gap tolerance."""
+    (corpus_dir / "sessions.db").unlink()
+    report = verify_corpus(corpus_dir)
+    d11 = next(r for r in report["cases"] if r["defect"] == "D11")
+    assert d11["actual_status"] == "error"
+    assert d11["result"] == "mismatch"
+    assert not report["summary"]["ok"]
+
+
 def test_verify_missing_corpus_raises(tmp_path: Path):
     with pytest.raises(FileNotFoundError, match="corpus generate"):
         verify_corpus(tmp_path / "nope")

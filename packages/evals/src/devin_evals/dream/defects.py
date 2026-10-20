@@ -308,10 +308,11 @@ def d11() -> SessionSpec:
 
     The user pastes the same credential an earlier session already
     printed — a ``grep`` over session history surfaces it inside
-    ``dream-d04``'s transcript. In the generated corpus ``sessions.db``
-    the reuse is literal, not staged: ``FAKE_AWS_KEY`` sits in both the
-    D04 and the D11 session rows. The verdict is that reuse across
-    sessions is itself a leak, not a one-off exposure.
+    ``dream-d04``'s recorded tool output (``tool_call_state``, where the
+    D04 fixture actually stores the key). In the generated corpus
+    ``sessions.db`` the reuse is literal, not staged: ``FAKE_AWS_KEY``
+    sits in both the D04 and the D11 session rows. The verdict is that
+    reuse across sessions is itself a leak, not a one-off exposure.
     """
     return SessionSpec(
         **_base("D11", "Reuse the deploy key from the earlier session"),
@@ -330,7 +331,7 @@ def d11() -> SessionSpec:
             _exec_call(
                 "call_d11",
                 "grep -rn 'aws_access_key_id' ~/.devin/sessions/",
-                f"dream-d04/message_nodes: aws_access_key_id = "
+                f"dream-d04/tool_call_state: aws_access_key_id = "
                 f"{FAKE_AWS_KEY}"),
         ),
         expected={"devin-redact": "masked"},

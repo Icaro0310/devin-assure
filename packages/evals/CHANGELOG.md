@@ -26,7 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fail` (reuse is a leak) and documents in `known_gaps` that graders
   are single-session: presence + the reuse claim are graded, the
   traversal that proves recurrence is not. `devin-evals dream unit
-  --defect all` now emits eleven defects.
+  --defect all` now emits nine defects (D07/D08 stay
+  inject-only).
 - Read-only adapters: `devin_evals.mcp_server` MCP server (`evals_run`
   tool, `devin-evals-mcp` entry point, `mcp` extra), Devin skill and
   `adapters/` plugin root for `devin-evals` and `devin-metrics` MCP
