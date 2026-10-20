@@ -45,7 +45,12 @@ from typing import Any
 
 from devin_qa_pack.adapters.base import SourceSession
 from devin_qa_pack.claims import claims_from_pairs
-from devin_qa_pack.verify import ParsedToolCall, _http_statuses, _strings
+from devin_qa_pack.verify import (
+    ParsedToolCall,
+    _http_statuses,
+    _passed_counts,
+    _strings,
+)
 
 SOURCE = "mcp"
 
@@ -404,10 +409,13 @@ def load(
         ]
         texts: list[str] = list(_strings(started)) + outputs
         statuses: set[int] = set(_http_statuses(started))
+        counts: set[int] = set(_passed_counts(started))
+        counts |= set(_passed_counts(outputs))
         status = "unknown"
         if completed is not None:
             texts.extend(_strings(completed))
             statuses |= set(_http_statuses(completed))
+            counts |= set(_passed_counts(completed))
             status = _status_for("shell_process_completed", completed)
         elif started:
             status = "pending"
@@ -422,6 +430,7 @@ def load(
             search_text=" ".join(t for t in texts if t).lower().replace(
                 "\\", "/"),
             http_statuses=tuple(sorted(statuses)),
+            passed_counts=tuple(sorted(counts)),
         ))
 
     for item in standalone:
@@ -434,6 +443,7 @@ def load(
             commands=_commands(contents),
             search_text=" ".join(texts).lower().replace("\\", "/"),
             http_statuses=tuple(sorted(set(_http_statuses(contents)))),
+            passed_counts=tuple(sorted(set(_passed_counts(contents)))),
         ))
 
     return SourceSession(

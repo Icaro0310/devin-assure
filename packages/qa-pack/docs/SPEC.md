@@ -39,10 +39,11 @@ call or in `git log` of the on-disk working directory.
 
 - `claims.py` — extract deliverable claims from `message_nodes`:
   test-result claims (`tests`, with the runner name when stated),
-  commit claims (`commit` + hash), file claims (`file` + path),
-  push claims (`push`), HTTP-status claims (`http` + status code, e.g.
-  "the API returned 200"). Agent-role messages only; claims deduplicated
-  by `(kind, detail)`.
+  counted test claims (`tests_passed` + pass count, e.g. "47 tests
+  passed"), commit claims (`commit` + hash), file claims (`file` +
+  path), push claims (`push`), HTTP-status claims (`http` + status
+  code, e.g. "the API returned 200"). Agent-role messages only; claims
+  deduplicated by `(kind, detail)`.
 - `verify.py` — resolve each claim against `tool_call_state` ground
   truth, plus `git` when `sessions.working_directory` is a repo on disk:
   `verified` / `disputed` / `unverifiable`.
@@ -74,6 +75,7 @@ Per claim kind, given the session's parsed tool calls:
 | kind | verified | disputed | unverifiable |
 |---|---|---|---|
 | `tests` | an execute call ran the claimed runner (or any runner, for generic "tests passed") and completed | matching call failed, or no execute call ran a test | matching call never finished, or ground-truth rows unreadable |
+| `tests_passed` | a tool-call payload/output records the claimed pass count ("47 passed", `{"passed": 47}`) | recorded outputs report a different pass count | no output records a pass count, or ground-truth rows unreadable |
 | `push` | an execute call ran `git push` and completed | matching call failed, or none recorded | unreadable ground truth |
 | `commit` | hash appears in a tool call's payloads, or `git cat-file -e <sha>^{commit}` succeeds in the on-disk repo | repo exists but lacks the hash; no call and no repo | unreadable ground truth |
 | `file` | a tool call references the path, or the file exists under the on-disk working dir | matching call failed, or file absent under on-disk working dir | no disk path and no tool call to check |

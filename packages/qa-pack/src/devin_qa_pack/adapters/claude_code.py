@@ -21,7 +21,12 @@ from typing import Any
 
 from devin_qa_pack.adapters.base import SourceSession
 from devin_qa_pack.claims import claims_from_pairs
-from devin_qa_pack.verify import ParsedToolCall, _http_statuses, _strings
+from devin_qa_pack.verify import (
+    ParsedToolCall,
+    _http_statuses,
+    _passed_counts,
+    _strings,
+)
 
 SOURCE = "claude-code"
 
@@ -116,6 +121,9 @@ def load(path: str | Path, working_directory: str | None = None) -> SourceSessio
                 search_text=" ".join(texts).lower().replace("\\", "/"),
                 http_statuses=tuple(sorted(
                     {*_http_statuses(inp), *_http_statuses(output)}
+                )),
+                passed_counts=tuple(sorted(
+                    {*_passed_counts(inp), *_passed_counts(output)}
                 )),
             )
         )

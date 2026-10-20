@@ -64,6 +64,7 @@ def _parse(text: str) -> tuple[list[tuple[str, str]], list[ParsedToolCall]]:
                         commands=(command,),
                         search_text=command.lower().replace("\\", "/"),
                         http_statuses=(),
+                        passed_counts=(),  # history records no output
                     )
                 )
             continue

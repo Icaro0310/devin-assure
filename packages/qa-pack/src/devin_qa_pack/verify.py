@@ -28,7 +28,15 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from devin_qa_pack.claims import COMMIT, FILE, HTTP, PUSH, TESTS, Claim
+from devin_qa_pack.claims import (
+    COMMIT,
+    FILE,
+    HTTP,
+    PUSH,
+    TESTS,
+    TESTS_PASSED,
+    Claim,
+)
 from devin_qa_pack.evidence import EvidenceToolCall
 
 VERIFIED = "verified"
@@ -74,6 +82,14 @@ _HTTP_REASON_RE = re.compile(
     + "|".join(re.escape(r) for r in _HTTP_REASONS) + r")\b"
 )
 
+# Pass-count evidence inside tool-call payloads: keyed fields like
+# ``{"passed": 42}`` plus count strings in captured output
+# ("47 passed in 1.21s", "108 passed, 1 skipped").
+_PASSED_KEY_NAMES = {
+    "passed", "num_passed", "passed_count", "tests_passed", "n_passed",
+}
+_PASSED_COUNT_RE = re.compile(r"\b(\d+)\s+pass(?:ed|es)?\b", re.IGNORECASE)
+
 
 def _http_statuses(value: Any) -> Iterable[int]:
     """HTTP status codes asserted anywhere in a tool-call payload."""
@@ -97,6 +113,26 @@ def _http_statuses(value: Any) -> Iterable[int]:
                 yield int(m.group(1))
 
 
+def _passed_counts(value: Any) -> Iterable[int]:
+    """Pass counts asserted anywhere in a tool-call payload."""
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if str(k).lower() in _PASSED_KEY_NAMES:
+                if isinstance(v, bool):
+                    pass  # JSON true/false — not a count
+                elif isinstance(v, int) and v >= 0:
+                    yield v
+                elif isinstance(v, str) and v.isdigit():
+                    yield int(v)
+            yield from _passed_counts(v)
+    elif isinstance(value, list):
+        for v in value:
+            yield from _passed_counts(v)
+    elif isinstance(value, str):
+        for m in _PASSED_COUNT_RE.finditer(value):
+            yield int(m.group(1))
+
+
 @dataclass(frozen=True)
 class ParsedToolCall:
     tool_call_id: str
@@ -105,6 +141,7 @@ class ParsedToolCall:
     commands: tuple[str, ...]
     search_text: str  # all string values from both payloads, normalized
     http_statuses: tuple[int, ...]  # HTTP status codes found in the payloads
+    passed_counts: tuple[int, ...]  # pass counts found in the payloads
 
 
 @dataclass(frozen=True)
@@ -211,6 +248,7 @@ def parse_tool_call(call: EvidenceToolCall) -> ParsedToolCall | None:
     tool_call_id = call.tool_call_id or ""
     search = " ".join(strings + [tool_call_id])
     statuses = tuple(sorted({s for p in payloads for s in _http_statuses(p)}))
+    counts = tuple(sorted({n for p in payloads for n in _passed_counts(p)}))
     return ParsedToolCall(
         tool_call_id=tool_call_id,
         kind=_kind_of(call_payload, list(commands)),
@@ -218,6 +256,7 @@ def parse_tool_call(call: EvidenceToolCall) -> ParsedToolCall | None:
         commands=commands,
         search_text=search.lower().replace("\\", "/"),
         http_statuses=statuses,
+        passed_counts=counts,
     )
 
 
@@ -317,6 +356,48 @@ def _verify_http(
     )
 
 
+def _verify_tests_passed(
+    claim: Claim,
+    calls: list[ParsedToolCall],
+    raw_n: int,
+) -> VerifiedClaim:
+    """Pass-count claims check *output values*, like ``http`` claims: a
+    claim is ``verified`` when recorded output reports the claimed count,
+    ``disputed`` when outputs record a different count, ``unverifiable``
+    when no output records any count (or the rows holding it are
+    unreadable)."""
+    try:
+        claimed = int(claim.detail)
+    except ValueError:
+        return VerifiedClaim(
+            claim, UNVERIFIABLE, f"`{claim.detail}` is not a pass count"
+        )
+    for c in calls:
+        if claimed in c.passed_counts:
+            return VerifiedClaim(
+                claim, VERIFIED,
+                f"tool call {c.tool_call_id} output reports "
+                f"{claimed} passed",
+            )
+    with_counts = [c for c in calls if c.passed_counts]
+    if with_counts:
+        c = with_counts[0]
+        seen = ", ".join(str(s) for s in c.passed_counts)
+        return VerifiedClaim(
+            claim, DISPUTED,
+            f"tool call {c.tool_call_id} output reports {seen} passed, "
+            f"not {claimed}",
+        )
+    if raw_n > len(calls):
+        return VerifiedClaim(
+            claim, UNVERIFIABLE,
+            f"{raw_n - len(calls)} tool_call_state row(s) unreadable",
+        )
+    return VerifiedClaim(
+        claim, UNVERIFIABLE, "no tool output records a pass count"
+    )
+
+
 def verify_claim(
     claim: Claim,
     calls: list[ParsedToolCall],
@@ -333,6 +414,8 @@ def verify_claim(
     raw_n = len(calls) if raw_call_count is None else raw_call_count
     if claim.kind == HTTP:
         return _verify_http(claim, calls, raw_n)
+    if claim.kind == TESTS_PASSED:
+        return _verify_tests_passed(claim, calls, raw_n)
     matched = [c for c in calls if _matches(claim, c)]
 
     if any(c.status == "completed" for c in matched):

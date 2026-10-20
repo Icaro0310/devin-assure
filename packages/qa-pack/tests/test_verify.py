@@ -1,6 +1,14 @@
 """verify.py — cross-checking claims against tool_call_state + git log."""
 
-from devin_qa_pack.claims import COMMIT, FILE, HTTP, PUSH, TESTS, Claim
+from devin_qa_pack.claims import (
+    COMMIT,
+    FILE,
+    HTTP,
+    PUSH,
+    TESTS,
+    TESTS_PASSED,
+    Claim,
+)
 from devin_qa_pack.evidence import EvidenceToolCall
 from devin_qa_pack.verify import (
     DISPUTED,
@@ -126,6 +134,57 @@ def test_tests_claim_unverifiable_when_ground_truth_unreadable():
     # an unparseable row means ground truth exists but can't be read
     states = [tstate("tc-null")]
     result = verify_claim(claim(TESTS, "tests"), parse_tool_calls(states),
+                          "/nonexistent", raw_call_count=len(states))
+    assert result.status == UNVERIFIABLE
+
+
+# -- tests_passed claims -------------------------------------------------------
+
+
+def test_tests_passed_claim_verified_by_matching_count_in_output():
+    calls = parse_tool_calls(
+        [exec_state("python -m pytest -q", output="47 passed in 1.21s")]
+    )
+    result = verify_claim(claim(TESTS_PASSED, "47"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_tests_passed_claim_verified_by_keyed_count_field():
+    calls = parse_tool_calls(
+        [tstate("tc", {"kind": "execute",
+                       "rawInput": {"command": "pytest"},
+                       "rawOutput": {"passed": 47, "failed": 0}})]
+    )
+    result = verify_claim(claim(TESTS_PASSED, "47"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_tests_passed_claim_disputed_by_different_count():
+    calls = parse_tool_calls(
+        [exec_state("pytest -x", output="46 passed, 1 failed")]
+    )
+    result = verify_claim(claim(TESTS_PASSED, "47"), calls, "/nonexistent")
+    assert result.status == DISPUTED
+    assert "46" in result.evidence
+    assert "not 47" in result.evidence
+
+
+def test_tests_passed_claim_unverifiable_without_count_evidence():
+    # a runner ran and completed, but its output records no pass count
+    calls = parse_tool_calls([exec_state("pytest -q")])
+    result = verify_claim(claim(TESTS_PASSED, "47"), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+def test_tests_passed_claim_unverifiable_with_no_calls():
+    result = verify_claim(claim(TESTS_PASSED, "47"), [], "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+def test_tests_passed_claim_unverifiable_when_ground_truth_unreadable():
+    states = [tstate("tc-null")]  # NULL payloads → dropped
+    result = verify_claim(claim(TESTS_PASSED, "47"),
+                          parse_tool_calls(states),
                           "/nonexistent", raw_call_count=len(states))
     assert result.status == UNVERIFIABLE
 

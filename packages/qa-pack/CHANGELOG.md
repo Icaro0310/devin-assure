@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ledger `session-end` feeds. Read-only on every store; all writes stay
   under the `--out` root. A `--out` unwritable path fails closed
   (exit 2); an empty scope still exits 2 before anything is written.
+- `tests_passed` claim kind: counted test claims ("47 tests passed",
+  "108 passed, 1 skipped") are extracted with the pass count as the
+  claim detail and checked against recorded tool-call output the same
+  way `http` claims are — `verified` when a payload records the claimed
+  count (a `"N passed"` string or a keyed `passed` field), `disputed`
+  when outputs record a different count, `unverifiable` when no output
+  records a count or ground-truth rows are unreadable. A bare "tests
+  passed" stays a `tests` claim and is unchanged.
 
 ### Fixed
 
