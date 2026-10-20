@@ -97,7 +97,10 @@ def _db_dumps(corpus_dir: Path) -> dict[str, list[str]]:
     immune to SQLite page-layout/version noise."""
     out: dict[str, list[str]] = {}
     for p in sorted(corpus_dir.glob("sessions*.db")):
-        con = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+        # ``as_uri`` percent-encodes the path — a raw ``file:{p}`` lets a
+        # '?' or '#' in the directory name leak into SQLite's URI parser
+        # as query/fragment separators and silently read a different db.
+        con = sqlite3.connect(f"{p.resolve().as_uri()}?mode=ro", uri=True)
         try:
             out[p.name] = sorted(con.iterdump())
         finally:
