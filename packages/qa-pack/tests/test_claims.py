@@ -5,6 +5,7 @@ import json
 from devin_internals.parsers import SessionsStore
 from devin_qa_pack.claims import (
     COMMIT,
+    DELEGATION,
     FILE,
     HTTP,
     PUSH,
@@ -129,3 +130,60 @@ def test_http_claim_ignores_non_status_numbers():
     # "returned 42" is not a 3-digit status; no claim is extracted
     assert extract_claims(
         [make_node("the function returned 42 rows")]) == []
+
+
+# -- delegation claims ---------------------------------------------------------
+
+
+def test_delegation_claim_english_phrasings():
+    for text in (
+        "I delegated the repo scan to a subagent.",
+        "Spawned a subagent to run the search.",
+        "the lookup ran in parallel via subagent",
+        "I launched 3 workers in parallel.",
+        "handed off the docs pass to a worker",
+    ):
+        claims = extract_claims([make_node(text)])
+        assert [(c.kind, c.detail) for c in claims] == [
+            (DELEGATION, DELEGATION)
+        ], text
+
+
+def test_delegation_claim_portuguese_phrasings():
+    for text in (
+        "Deleguei a análise para um subagente.",
+        "O subagente retornou os resultados.",
+        "Delegado ao worker o relatório final.",
+    ):
+        claims = extract_claims([make_node(text)])
+        assert [(c.kind, c.detail) for c in claims] == [
+            (DELEGATION, DELEGATION)
+        ], text
+
+
+def test_delegation_claim_reporting_delegatee_alone():
+    # a delegatee + a result verb is a delegation report too
+    claims = extract_claims(
+        [make_node("the subagent completed the exploration")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [
+        (DELEGATION, DELEGATION)
+    ]
+
+
+def test_delegation_claim_needs_delegatee_or_pt_marker():
+    # parallelization talk and self-references are not delegation claims
+    assert extract_claims(
+        [make_node("we could parallelize this with more processes")]
+    ) == []
+    assert extract_claims(
+        [make_node("the agent handled it end to end")]
+    ) == []
+
+
+def test_delegation_claims_deduplicate():
+    nodes = [
+        make_node("I delegated the scan to a subagent.", node_id=1),
+        make_node("the subagent reported back clean.", node_id=2),
+    ]
+    assert len(extract_claims(nodes)) == 1

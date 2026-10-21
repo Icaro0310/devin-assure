@@ -1,9 +1,9 @@
 """Extract deliverable claims from a session's evidence messages.
 
 A *claim* is an assertion the agent made about delivered work: tests
-passed, a commit exists, a file was created/changed, work was pushed.
-Only agent-role messages are scanned — a user prompt quoting the same
-words is not a delivery claim.
+passed, a commit exists, a file was created/changed, work was pushed,
+work was delegated to a subagent. Only agent-role messages are scanned
+— a user prompt quoting the same words is not a delivery claim.
 
 The input is the canonical :class:`EvidenceMessage` — store-specific
 payload decoding (``chat_message`` JSON for the Devin store) happens in
@@ -24,8 +24,9 @@ FILE = "file"
 PUSH = "push"
 HTTP = "http"
 URL = "url"
+DELEGATION = "delegation"
 
-CLAIM_KINDS = (TESTS, COMMIT, FILE, PUSH, HTTP, URL)
+CLAIM_KINDS = (TESTS, COMMIT, FILE, PUSH, HTTP, URL, DELEGATION)
 
 _RUNNER_TOKENS = (
     "cargo test",
@@ -67,6 +68,31 @@ _PATH_TOKEN_RE = re.compile(
 # "status code: 200" — the captured group is the claimed status code.
 _URL_RE = re.compile(r"https://[\w.-]+(?::\d+)?(?:/[\w./?%&=~#+-]*)?")
 
+# Delegation claims: a delegatee noun (subagent/worker) beside a
+# delegation or result verb — "delegated the scan to a subagent",
+# "spawned worker-2", "ran in parallel via subagent", "the subagent
+# reported back". PT phrasings need no delegatee: a past-tense
+# delegation verb ("deleguei", "delegado") or the delegatee noun
+# itself ("subagente") is already the claim.
+_DELEGATEE = r"(?:sub[-\s]?agente?s?|workers?)"
+_DELEGATION_VERB = (
+    r"delegat\w+|spawn\w+|launch\w+|dispatch\w+|offload\w+|"
+    r"kick(?:ed|s)?\s+off|hand(?:ed|s)?\s+off|"
+    r"ran|runs?|running|start\w+|sent|send(?:ing)?|us(?:ed|ing)"
+)
+_DELEGATION_RESULT = (
+    r"complet\w+|finish\w+|return\w+|report\w+|found|handl\w+|"
+    r"retorn\w+|conclu\w+|entreg\w+"
+)
+_DELEGATION_RE = re.compile(
+    rf"\b(?:{_DELEGATION_VERB})\b[^.\n]{{0,60}}?\b{_DELEGATEE}\b"
+    rf"|\b{_DELEGATEE}\b[^.\n]{{0,60}}?\b(?:{_DELEGATION_VERB}|"
+    rf"{_DELEGATION_RESULT})\b"
+    rf"|\b(?:deleguei|delegou|delegaram|delegad[oa]s?)\b"
+    rf"|\bsub[-\s]?agentes?\b",
+    re.IGNORECASE,
+)
+
 _HTTP_CLAIM_RES = (
     re.compile(
         r"\b(?:returned|responded|replied|answered|came\s+back)\b"
@@ -91,8 +117,9 @@ class Claim:
 
     ``detail`` carries the checkable part: the test-runner name (or
     ``"tests"`` when generic), the commit hash, the claimed file path, or
-    ``"push"``. ``excerpt`` is the source line, truncated — evidence, not
-    full row content.
+    ``"push"``/``"delegation"`` for the detail-less action kinds.
+    ``excerpt`` is the source line, truncated — evidence, not full row
+    content.
     """
 
     kind: str
@@ -138,6 +165,8 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
     ):
         for m in _URL_RE.finditer(line):
             yield URL, m.group(0).rstrip(".,);'\"")
+    if _DELEGATION_RE.search(line):
+        yield DELEGATION, DELEGATION
 
 
 def _collect(

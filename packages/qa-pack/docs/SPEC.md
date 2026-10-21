@@ -41,8 +41,10 @@ call or in `git log` of the on-disk working directory.
   test-result claims (`tests`, with the runner name when stated),
   commit claims (`commit` + hash), file claims (`file` + path),
   push claims (`push`), HTTP-status claims (`http` + status code, e.g.
-  "the API returned 200"). Agent-role messages only; claims deduplicated
-  by `(kind, detail)`.
+  "the API returned 200"), delegation claims (`delegation`, e.g.
+  "delegated the scan to a subagent"; PT phrasings like "deleguei" /
+  "subagente" count too). Agent-role messages only; claims
+  deduplicated by `(kind, detail)`.
 - `verify.py` — resolve each claim against `tool_call_state` ground
   truth, plus `git` when `sessions.working_directory` is a repo on disk:
   `verified` / `disputed` / `unverifiable`.
@@ -78,6 +80,7 @@ Per claim kind, given the session's parsed tool calls:
 | `commit` | hash appears in a tool call's payloads, or `git cat-file -e <sha>^{commit}` succeeds in the on-disk repo | repo exists but lacks the hash; no call and no repo | unreadable ground truth |
 | `file` | a tool call references the path, or the file exists under the on-disk working dir | matching call failed, or file absent under on-disk working dir | no disk path and no tool call to check |
 | `http` | a tool-call payload/output records the claimed status code | recorded outputs show a different status code | no output records any status, or ground-truth rows unreadable |
+| `delegation` | a subagent-spawn call (`run_subagent`/`spawn_agent`/`task`-style tool names, `title` mentioning "subagent") recorded and completed | matching spawn call failed, or no spawn call recorded | matching spawn call still running, or ground-truth rows unreadable |
 
 "Unreadable ground truth" = `tool_call_state` rows exist but every
 payload is NULL (interrupted call) or fails JSON decode — the

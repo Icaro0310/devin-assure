@@ -111,6 +111,8 @@ def sessions_db(tmp_path: Path) -> Path:
       payloads (interrupted call — ground truth unreadable).
     - ``sess-http``: an "API returned 200" claim backed by a curl call
       whose recorded output carries ``HTTP/1.1 200 OK``.
+    - ``sess-delegated``: a "delegated to a subagent" claim backed by a
+      completed ``run_subagent`` spawn call.
     """
     db = create_sessions_db(tmp_path / "sessions.db", n_sessions=0)
     missing_wd = str(tmp_path / "no-such-wd")
@@ -186,6 +188,30 @@ def sessions_db(tmp_path: Path) -> Path:
                 "curl -i https://api.example.test/health",
                 output="HTTP/1.1 200 OK\nContent-Length: 2\n\nok",
             ),
+        )
+
+        # Between sess-opaque and sess-http so sess-http stays the most
+        # recently active session for session-end tests.
+        add_session(con, "sess-delegated", missing_wd, "Delegated session",
+                    created=_BASE_TS_MS + 12_600_000)
+        add_message(
+            con,
+            "sess-delegated",
+            1,
+            "agent",
+            "I delegated the codebase scan to a subagent and it "
+            "reported back clean.",
+        )
+        add_tool_call(
+            con,
+            "sess-delegated",
+            "tc-subagent",
+            {
+                "kind": "run_subagent",
+                "title": "Subagent: scan the codebase",
+                "status": "completed",
+                "rawInput": {"prompt": "scan the codebase for flaky tests"},
+            },
         )
     con.close()
     return db

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `delegation` claim kind: "delegated to a subagent/worker"-style
+  assertions in agent messages (EN phrasings like "delegated the scan
+  to a subagent" / "ran in parallel via subagent", PT like "deleguei" /
+  "subagente") extract as `delegation` claims. They verify against
+  spawn tool calls in `tool_call_state`: tool names carrying
+  "subagent"/"sub_agent" or the `task`/`spawn_agent`/`delegate`-style
+  aliases classify as `spawn` (checked across `kind`/`type`/`tool`/
+  `name`/`toolName`/`tool_name`/`toolId` keys and "subagent" titles).
+  A completed spawn verifies the claim, a failed spawn or no spawn
+  call disputes it, unreadable ground truth stays unverifiable.
+
 ### Fixed
 
 - `README.md` demo embed and its surrounding link used repo-relative

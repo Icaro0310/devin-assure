@@ -28,7 +28,15 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from devin_qa_pack.claims import COMMIT, FILE, HTTP, PUSH, TESTS, Claim
+from devin_qa_pack.claims import (
+    COMMIT,
+    DELEGATION,
+    FILE,
+    HTTP,
+    PUSH,
+    TESTS,
+    Claim,
+)
 from devin_qa_pack.evidence import EvidenceToolCall
 
 VERIFIED = "verified"
@@ -37,6 +45,22 @@ UNVERIFIABLE = "unverifiable"
 
 _EXECUTE_KINDS = {"execute", "run", "terminal", "shell", "bash", "exec", "command"}
 _WRITE_KINDS = {"edit", "write", "create", "delete", "move", "rename"}
+
+# Spawn/subagent tool names — the ground truth behind ``delegation``
+# claims. Devin records a ``run_subagent`` call in ``tool_call_state``;
+# other surfaces carry the tool name under different keys (Copilot
+# ``toolName``, Codex ``name``, VS Code ``toolId``). A name carrying
+# "subagent"/"sub_agent" is a spawn whatever the prefix
+# (``spawn_subagent``, ``runSubagent`` …); short aliases like ``task``
+# (Copilot/Claude-style subagent tool) are matched exactly.
+_SPAWN_NAME_KEYS = (
+    "kind", "type", "tool", "name", "toolName", "tool_name", "toolId",
+)
+_SPAWN_KINDS = {
+    "agent", "background_agent", "create_agent", "delegate", "launch_agent",
+    "parallel_agent", "run_worker", "spawn_agent", "spawn_worker",
+    "sub_agent", "subagent", "task", "worker_agent",
+}
 
 _STATUS_COMPLETED = {"completed", "success", "succeeded", "done", "finished"}
 _STATUS_FAILED = {"failed", "error", "errored", "cancelled", "canceled"}
@@ -100,7 +124,7 @@ def _http_statuses(value: Any) -> Iterable[int]:
 @dataclass(frozen=True)
 class ParsedToolCall:
     tool_call_id: str
-    kind: str  # "execute" | "write" | "other" | "unknown"
+    kind: str  # "execute" | "write" | "spawn" | "other" | "unknown"
     status: str  # "completed" | "failed" | "pending" | "unknown"
     commands: tuple[str, ...]
     search_text: str  # all string values from both payloads, normalized
@@ -175,7 +199,21 @@ def _status_of(payloads: list[dict[str, Any]]) -> str:
     return "unknown"
 
 
+def _is_spawn_name(value: Any) -> bool:
+    """A payload field names a subagent-spawning tool."""
+    if not isinstance(value, str):
+        return False
+    low = value.strip().lower().replace("-", "_").replace(" ", "_")
+    return (
+        low in _SPAWN_KINDS
+        or "subagent" in low
+        or "sub_agent" in low
+    )
+
+
 def _kind_of(payload: dict[str, Any], commands: list[str]) -> str:
+    if any(_is_spawn_name(payload.get(key)) for key in _SPAWN_NAME_KEYS):
+        return "spawn"
     raw = payload.get("kind") or payload.get("type") or payload.get("tool")
     if isinstance(raw, str):
         low = raw.lower()
@@ -185,6 +223,10 @@ def _kind_of(payload: dict[str, Any], commands: list[str]) -> str:
             return "write"
         return "other"
     title = payload.get("title")
+    if isinstance(title, str) and (
+        "subagent" in title.lower() or "sub-agent" in title.lower()
+    ):
+        return "spawn"
     if isinstance(title, str) and any(
         k in title.lower() for k in _EXECUTE_KINDS
     ):
@@ -264,6 +306,8 @@ def _matches(claim: Claim, call: ParsedToolCall) -> bool:
         return call.kind == "execute" and any(
             _PUSH_CMD_RE.search(c) for c in call.commands
         )
+    if claim.kind == DELEGATION:
+        return call.kind == "spawn"
     if claim.kind == COMMIT:
         return claim.detail in call.search_text
     if claim.kind == FILE:
@@ -390,6 +434,12 @@ def verify_claim(
         return VerifiedClaim(
             claim, DISPUTED,
             "no commit call recorded and no repo on disk to check",
+        )
+
+    if claim.kind == DELEGATION:
+        # A real delegation goes through a spawn/subagent tool call.
+        return VerifiedClaim(
+            claim, DISPUTED, "no subagent-spawn tool call recorded"
         )
 
     # tests / push: the action would have left an execute record.
