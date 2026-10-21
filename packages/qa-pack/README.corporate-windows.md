@@ -41,13 +41,13 @@ Use `--data-dir`/`--sessions-db` for non-default locations.
 
 ## Read-only operation
 
-Every audit command in this package reads local Devin data only: the session database (`sessions.db`), the `.devin/` config tree, and transcript exports. Nothing writes back to those stores, uploads session content, or requires a running Devin instance — point the tools at a copied export (`--sessions-db` / `--data-dir`) if you want a hard guarantee that the live store is untouched.
+Every audit command in this package reads local Devin data only: the session database (`sessions.db`), the `.devin/` config tree, and transcript exports. Nothing writes back to those stores, uploads session content, or requires a running Devin instance — point the tools at a copied database (`--sessions-db C:\path\sessions-copy.db`) if you want a hard guarantee that the live store is untouched.
 
 Recommended posture on a restricted machine: run audits against a file copy or the filesystem-snapshot path, not the live `%APPDATA%\devin\cli\sessions.db`. The tools never need write access to Devin data; if a command ever asks for it, that is a bug, not a requirement.
 
 ## What cannot be delegated from a restricted machine
 
-Corporate mode is local-only by design. These capabilities do not exist here and no flag enables them:
+Corporate mode is local-only by posture, not by enforcement — the package has no corporate-mode switch. The capabilities below are unavailable *by choice* on a restricted machine; the opt-in flags exist in the CLI and must simply stay unused:
 
 - **Workload delegation** — no Devin VM, no remote workers, no ACP bridge (QwenPaw), no cloud sandboxes.
 - **External integrations** — Slack, GitHub Actions, hosted dashboards and webhook-style notifications stay off; nothing listens on the network.
@@ -60,8 +60,8 @@ If a workflow needs any of the above, run it on the unrestricted machine and cop
 
 Never paste raw session text into an issue or a chat channel on a restricted machine. To report a bad audit result:
 
-1. Re-run with redaction on — the report already flows through `devin-redact`, so secrets, tokens, emails and home paths come out as `<REDACTED:hash>` placeholders.
-2. Verify locally that the output you will share contains no raw identifiers (search for your own name, domain, and any token prefixes).
+1. Re-run the audit and keep only the verdict block — the report is **not** auto-redacted: claim details and command evidence are emitted raw. If `devin-redact` is installed (`uv tool install devin-redact`, from the devin-state repo), run the fragment through `devin-redact scan --text "$(cat fragment.txt)"` first so secrets, tokens, emails and home paths come out as `<REDACTED:hash>` placeholders.
+2. Verify locally that the output you will share contains no raw identifiers (search for your own name, domain, and any token prefixes). Without a redaction pass this check is mandatory, not optional.
 3. Paste only the redacted verdict block and the claim/line reference — never the surrounding session transcript, file paths outside the report, or screenshots of session content.
 
 For bug reports, the smallest useful unit is: the verdict line, the rule/pattern name it cites, and the redacted fragment it fired on.

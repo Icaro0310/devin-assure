@@ -105,6 +105,11 @@ agent actually did. No Devin install needed.
 
 ## Usage
 
+Every command reads local Devin data only — `sessions.db`, the `.devin/`
+config tree, transcript exports — and never writes back to those stores.
+Point `--sessions-db` at a copied database for a hard no-touch guarantee.
+Reports are not auto-redacted: excerpt the verdict block before sharing.
+
 ```bash
 # audit one session (exact id or unique prefix)
 devin-qa-pack audit --session <id> --sessions-db path/to/sessions.db
