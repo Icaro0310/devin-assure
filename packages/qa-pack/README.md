@@ -66,7 +66,8 @@ Devin persists every tool call in `sessions.db → tool_call_state`. This
 tool reads that table via
 [devin-internals-spec](https://github.com/Icaro0310/devin-internals-spec)
 and treats it as **ground truth**: a "tests passed" claim must be backed
-by a run/execute call that ran a test runner and completed; "committed
+by a run/execute call that ran a test runner and completed; "47 tests
+passed" must match a recorded `47 passed` in the tool output; "committed
 `sha`" must show the hash in a call or in `git log`. Text-only auditors
 *cannot* do this — remove Devin's store and the check disappears.
 
@@ -118,6 +119,10 @@ devin-qa-pack report --sessions-db path/to/sessions.db --out report.html
 # live audit at SessionEnd: audit ONLY the session that just ended
 # (hook mode — writes a JSON side file, never touches the session)
 devin-qa-pack session-end
+
+# schedule a daily audit sweep over every detected store
+# (cron / Task Scheduler / elapsed registry — opt-in)
+devin-qa-pack install --daily
 
 # intent vs. coverage (QA-4): did the agent touch what the prompt named?
 devin-qa-pack intent <session> --sessions-db path/to/sessions.db
@@ -277,6 +282,41 @@ stdin and exports `DEVIN_SESSION_ID`):
 }
 ```
 
+## Scheduled audit sweep (`install --daily`)
+
+The `SessionEnd` hook audits live; `devin-qa-pack install --daily` adds
+the complementary **scheduled sweep** — a daily `devin-qa-pack audit
+--all` over every detected surface (`--surface` narrows it) for
+sessions the hook missed (Devin closed early, hook not wired, foreign
+stores). It writes the full payload to
+`<data-dir>/qa/audit-sweep.json` and appends one compact verdict line
+per session (`origin: "sweep"`) to the same
+`<data-dir>/qa/verdicts.jsonl` ledger `session-end` feeds. Read-only on
+every store: the only writes are under the data dir's `qa/` folder, and
+the job does not need Devin closed.
+
+```bash
+devin-qa-pack install --daily                  # auto-detect backend
+devin-qa-pack install --daily --backend cron   # pin one backend
+devin-qa-pack install --daily --data-dir /custom/devin --surface devin-cli
+```
+
+Backend selection follows the shared `devin-install-scheduler`
+convention (same as devin-state's `devin-janitor`/`devin-backup`): a
+tagged `@daily` **crontab** line on Linux/macOS, a daily **Task
+Scheduler** entry on Windows, or — on locked-down machines without
+either — a job record in `<config-dir>/.devin-ecosystem/scheduled.json`
+(the `elapsed` backend) that devin-powerups' `UserPromptSubmit` hook
+ticks (`python tools/schedule.py check --run`). `--backend` pins a
+backend, `--config-dir` relocates the registry, `--data-dir` reshapes
+where the registered command writes, `--json` prints the job record.
+Both `--sessions-db` and `--out` in the registered command are baked to
+absolute paths at install time, so the job does not depend on
+`DEVIN_DATA_DIR`/XDG env surviving into the scheduler's minimal
+environment (re-run `install` if the data dir ever moves).
+The sweep exits `1` when any session is `PARTIAL`/`UNVERIFIED` — the
+verdicts land in the artifacts, the exit code is informational.
+
 ## Pre-commit gate
 
 The repo root ships `.pre-commit-hooks.yaml` — reference it from a
@@ -377,6 +417,9 @@ network is off by default and the audit is fully offline otherwise.
   output: a claim is `verified` when a recorded status matches,
   `disputed` when outputs record a different status and `unverifiable`
   when no output records any status. No request is ever replayed.
+- Counted test claims work the same way: "47 tests passed" is `verified`
+  when recorded output reports `47 passed`, `disputed` when it reports
+  a different count and `unverifiable` when no output records a count.
 - File/commit checks use `sessions.working_directory` only when it
   exists on disk and is a git repo — otherwise they rely on tool-call
   evidence alone.

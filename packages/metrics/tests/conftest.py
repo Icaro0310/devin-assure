@@ -50,6 +50,40 @@ USAGE_PLAN = {
 }
 ORPHAN_USAGE = [("swe-2-high", 0.0070, 70, 7)]
 
+# Commit refs for `devin-metrics commits`: UPDATEd into *existing*
+# tool_call_state rows so n_tool_calls counts stay unchanged. Session 0
+# references SHA_A via a github /commit/ URL (repo context captured);
+# session 2 references SHA_B (URL) + SHA_C (bare sha in two tool calls, to
+# exercise dedup). Sessions 1 and 3 reference nothing.
+SHA_A = "0123456789abcdef0123456789abcdef01234567"
+SHA_B = "abcdef0123456789abcdef0123456789abcdef01"
+SHA_C = "fedcba9876543210fedcba9876543210fedcba98"
+REPO_ALPHA = "github.com/example/alpha"
+REPO_BETA = "github.com/example/beta"
+
+# session index -> {tool_call_id suffix -> (tool_call_json, tool_call_update_json)}
+COMMIT_PLAN = {
+    0: {
+        "tc-0": (
+            {"command": "git commit -m 'alpha fix'"},
+            {"output": f"[main {SHA_A[:7]}] alpha fix\n"
+                       f"https://{REPO_ALPHA}/commit/{SHA_A}"},
+        ),
+    },
+    2: {
+        "tc-0": (
+            {"command": "git commit -m 'beta fix'"},
+            {"output": f"[main {SHA_B[:7]}] beta fix\n"
+                       f"https://{REPO_BETA}/commit/{SHA_B}\n"
+                       f"parent {SHA_C}"},
+        ),
+        "tc-1": (
+            {"command": "git rev-parse HEAD~1"},
+            {"output": SHA_C},
+        ),
+    },
+}
+
 
 def _add_session(con: sqlite3.Connection, sid: str, plan: tuple) -> None:
     wd, model, title, created, last, _n_msgs, _n_tools = plan
@@ -112,6 +146,18 @@ def _write_acp_db(path: Path, rows: list[tuple]) -> None:
     con.close()
 
 
+def _add_commit_refs(
+    con: sqlite3.Connection, sid: str, tc_payloads: dict
+) -> None:
+    """Rewrite existing tool_call_state rows with commit-bearing payloads."""
+    for suffix, (call, update) in tc_payloads.items():
+        con.execute(
+            "UPDATE tool_call_state SET tool_call_json=?,"
+            " tool_call_update_json=? WHERE session_id=? AND tool_call_id=?",
+            (json.dumps(call), json.dumps(update), sid, f"{sid}-{suffix}"),
+        )
+
+
 def _wipe_generated_rows(db: Path) -> None:
     con = sqlite3.connect(db)
     with con:
@@ -141,6 +187,8 @@ def data_dir(tmp_path: Path, session_ids: list[str]) -> Path:
         for sid, plan in zip(session_ids, SESSION_PLAN):
             _add_session(con, sid, plan)
             _add_children(con, sid, plan[5], plan[6])
+        for idx, tc_payloads in COMMIT_PLAN.items():
+            _add_commit_refs(con, session_ids[idx], tc_payloads)
     con.close()
 
     acp_dir = root / "User" / "acp-messages"

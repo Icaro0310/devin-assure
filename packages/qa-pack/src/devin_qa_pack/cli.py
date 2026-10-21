@@ -14,6 +14,14 @@ store, unknown session, or no session matched the scope).
 only the session that just ended, writes the verdict to a JSON side
 file and is fail-soft (always exit 0 once it ran; 2 on usage errors).
 
+``devin-qa-pack install --daily`` registers a scheduled audit sweep
+(the install-scheduler convention shared with devin-state's
+janitor/backup: cron, Task Scheduler, or the elapsed registry). The job
+runs ``audit --all --surface <S> --sessions-db <db> --out
+<data-dir>/qa/audit-sweep.json`` — read-only on every store, writing
+only under the data dir's ``qa/`` folder (payload + the
+``verdicts.jsonl`` ledger ``session-end`` feeds).
+
 ``devin-qa-pack intent <session>`` is QA-4: it compares the session's
 initial user request with the paths its tool calls touched and reports
 prompt-named paths never touched (``possibly_missed``) plus touched
@@ -27,6 +35,7 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+import subprocess
 import sys
 from pathlib import Path
 
@@ -128,6 +137,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--allow-domain", action="append", default=[], metavar="D",
         help="domain allowed for --online checks (repeatable; required for "
         "any live check)")
+    audit.add_argument(
+        "--out", metavar="PATH",
+        help="also write the JSON audit payload to PATH (atomic; "
+        "parents created) and append one compact verdict line per "
+        "session to verdicts.jsonl next to it — the artifact contract "
+        "the scheduled sweep uses; stdout output is unchanged")
 
     report = sub.add_parser(
         "report", help="audit sessions and write a self-contained HTML report")
@@ -213,6 +228,38 @@ def _build_parser() -> argparse.ArgumentParser:
     intent.add_argument(
         "--json", action="store_true", help="JSON output"
     )
+
+    inst = sub.add_parser(
+        "install",
+        help="schedule a daily 'audit --all' sweep "
+        "(cron / Task Scheduler / elapsed registry — opt-in)",
+    )
+    inst.add_argument(
+        "--daily", action="store_true",
+        help="register the daily audit sweep job (required; only the "
+        "read-only sweep is ever scheduled)",
+    )
+    inst.add_argument(
+        "--surface", choices=Surface.CHOICES, default=Surface.AUTO,
+        metavar="S",
+        help="evidence surface the scheduled sweep audits "
+        "(default: auto — every detected store)",
+    )
+    inst.add_argument(
+        "--data-dir", metavar="PATH",
+        help="Devin data dir the sweep writes under — output goes to "
+        "<data-dir>/qa/ (default: auto-detect at install time)",
+    )
+    inst.add_argument(
+        "--config-dir", metavar="PATH",
+        help="Devin config dir override (where "
+        ".devin-ecosystem/scheduled.json lives)",
+    )
+    inst.add_argument(
+        "--backend", default="auto",
+        choices=["auto", "cron", "tasksch", "elapsed"],
+    )
+    inst.add_argument("--json", action="store_true", help="JSON output")
     return parser
 
 
@@ -409,6 +456,16 @@ def _cmd_audit(args: argparse.Namespace) -> int:
         # gate must not pass without auditing any evidence.
         print(f"error: no sessions to audit in {db}", file=sys.stderr)
         return 2
+    if args.out:
+        # Scheduled-sweep artifact: payload file + verdicts.jsonl lines,
+        # all under the caller's --out root — never into any store.
+        from devin_qa_pack.sweep import write_sweep_out
+        try:
+            write_sweep_out(args.out, audits, db)
+        except OSError as exc:
+            print(f"error: cannot write {args.out}: {exc}",
+                  file=sys.stderr)
+            return 2
     if args.json:
         print(json.dumps(audits_payload(audits, db), indent=2))
     else:
@@ -483,6 +540,49 @@ def _cmd_session_end(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_install(args: argparse.Namespace) -> int:
+    """Register the daily ``audit --all`` sweep (install-scheduler).
+
+    ``--daily`` is mandatory and the only schedule offered: the job runs
+    a read-only ``devin-qa-pack audit`` sweep writing under the data
+    dir's ``qa/`` folder — the scheduled complement to the SessionEnd
+    hook. Nothing mutating is ever scheduled.
+    """
+    if not args.daily:
+        print(
+            "error: 'install' only schedules the daily audit sweep — "
+            "pass --daily (only read-only 'audit --all' is ever "
+            "scheduled)",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        from devin_qa_pack.install import install_daily
+        result = install_daily(
+            surface=args.surface,
+            data_dir=args.data_dir,
+            config_dir=args.config_dir,
+            backend=args.backend,
+        )
+    except (ValueError, RuntimeError, OSError,
+            subprocess.CalledProcessError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"installed '{result['job']}' [{result['backend']}]")
+        print(f"  command: {result['command']}")
+        print(f"  registry: {result['registry']}")
+        if result["backend"] == "elapsed":
+            print(
+                "  elapsed backend: add 'python tools/schedule.py check "
+                "--run' to a UserPromptSubmit hook (see devin-powerups "
+                "README)"
+            )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if args.command == "audit":
@@ -493,6 +593,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_intent(args)
     if args.command == "session-end":
         return _cmd_session_end(args)
+    if args.command == "install":
+        return _cmd_install(args)
     _build_parser().print_help()
     return 2
 

@@ -44,7 +44,7 @@ def _copy_committed_text(dest: Path) -> Path:
 
 def test_committed_corpus_cases_load():
     cases = load_cases(CORPUS / "evals")
-    assert len(cases) == 10
+    assert len(cases) == 11
     assert all(c.checks for c in cases)
     # D03 exercises the EV-4 packs wiring end-to-end.
     d03 = next(c for c in cases if c.id == "golden-d03-verified-claim")
@@ -57,7 +57,7 @@ def test_committed_manifest_is_seeded_and_synthetic():
     assert manifest["synthetic_only"] is True
     assert manifest["generator"] == "dream"
     assert manifest["seed"] == 0xDEE4
-    assert len(manifest["cases"]) == 10
+    assert len(manifest["cases"]) == 11
 
 
 def test_committed_corpus_has_no_real_session_data():
@@ -98,6 +98,22 @@ def test_check_detects_missing_and_extra_files(tmp_path):
     assert "no longer generated" in rc.stderr
 
 
+def test_check_detects_db_drift(tmp_path):
+    """The drift gate now covers the committed sessions*.db files —
+    a mutated row must fail --check even though JSON matches."""
+    dest = tmp_path / "corpus"
+    shutil.copytree(CORPUS, dest)
+    import sqlite3
+    con = sqlite3.connect(dest / "sessions.db")
+    with con:
+        con.execute(
+            "DELETE FROM message_nodes WHERE rowid = (SELECT MAX(rowid) FROM message_nodes)")
+    con.close()
+    rc = _run("--check", "--corpus-dir", str(dest))
+    assert rc.returncode == 1
+    assert "sessions.db" in rc.stderr
+
+
 def test_check_fails_when_no_committed_corpus(tmp_path):
     rc = _run("--check", "--corpus-dir", str(tmp_path / "empty"))
     assert rc.returncode == 1
@@ -134,4 +150,15 @@ def test_regen_verify_flag(tmp_path):
     dest = tmp_path / "corpus"
     rc = _run("--verify", "--corpus-dir", str(dest))
     assert rc.returncode == 0, rc.stderr
-    assert "10/10 matched, 0 known gap(s), 0 mismatch(es)" in rc.stdout
+    assert "11/11 matched, 0 known gap(s), 0 mismatch(es)" in rc.stdout
+
+
+def test_check_tolerates_uri_special_chars_in_path(tmp_path):
+    """A '#' in --corpus-dir must not break the db dump — the raw path
+    was leaking into SQLite's URI parser as a fragment separator and
+    reading a different db ('#' unlike '?' is legal in Windows names)."""
+    dest = tmp_path / "corpus#with-special-chars"
+    shutil.copytree(CORPUS, dest)
+    rc = _run("--check", "--corpus-dir", str(dest))
+    assert rc.returncode == 0, rc.stderr
+    assert "corpus OK" in rc.stdout

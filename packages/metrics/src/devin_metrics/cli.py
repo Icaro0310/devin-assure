@@ -4,6 +4,8 @@ Subcommands (read-only, no network, all accept ``--json``):
 
 - ``summary``   headline numbers + per-model table + top-5 longest sessions
 - ``projects``  per-project (``working_directory``) session/activity table
+- ``commits``   session→commit correlation: 40-hex SHAs + repo URLs
+                extracted from ``tool_call_state`` payloads
 - ``daily``     per-day activity; ``--days N`` keeps the N most recent days
 - ``digest``    ``--weekly`` composes summary+daily+watch into one report
                 file (``digest-YYYY-Www.md``); incremental via the shared
@@ -31,6 +33,7 @@ from devin_internals.schema import SchemaError
 from devin_metrics.aggregate import (
     by_day,
     by_project,
+    commits_report,
     summarize,
     watch_report,
 )
@@ -47,6 +50,7 @@ from devin_metrics.paths import (
 )
 from devin_metrics.render import (
     dumps_json,
+    render_commits_md,
     render_daily_md,
     render_projects_md,
     render_summary_md,
@@ -95,6 +99,12 @@ def cmd_projects(args: argparse.Namespace) -> int:
 def cmd_daily(args: argparse.Namespace) -> int:
     rows = by_day(_snapshot(args), days=args.days)
     print(dumps_json(rows) if args.json else render_daily_md(rows))
+    return 0
+
+
+def cmd_commits(args: argparse.Namespace) -> int:
+    report = commits_report(_snapshot(args))
+    print(dumps_json(report) if args.json else render_commits_md(report))
     return 0
 
 
@@ -216,6 +226,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="keep the N most recent activity days (default: all)",
     )
     p_daily.set_defaults(func=cmd_daily)
+    sub.add_parser(
+        "commits", parents=[common],
+        help="session→commit correlation (SHAs + repo URLs from "
+             "tool_call_state)").set_defaults(func=cmd_commits)
     p_digest = sub.add_parser(
         "digest", parents=[common],
         help="compose summary+daily+watch into a report file")

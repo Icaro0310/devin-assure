@@ -31,6 +31,7 @@ import os
 import re
 import sqlite3
 import sys
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -155,11 +156,45 @@ def _resolve_session(
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
-    """Atomic-ish side-file write: tmp file + replace, parents created."""
+    """Atomic side-file write: unique tmp file + replace, parents
+    created. Concurrent writers to the same destination never share a
+    temp name — a fixed ``.tmp`` suffix let one sweep consume the
+    other's staging file mid-write."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=path.parent, prefix=path.name + ".", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(payload, indent=2) + "\n")
+        os.replace(tmp_name, path)
+    except BaseException:
+        Path(tmp_name).unlink(missing_ok=True)
+        raise
+
+
+def _append_jsonl(path: Path, record: dict[str, Any]) -> None:
+    """Append one compact JSON line to the verdicts ledger."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(record, separators=(",", ":")) + "\n")
+
+
+def _verdict_record(result: SessionEndResult) -> dict[str, Any]:
+    """The compact per-session line appended to ``verdicts.jsonl``."""
+    counts = result.payload.get("summary") or {}
+    record: dict[str, Any] = {
+        "session_id": result.session_id,
+        "verdict": result.verdict,
+        "audited_at": result.payload.get("audited_at"),
+        "claims": len(result.payload.get("claims") or []),
+        "verified": counts.get("verified", 0),
+        "disputed": counts.get("disputed", 0),
+        "unverifiable": counts.get("unverifiable", 0),
+    }
+    if result.reason:
+        record["reason"] = result.reason
+    return record
 
 
 def _append_jsonl(path: Path, record: dict[str, Any]) -> None:

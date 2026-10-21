@@ -53,6 +53,17 @@ def test_audit_all_respects_limit(sessions_db):
     assert len(limited) == 2
 
 
+def test_counted_tests_session_is_pass(sessions_db):
+    with SessionsStore(sessions_db) as store:
+        audit = audit_session(store, _session(store, "sess-counted"))
+    assert audit.verdict == PASS
+    assert {(r.claim.kind, r.claim.detail) for r in audit.results} == {
+        ("tests", "pytest"),
+        ("tests_passed", "12"),
+    }
+    assert all(r.status == "verified" for r in audit.results)
+
+
 def test_http_session_is_pass(sessions_db):
     with SessionsStore(sessions_db) as store:
         audit = audit_session(store, _session(store, "sess-http"))

@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+- **Action** — the published root `action.yml` ("devin-qa-pack audit")
+  installs the pack from `github.action_path` (the checked-out revision
+  under test) instead of `git+https://…@${{ github.sha }}`: inside a
+  composite action `github.sha` is the *caller* repo's commit, so the
+  old install line failed for every external consumer. The audit step
+  now forwards `sessions-db` as `--sessions-db` (the flag the CLI
+  declares — the previous `--db` aborted with an argparse error
+  whenever a db path was passed) and builds argv with a bash array, so
+  db paths containing spaces reach the CLI as a single element.
+  `packages/qa-pack` gains `tests/test_action_contract.py`, pinning the
+  install source, env-var-only input passing, the env→argv wiring and
+  the audit gate's exit codes (2 fail-closed on an empty scope or
+  unknown session, 1 on any non-PASS verdict, 0 when all pass).
+- **CI** — `pr-approve` caller bumped from v1.5 to v1.6 in
+  `auto-approve.yml` (the v1.6 gate adds cross-repo fix anchors and
+  gate-eligible concurrency); `test_auto_approve_workflow.py` now pins
+  the gate version exactly so a silent downgrade is caught.
+- **Feature** — `devin-metrics commits`: session→commit correlation.
+  40-hex SHAs and `/commit/<sha>` repo URLs are extracted from
+  `tool_call_state` payloads via
+  `devin_internals.commits.commit_references` (devin-internals-spec); the
+  report lists each session's commits (short SHA + repo) plus a per-repo
+  rollup, `--json` supported, and `summary` gains "Sessions with
+  commits" / "Unique commit SHAs" rows.
 - **Docs** — root README embeds the agent-assurance demo gif under the
   top badge block; the qa-pack package README demo embed now uses
   absolute URLs so it renders on the PyPI project page.

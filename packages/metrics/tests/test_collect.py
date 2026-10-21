@@ -123,3 +123,24 @@ def test_rows_falls_back_to_materialized_list():
             return ["x"]
 
     assert _rows(Store(), "iter_message_nodes", "message_nodes") == ["x"]
+
+
+def test_tool_call_state_scanned_in_single_pass(sessions_db, monkeypatch):
+    """Commit extraction must share the counting pass — materializing all
+    tool_call_state rows (MB-scale payloads) for a second scan would be
+    an OOM regression on large stores."""
+    import devin_metrics.collect as coll
+    from devin_internals.parsers import SessionsStore
+
+    scans = []
+
+    class SpyStore(SessionsStore):
+        def iter_tool_call_state(self, session_id=None, batch_size=2000):
+            scans.append(batch_size)
+            yield from super().iter_tool_call_state(
+                session_id=session_id, batch_size=batch_size)
+
+    monkeypatch.setattr(coll, "SessionsStore", SpyStore)
+    snap = coll.collect(sessions_db, None)
+    assert scans == [200]
+    assert snap.sessions and snap.commits  # both fed by the same pass

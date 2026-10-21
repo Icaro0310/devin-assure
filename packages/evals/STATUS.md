@@ -39,10 +39,12 @@ table + check details.
   `"packs"` key in cases (pack checks run before the case's own), and
   `devin-evals packs` / `--packs-dir`.
 - **EV-3** — golden corpus: `devin-evals corpus generate|verify` builds a
-  seeded corpus from the devin-dream defect catalogue (vendored fallback),
-  with per-case `expected_status`/`known_gap`; committed at `corpus/`
-  (`evals/*.json` + `corpus.json`; `sessions*.db` regenerated, gitignored)
-  and drift-gated by `tools/regen-corpus.py --check` in CI.
+  seeded corpus from the devin-dream defect catalogue (eleven classes,
+  D01–D11, incl. cross-session secret reuse), with per-case
+  `expected_status`/`known_gap`; committed at `corpus/` (`evals/*.json`
+  + `corpus.json` + `sessions*.db`, the binaries kept via the
+  `!corpus/*.db` gitignore exception) and drift-gated by
+  `tools/regen-corpus.py --check` in CI.
 - **EV-5/G3 v2** — `ab-run` is now the preregistered A/B suite harness:
   tasks manifest (index `manifest.json` like the shipped `tasks/` pack,
   or per-task `*.json`; ≥5 trigger + ≥3 control), k attempts per arm

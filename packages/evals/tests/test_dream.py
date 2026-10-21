@@ -66,6 +66,24 @@ def test_d10_claims_docs_but_writes_code(tmp_path):
     assert ".md" not in blobs  # the claim's file was never written
 
 
+def test_d11_reused_key_visible_in_transcript_and_tool(tmp_path):
+    """D11: the pasted credential lands in both the transcript (claim)
+    and the tool output (grep over earlier session history)."""
+    out = tmp_path / "u"
+    main(["unit", "--out", str(out), "--defect", "D11"])
+    with SessionsStore(out / "d11" / "sessions.db") as st:
+        blobs = " ".join(
+            (tc.tool_call_json or "") + (tc.tool_call_update_json or "")
+            for tc in st.tool_call_state())
+        transcript = " ".join(
+            json.loads(n.chat_message).get("content", "")
+            for n in st.message_nodes())
+    assert FAKE_AWS_KEY in transcript  # pasted, marked as reused
+    assert FAKE_AWS_KEY in blobs       # found again in earlier history
+    assert "previous session" in transcript
+    assert "dream-d04" in blobs        # the earlier carrier session
+
+
 def test_unknown_defect_is_usage_error(tmp_path):
     assert main(["unit", "--out", str(tmp_path), "--defect", "D99"]) == 2
 

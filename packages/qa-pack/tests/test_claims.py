@@ -10,6 +10,7 @@ from devin_qa_pack.claims import (
     HTTP,
     PUSH,
     TESTS,
+    TESTS_PASSED,
     extract_claims,
 )
 from devin_qa_pack.evidence import EvidenceMessage, normalize_role
@@ -61,7 +62,10 @@ def test_generic_tests_claim_has_generic_detail():
 
 def test_runner_named_in_claim_becomes_detail():
     claims = extract_claims([make_node("pytest is green now, 42 passed")])
-    assert [(c.kind, c.detail) for c in claims] == [(TESTS, "pytest")]
+    assert [(c.kind, c.detail) for c in claims] == [
+        (TESTS, "pytest"),
+        (TESTS_PASSED, "42"),
+    ]
 
 
 def test_claims_are_deduplicated_per_kind_and_detail():
@@ -93,6 +97,56 @@ def test_file_claim_requires_a_write_verb():
     assert extract_claims([make_node("see src/report.html for details")]) == []
     claims = extract_claims([make_node("updated docs/usage.md")])
     assert [(c.kind, c.detail) for c in claims] == [(FILE, "docs/usage.md")]
+
+
+# -- tests_passed claims -------------------------------------------------------
+
+
+def test_counted_tests_claim_carries_the_count(sessions_db):
+    with SessionsStore(sessions_db) as store:
+        session = next(
+            s for s in store.sessions() if s.id == "sess-counted"
+        )
+        evidence = session_evidence(store, session)
+    claims = extract_claims(evidence.messages, "sess-counted")
+    assert [(c.kind, c.detail) for c in claims] == [
+        (TESTS, "pytest"),
+        (TESTS_PASSED, "12"),
+    ]
+
+
+def test_passed_count_claim_carries_the_count():
+    claims = extract_claims([make_node("All 47 tests passed.")])
+    assert [(c.kind, c.detail) for c in claims] == [
+        (TESTS, "tests"),
+        (TESTS_PASSED, "47"),
+    ]
+
+
+def test_passed_count_claim_ignores_other_tallies():
+    # only the passed count is claimed — skipped/failed tallies are not
+    claims = extract_claims(
+        [make_node("run done: 108 passed, 1 skipped, 2 failed.")]
+    )
+    counts = [
+        (c.kind, c.detail) for c in claims if c.kind == TESTS_PASSED
+    ]
+    assert counts == [(TESTS_PASSED, "108")]
+
+
+def test_bare_tests_claim_yields_no_count_claim():
+    # "tests pass" without a number stays a generic (uncounted) claim
+    claims = extract_claims([make_node("All tests passed.")])
+    assert [c.kind for c in claims] == [TESTS]
+
+
+def test_grouped_total_claim_normalizes_to_plain_count():
+    # "1,234" is one claim of 1234 — the tail "234" is not a claim
+    claims = extract_claims([make_node("1,234 tests passed.")])
+    assert [(c.kind, c.detail) for c in claims] == [
+        (TESTS, "tests"),
+        (TESTS_PASSED, "1234"),
+    ]
 
 
 # -- http claims ---------------------------------------------------------------

@@ -294,6 +294,15 @@ requires-dist = [
 provides-extras = ["dev", "mcp"]
 
 [[package]]
+name = "devin-install-scheduler"
+version = "0.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/89/497d378d6dfdfffa67c209ecdd571db4acb4503f7949b4c92033a99a13b6/devin_install_scheduler-0.1.0.tar.gz", hash = "sha256:d46386b3df51bec6fb5d113bad7ab4623ca8ef968f3160bffd6fc5a784c3b040", size = 4077, upload-time = "2026-10-09T11:53:29.605Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9b/09/243a5e3d9b8f8298c77011763c2f00b82ed65a61702c9f28389ae23a3107/devin_install_scheduler-0.1.0-py3-none-any.whl", hash = "sha256:4c5b9afd63a45e55ec36755b535d15f2ae925181707803fcf9650a270fc896a5", size = 3998, upload-time = "2026-10-09T11:53:28.595Z" },
+]
+
+[[package]]
 name = "devin-internals-spec"
 version = "0.3.2"
 source = { registry = "https://pypi.org/simple" }
@@ -331,6 +340,7 @@ name = "devin-qa-pack"
 version = "0.2.1"
 source = { editable = "packages/qa-pack" }
 dependencies = [
+    { name = "devin-install-scheduler" },
     { name = "devin-internals-spec" },
 ]
 
@@ -345,6 +355,7 @@ mcp = [
 
 [package.metadata]
 requires-dist = [
+    { name = "devin-install-scheduler", specifier = ">=0.1.0" },
     { name = "devin-internals-spec", specifier = ">=0.3.0,<0.4.0" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },

@@ -43,7 +43,10 @@ jobs:
       - name: Build and test
         run: |
           python -m pip install -e "${PKG_DIR}[dev]" build
-          python -m pytest -q "$PKG_DIR"
+          # Bare `pytest -q` inside the package dir so each package's own
+          # testpaths config applies (explicit "$PKG_DIR" would also collect
+          # evals' tasks/*/conftest.py and break on module-name shadowing).
+          (cd "$PKG_DIR" && python -m pytest -q)
           python -m build "$PKG_DIR" --outdir "$PKG_DIR/dist"
 
       - name: Generate SBOM

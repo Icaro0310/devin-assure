@@ -45,6 +45,15 @@ def test_do_query_daily_matches_cli(sessions_db, acp_dir, capsys):
     assert out == expected
 
 
+def test_do_query_commits_matches_cli(sessions_db, acp_dir, capsys):
+    expected = _cli_json(capsys, [
+        "commits", "--sessions-db", str(sessions_db),
+        "--acp-dir", str(acp_dir)])
+    out = do_query("commits", sessions_db=str(sessions_db),
+                   acp_dir=str(acp_dir))
+    assert out == expected
+
+
 def test_do_query_daily_days_zero_means_all(sessions_db, acp_dir, capsys):
     expected = _cli_json(capsys, [
         "daily", "--sessions-db", str(sessions_db),

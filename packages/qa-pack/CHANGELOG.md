@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `devin-qa-pack install --daily` — registers a scheduled `audit --all`
+  sweep through the shared `devin-install-scheduler` convention (tagged
+  `@daily` crontab line on Linux/macOS, daily Task Scheduler entry on
+  Windows, or the `elapsed` `.devin-ecosystem/scheduled.json` registry
+  devin-powerups' `UserPromptSubmit` hook ticks). The job runs
+  `python -m devin_qa_pack.cli audit --all --surface <S> --sessions-db
+  <data-dir>/cli/sessions.db --out <data-dir>/qa/audit-sweep.json` —
+  absolute paths baked at install time so the run needs no
+  `DEVIN_DATA_DIR`/XDG env in the scheduler's minimal environment; the
+  scheduled complement to the `qa.session-end` event trigger, which had
+  no scheduled counterpart.
+- `audit --out PATH` — writes the JSON audit payload to `PATH`
+  (atomic, parents created) and appends one compact verdict line per
+  session (`origin: "sweep"`) to `verdicts.jsonl` next to it — the same
+  ledger `session-end` feeds. Read-only on every store; all writes stay
+  under the `--out` root. A `--out` unwritable path fails closed
+  (exit 2); an empty scope still exits 2 before anything is written.
+- `tests_passed` claim kind: counted test claims ("47 tests passed",
+  "108 passed, 1 skipped", "1,234 tests passed") are extracted with the
+  pass count as the claim detail and checked against recorded tool-call
+  output the same way `http` claims are — `verified` when a result-side
+  payload records the claimed count (a `"N passed"` output string or a
+  keyed `passed` field; invocation fields like `rawInput`/`command`/
+  `title` never count), `disputed` when readable outputs record a
+  different count, `unverifiable` when no output records a count or
+  ground-truth rows are unreadable. A bare "tests passed" stays a
+  `tests` claim and is unchanged.
 - `delegation` claim kind: "delegated to a subagent/worker"-style
   assertions in agent messages (EN phrasings like "delegated the scan
   to a subagent" / "ran in parallel via subagent", PT like "deleguei" /
