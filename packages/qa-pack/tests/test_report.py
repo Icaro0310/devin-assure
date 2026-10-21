@@ -49,7 +49,7 @@ def test_audit_all_respects_limit(sessions_db):
     with SessionsStore(sessions_db) as store:
         audits = audit_all(store)
         limited = audit_all(store, limit=2)
-    assert len(audits) == 6
+    assert len(audits) == 7
     assert len(limited) == 2
 
 
