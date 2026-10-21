@@ -8,7 +8,7 @@ branding:
   color: green
 inputs:
   sessions-db:
-    description: Path to the agent sessions.db (default: auto-detect)
+    description: "Path to the agent sessions.db (default: auto-detect)"
     required: false
     default: ""
   session:
@@ -31,7 +31,9 @@ runs:
         python-version: ${{ inputs.python-version }}
     - name: Install devin-qa-pack
       shell: bash
-      run: pip install "git+https://github.com/Icaro0310/devin-assure@${{ github.sha }}#subdirectory=packages/qa-pack"
+      env:
+        ACTION_SRC: ${{ github.action_path }}
+      run: pip install "$ACTION_SRC/packages/qa-pack"
     - name: Run audit
       shell: bash
       env:
@@ -39,7 +41,10 @@ runs:
         SESSION_ID: ${{ inputs.session }}
         LIMIT: ${{ inputs.limit }}
       run: |
-        args="audit --all --limit $LIMIT"
-        [ -n "$SESSION_ID" ] && args="audit --session $SESSION_ID"
-        [ -n "$SESSIONS_DB" ] && args="$args --db $SESSIONS_DB"
-        devin-qa-pack $args
+        if [ -n "$SESSION_ID" ]; then
+          args=(audit --session "$SESSION_ID")
+        else
+          args=(audit --all --limit "$LIMIT")
+        fi
+        [ -n "$SESSIONS_DB" ] && args+=(--sessions-db "$SESSIONS_DB")
+        devin-qa-pack "${args[@]}"
