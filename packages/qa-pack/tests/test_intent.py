@@ -18,7 +18,6 @@ import sqlite3
 
 import pytest
 from devin_internals.fixtures import _BASE_TS_MS, create_sessions_db
-
 from devin_qa_pack.cli import main
 from devin_qa_pack.evidence import (
     EvidenceMessage,

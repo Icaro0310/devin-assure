@@ -1,7 +1,6 @@
 """report.py — per-session verdicts and the serializable audit shape."""
 
 from devin_internals.parsers import SessionsStore
-
 from devin_qa_pack.report import (
     PARTIAL,
     PASS,

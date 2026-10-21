@@ -26,7 +26,6 @@ import json
 import socket
 
 import pytest
-
 from devin_qa_pack.cli import main
 
 

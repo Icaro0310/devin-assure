@@ -27,7 +27,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from devin_qa_pack.evidence import EvidenceProvider, SessionEvidence
 from devin_qa_pack.evidence.codex_cli import CodexCliProvider
 from devin_qa_pack.evidence.copilot_cli import CopilotCliProvider

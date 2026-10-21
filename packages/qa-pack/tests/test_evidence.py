@@ -6,7 +6,6 @@ import sqlite3
 
 import pytest
 from devin_internals.parsers import SessionsStore
-
 from devin_qa_pack.cli import main
 from devin_qa_pack.evidence import (
     EvidenceMessage,
@@ -794,7 +793,6 @@ def test_claim_node_id_cites_source_id(sessions_db):
     import sqlite3
 
     from conftest import add_message, add_session
-
     from devin_qa_pack.claims import extract_claims
 
     con = sqlite3.connect(sessions_db)

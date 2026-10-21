@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 import tomllib
-
 from devin_qa_pack.mcp_server import do_audit
 
 
