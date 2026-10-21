@@ -31,10 +31,9 @@ def test_review_comment_trigger_re_evaluates_gate() -> None:
     assert _load()["on"]["pull_request_review_comment"]["types"] == ["created"]
 
 
-def test_gate_pin_is_v1_4_or_newer() -> None:
-    """The fallback mechanism only exists in pr-approve v1.4+."""
+def test_gate_pin_is_v1_6() -> None:
+    """v1.6 adds cross-repo fix anchors and gate-eligible concurrency;
+    the pin must be exact so a silent downgrade is caught here."""
     job = _load()["jobs"]["approve"]
     uses = job["uses"]
-    assert uses.startswith(GATE_PIN)
-    version = uses.removeprefix(GATE_PIN)
-    assert version >= "v1.4"
+    assert uses == GATE_PIN + "v1.6"
