@@ -105,9 +105,13 @@ agent actually did. No Devin install needed.
 
 ## Usage
 
-Every command reads local Devin data only — `sessions.db`, the `.devin/`
-config tree, transcript exports — and never writes back to those stores.
-Point `--sessions-db` at a copied database for a hard no-touch guarantee.
+Every command reads local Devin data by default — `sessions.db`, the
+`.devin/` config tree, transcript exports — and never writes back to
+those stores. Two opt-ins do reach the network: `audit --source mcp`
+fetches the session's cloud events, and `--online` probes live URLs.
+Point `--sessions-db` at a copied database to keep reads fully off the
+original store — `session-end` still writes its verdict under the Devin
+data dir (`<data-dir>/qa/`; redirect with `--data-dir` or `--out`).
 Reports are not auto-redacted: excerpt the verdict block before sharing.
 
 ```bash
