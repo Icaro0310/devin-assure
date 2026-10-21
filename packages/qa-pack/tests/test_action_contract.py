@@ -19,6 +19,7 @@ audit"): pins the gate semantics the published action must keep.
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -187,7 +188,11 @@ def test_audit_step_forwards_inputs_to_cli(
     script = _step_named("Run audit")["run"]
     proc = subprocess.run(
         [BASH, "-eo", "pipefail", "-c", script],
-        env={"PATH": f"{bin_dir}:/usr/bin:/bin", "ARGV_OUT": str(argv_out), **env},
+        env={
+            "PATH": os.pathsep.join((str(bin_dir), "/usr/bin", "/bin")),
+            "ARGV_OUT": str(argv_out),
+            **env,
+        },
         capture_output=True,
         text=True,
         check=False,
