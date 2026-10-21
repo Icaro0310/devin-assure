@@ -1,9 +1,9 @@
 """Extract deliverable claims from a session's evidence messages.
 
 A *claim* is an assertion the agent made about delivered work: tests
-passed, a commit exists, a file was created/changed, work was pushed.
-Only agent-role messages are scanned — a user prompt quoting the same
-words is not a delivery claim.
+passed, a commit exists, a file was created/changed, work was pushed,
+work was delegated to a subagent. Only agent-role messages are scanned
+— a user prompt quoting the same words is not a delivery claim.
 
 The input is the canonical :class:`EvidenceMessage` — store-specific
 payload decoding (``chat_message`` JSON for the Devin store) happens in
@@ -25,8 +25,9 @@ FILE = "file"
 PUSH = "push"
 HTTP = "http"
 URL = "url"
+DELEGATION = "delegation"
 
-CLAIM_KINDS = (TESTS, TESTS_PASSED, COMMIT, FILE, PUSH, HTTP, URL)
+CLAIM_KINDS = (TESTS, TESTS_PASSED, COMMIT, FILE, PUSH, HTTP, URL, DELEGATION)
 
 _RUNNER_TOKENS = (
     "cargo test",
@@ -77,6 +78,49 @@ _PATH_TOKEN_RE = re.compile(
 # "status code: 200" — the captured group is the claimed status code.
 _URL_RE = re.compile(r"https://[\w.-]+(?::\d+)?(?:/[\w./?%&=~#+-]*)?")
 
+# Delegation claims: a delegatee noun (subagent/worker) beside a
+# delegation or result verb — "delegated the scan to a subagent",
+# "spawned worker-2", "ran in parallel via subagent", "the subagent
+# reported back". PT phrasings need no delegatee: a past-tense
+# delegation verb ("deleguei", "delegado") or the delegatee noun
+# itself ("subagente") is already the claim.
+_DELEGATEE = r"(?:sub[-\s]?agente?s?|workers?)"
+_DELEGATION_VERB = (
+    r"delegat\w+|spawn\w+|launch\w+|dispatch\w+|offload\w+|"
+    r"kick(?:ed|s)?\s+off|hand(?:ed|s)?\s+off|"
+    r"ran|runs?|running|start\w+|sent|send(?:ing)?|us(?:ed|ing)"
+)
+_DELEGATION_RESULT = (
+    r"complet\w+|finish\w+|return\w+|report\w+|found|handl\w+|"
+    r"retorn\w+|conclu\w+|entreg\w+"
+)
+_DELEGATION_RE = re.compile(
+    rf"\b(?:{_DELEGATION_VERB})\b[^.\n]{{0,60}}?\b{_DELEGATEE}\b"
+    rf"|\bsub[-\s]?agente?s?\b[^.\n]{{0,60}}?\b(?:{_DELEGATION_VERB}|"
+    rf"{_DELEGATION_RESULT})\b"
+    # a bare ``worker`` reporting a result verb is ambiguous — "the
+    # worker process completed the build" is ordinary activity, not a
+    # delegation; require a delegation verb in that order instead
+    rf"|\bworkers?\b[^.\n]{{0,60}}?\b(?:{_DELEGATION_VERB})\b"
+    rf"|\b(?:deleguei|delegou|delegaram|delegad[oa]s?)\b"
+    rf"|\bsub[-\s]?agentes?\b",
+    re.IGNORECASE,
+)
+
+_NEGATION_RE = re.compile(r"\b(?:not|n't|never|não|nem|nunca)\b", re.IGNORECASE)
+
+
+def _delegation_negated(line: str, match: re.Match[str]) -> bool:
+    """A delegation cue in a negated clause is a denial, not a claim —
+    "I did not delegate to a worker" must not yield a delegation claim
+    that a session audit would then dispute."""
+    prefix = line[max(0, match.start() - 48) : match.start()]
+    # only the clause nearest the cue can negate it
+    clause = re.split(r"[,;.!?:()\[\]]", prefix)[-1]
+    return bool(
+        _NEGATION_RE.search(clause) or _NEGATION_RE.search(match.group(0))
+    )
+
 _HTTP_CLAIM_RES = (
     re.compile(
         r"\b(?:returned|responded|replied|answered|came\s+back)\b"
@@ -101,8 +145,9 @@ class Claim:
 
     ``detail`` carries the checkable part: the test-runner name (or
     ``"tests"`` when generic), the commit hash, the claimed file path, or
-    ``"push"``. ``excerpt`` is the source line, truncated — evidence, not
-    full row content.
+    ``"push"``/``"delegation"`` for the detail-less action kinds.
+    ``excerpt`` is the source line, truncated — evidence, not full row
+    content.
     """
 
     kind: str
@@ -150,6 +195,11 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
     ):
         for m in _URL_RE.finditer(line):
             yield URL, m.group(0).rstrip(".,);'\"")
+    if any(
+        not _delegation_negated(line, m)
+        for m in _DELEGATION_RE.finditer(line)
+    ):
+        yield DELEGATION, DELEGATION
 
 
 def _collect(

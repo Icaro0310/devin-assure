@@ -68,7 +68,16 @@ def _result_text(content: Any) -> str:
     return "" if content is None else str(content)
 
 
+# Claude Code's subagent-spawning tools — ``Task`` exactly, plus any
+# custom subagent-named tool — so delegation claims verify against the
+# transcript the same way they do against devin-cli evidence.
+_SPAWN_TOOLS = {"task"}
+
+
 def _tool_kind(name: str) -> str:
+    low = name.lower()
+    if low in _SPAWN_TOOLS or "subagent" in low or "sub_agent" in low:
+        return "spawn"
     if name in _EXECUTE_TOOLS:
         return "execute"
     if name in _WRITE_TOOLS:

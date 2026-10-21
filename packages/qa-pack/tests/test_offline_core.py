@@ -62,7 +62,7 @@ def test_audit_synthetic_sessions_offline(sessions_db, capsys):
 
     assert rc == 1  # not every session is PASS, but the audit ran offline
     assert payload["sessions_db"].endswith("sessions.db")
-    assert len(payload["sessions"]) == 6
+    assert len(payload["sessions"]) == 7
     assert {s["verdict"] for s in payload["sessions"]} == {
         "PASS", "PARTIAL", "UNVERIFIED"
     }

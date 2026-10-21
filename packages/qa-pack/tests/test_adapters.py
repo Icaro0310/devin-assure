@@ -147,6 +147,49 @@ def test_claude_code_failed_result_disputes(tmp_path: Path) -> None:
     assert tests.status == "disputed"
 
 
+def test_claude_code_task_tool_verifies_delegation(tmp_path: Path) -> None:
+    # The Task tool is Claude Code's subagent spawn — a completed Task
+    # result must verify a delegation claim, not audit it disputed.
+    entries = [
+        {
+            "type": "assistant", "cwd": "/tmp/proj",
+            "message": {
+                "role": "assistant",
+                "content": [
+                    {"type": "tool_use", "id": "tu1", "name": "Task",
+                     "input": {"description": "scan the repo"}},
+                ],
+            },
+        },
+        {
+            "type": "user", "cwd": "/tmp/proj",
+            "message": {
+                "role": "user",
+                "content": [
+                    {"type": "tool_result", "tool_use_id": "tu1",
+                     "content": "scan finished"},
+                ],
+            },
+        },
+        {
+            "type": "assistant", "cwd": "/tmp/proj",
+            "message": {
+                "role": "assistant",
+                "content": [{"type": "text",
+                             "text": "I delegated the repo scan to a "
+                                     "subagent."}],
+            },
+        },
+    ]
+    f = _write_jsonl(tmp_path / "session.jsonl", entries)
+
+    audit = audit_source(claude_code.load(f))
+
+    delegation = next(
+        r for r in audit.results if r.claim.kind == "delegation")
+    assert delegation.status == "verified"
+
+
 def test_claude_code_command_text_not_pass_evidence(tmp_path: Path) -> None:
     # the tool_use input is the invocation — "echo 47 passed" in the
     # command must not corroborate the claim; only tool_result output can

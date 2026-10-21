@@ -2,6 +2,7 @@
 
 from devin_qa_pack.claims import (
     COMMIT,
+    DELEGATION,
     FILE,
     HTTP,
     PUSH,
@@ -44,6 +45,23 @@ def exec_state(command, status="completed", output=""):
             "status": status,
             "rawInput": {"command": command},
             "rawOutput": {"output": output},
+        },
+    )
+
+
+def spawn_state(name="run_subagent", status="completed", key="kind"):
+    """A subagent-spawn tool call — the devin-cli ``run_subagent``
+    record by default; ``key``/``name`` swap in other surfaces'
+    spellings (Copilot ``toolName``, Codex ``name``, VS Code
+    ``toolId``). The title deliberately avoids "subagent" so kind
+    detection is what classifies the call."""
+    return tstate(
+        "tc",
+        {
+            key: name,
+            "title": "Delegated scan",
+            "status": status,
+            "rawInput": {"prompt": "scan the repo"},
         },
     )
 
@@ -426,3 +444,146 @@ def test_url_claim_extracted_from_deploy_text():
     claims = extract_claims([msg])
     urls = [c.detail for c in claims if c.kind == "url"]
     assert urls == ["https://demo.example.com/app"]
+
+
+# -- delegation claims ---------------------------------------------------------
+
+
+def test_spawn_call_parses_as_spawn_kind():
+    parsed = parse_tool_call(spawn_state())
+    assert parsed is not None
+    assert parsed.kind == "spawn"
+
+
+def test_spawn_call_detected_via_tool_name_keys():
+    # Copilot-style toolName, Codex-style name and VS Code toolId all
+    # classify as spawn calls.
+    for key, name in (("toolName", "task"), ("name", "spawn_agent"),
+                      ("toolId", "run_subagent")):
+        parsed = parse_tool_call(spawn_state(name=name, key=key))
+        assert parsed is not None
+        assert parsed.kind == "spawn", (key, name)
+
+
+def test_subagent_name_variants_parse_as_spawn():
+    for name in ("run_subagent", "SubAgent", "run-subagent",
+                 "my_sub_agent_v2"):
+        parsed = parse_tool_call(spawn_state(name=name))
+        assert parsed is not None
+        assert parsed.kind == "spawn", name
+
+
+def test_spawn_call_detected_via_subagent_title():
+    parsed = parse_tool_call(
+        tstate("tc", {"title": "Subagent: explore repo",
+                      "status": "completed",
+                      "rawInput": {"prompt": "explore"}})
+    )
+    assert parsed is not None
+    assert parsed.kind == "spawn"
+
+
+def test_non_spawn_tool_names_do_not_parse_as_spawn():
+    # "read"/"think"/"browse" are plain "other" calls — never spawn.
+    for name in ("read", "think", "browse", "search"):
+        parsed = parse_tool_call(spawn_state(name=name))
+        assert parsed is not None
+        assert parsed.kind == "other", name
+
+
+def test_delegation_claim_verified_by_spawn_call():
+    calls = parse_tool_calls([spawn_state()])
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_delegation_claim_disputed_by_failed_spawn_call():
+    calls = parse_tool_calls([spawn_state(status="failed")])
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == DISPUTED
+
+
+def test_delegation_claim_unverifiable_while_spawn_pending():
+    calls = parse_tool_calls([spawn_state(status="in_progress")])
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+def test_delegation_claim_disputed_without_spawn_call():
+    calls = parse_tool_calls([exec_state("git status")])
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == DISPUTED
+
+
+def test_delegation_claim_disputed_when_no_calls_at_all():
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), [], "/nonexistent")
+    assert result.status == DISPUTED
+
+
+def test_delegation_claim_unverifiable_when_ground_truth_unreadable():
+    states = [tstate("tc-null")]  # NULL payloads → dropped
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), parse_tool_calls(states),
+        "/nonexistent", raw_call_count=len(states))
+    assert result.status == UNVERIFIABLE
+
+
+def test_execute_envelope_with_subagent_tool_id_stays_execute():
+    # kind=execute is the authoritative envelope: a subagent-named
+    # toolId must not strip the call's command evidence, or a spawned
+    # test run would stop counting for test claims.
+    parsed = parse_tool_call(tstate(
+        "tc",
+        {"kind": "execute", "toolId": "run_subagent",
+         "status": "completed", "rawInput": {"command": "pytest -q"}},
+    ))
+    assert parsed is not None
+    assert parsed.kind == "execute"
+    assert verify_claim(
+        claim(TESTS), [parsed], "/nonexistent").status == VERIFIED
+
+
+def test_vscode_completed_spawn_without_exit_code_verifies():
+    # VS Code tool-invocation parts carry their outcome in
+    # isComplete/resultDetails — a completed spawn with no exit code.
+    calls = parse_tool_calls([
+        tstate("tc",
+               {"toolId": "run_subagent", "title": "Delegated scan",
+                "rawInput": {"prompt": "scan"}},
+               {"isComplete": True,
+                "resultDetails": {"output": "scan finished"}}),
+    ])
+    assert calls and calls[0].kind == "spawn"
+    assert calls[0].status == "completed"
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_vscode_error_result_details_disputes_delegation():
+    calls = parse_tool_calls([
+        tstate("tc",
+               {"toolId": "run_subagent", "rawInput": {"prompt": "x"}},
+               {"isComplete": True, "resultDetails": {"isError": True}}),
+    ])
+    assert calls and calls[0].status == "failed"
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == DISPUTED
+
+
+def test_vscode_incomplete_spawn_stays_unverifiable():
+    calls = parse_tool_calls([
+        tstate("tc",
+               {"toolId": "run_subagent", "rawInput": {"prompt": "x"}},
+               {"isComplete": False}),
+    ])
+    assert calls and calls[0].status == "pending"
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
