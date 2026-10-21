@@ -3,6 +3,7 @@
 import json
 
 from devin_internals.parsers import SessionsStore
+
 from devin_qa_pack.claims import (
     COMMIT,
     DELEGATION,
@@ -233,6 +234,35 @@ def test_delegation_claim_needs_delegatee_or_pt_marker():
     assert extract_claims(
         [make_node("the agent handled it end to end")]
     ) == []
+
+
+def test_delegation_claim_denials_do_not_claim():
+    # "I did not delegate" would otherwise match and then audit disputed
+    for text in (
+        "I did not delegate to a worker.",
+        "I never spawned a subagent for this.",
+        "Não deleguei nada.",
+    ):
+        assert extract_claims([make_node(text)]) == [], text
+
+
+def test_delegation_claim_ignores_plain_worker_reports():
+    # "the worker process completed" is ordinary activity, not a
+    # delegation — the worker+result-verb order is reserved for
+    # subagents; worker claims need a delegation verb.
+    assert extract_claims(
+        [make_node("The worker process completed the build.")]
+    ) == []
+    assert extract_claims(
+        [make_node("Workers finished the nightly job.")]
+    ) == []
+    # a delegation verb on a worker is still a claim
+    claims = extract_claims(
+        [make_node("the worker dispatched the retry job")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [
+        (DELEGATION, DELEGATION)
+    ]
 
 
 def test_delegation_claims_deduplicate():

@@ -26,6 +26,7 @@ from pathlib import Path
 
 import pytest
 from devin_internals.fixtures import _BASE_TS_MS, create_sessions_db
+
 from devin_qa_pack.cli import main
 
 HOOK_FILE = Path(__file__).resolve().parents[3] / ".pre-commit-hooks.yaml"

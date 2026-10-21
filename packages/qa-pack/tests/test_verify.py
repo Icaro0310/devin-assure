@@ -531,3 +531,59 @@ def test_delegation_claim_unverifiable_when_ground_truth_unreadable():
         claim(DELEGATION, DELEGATION), parse_tool_calls(states),
         "/nonexistent", raw_call_count=len(states))
     assert result.status == UNVERIFIABLE
+
+
+def test_execute_envelope_with_subagent_tool_id_stays_execute():
+    # kind=execute is the authoritative envelope: a subagent-named
+    # toolId must not strip the call's command evidence, or a spawned
+    # test run would stop counting for test claims.
+    parsed = parse_tool_call(tstate(
+        "tc",
+        {"kind": "execute", "toolId": "run_subagent",
+         "status": "completed", "rawInput": {"command": "pytest -q"}},
+    ))
+    assert parsed is not None
+    assert parsed.kind == "execute"
+    assert verify_claim(
+        claim(TESTS), [parsed], "/nonexistent").status == VERIFIED
+
+
+def test_vscode_completed_spawn_without_exit_code_verifies():
+    # VS Code tool-invocation parts carry their outcome in
+    # isComplete/resultDetails — a completed spawn with no exit code.
+    calls = parse_tool_calls([
+        tstate("tc",
+               {"toolId": "run_subagent", "title": "Delegated scan",
+                "rawInput": {"prompt": "scan"}},
+               {"isComplete": True,
+                "resultDetails": {"output": "scan finished"}}),
+    ])
+    assert calls and calls[0].kind == "spawn"
+    assert calls[0].status == "completed"
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_vscode_error_result_details_disputes_delegation():
+    calls = parse_tool_calls([
+        tstate("tc",
+               {"toolId": "run_subagent", "rawInput": {"prompt": "x"}},
+               {"isComplete": True, "resultDetails": {"isError": True}}),
+    ])
+    assert calls and calls[0].status == "failed"
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == DISPUTED
+
+
+def test_vscode_incomplete_spawn_stays_unverifiable():
+    calls = parse_tool_calls([
+        tstate("tc",
+               {"toolId": "run_subagent", "rawInput": {"prompt": "x"}},
+               {"isComplete": False}),
+    ])
+    assert calls and calls[0].status == "pending"
+    result = verify_claim(
+        claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE

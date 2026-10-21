@@ -57,6 +57,7 @@ _WRITE_KINDS = {"edit", "write", "create", "delete", "move", "rename"}
 _SPAWN_NAME_KEYS = (
     "kind", "type", "tool", "name", "toolName", "tool_name", "toolId",
 )
+_SPAWN_AUX_KEYS = ("name", "toolName", "tool_name", "toolId", "tool_id")
 _SPAWN_KINDS = {
     "agent", "background_agent", "create_agent", "delegate", "launch_agent",
     "parallel_agent", "run_worker", "spawn_agent", "spawn_worker",
@@ -228,6 +229,19 @@ def _status_of(payloads: list[dict[str, Any]]) -> str:
         code = _terminal_exit(payload)
         if code is not None:
             return "completed" if code == 0 else "failed"
+    # VS Code non-terminal invocations keep their outcome in
+    # ``isComplete``/``resultDetails`` (no exit code exists for a
+    # spawn) — read them before the generic status strings.
+    for payload in payloads:
+        if payload.get("isComplete") is True:
+            details = payload.get("resultDetails")
+            if isinstance(details, dict) and details.get("isError") is True:
+                return "failed"
+            return "completed"
+        if payload.get("isComplete") is False:
+            return "pending"
+        if payload.get("resultDetails") not in (None, "", {}, []):
+            return "completed"
     for payload in payloads:
         for key in ("status", "state"):
             raw = payload.get(key)
@@ -260,16 +274,31 @@ def _is_spawn_name(value: Any) -> bool:
 
 
 def _kind_of(payload: dict[str, Any], commands: list[str]) -> str:
-    if any(_is_spawn_name(payload.get(key)) for key in _SPAWN_NAME_KEYS):
-        return "spawn"
-    raw = payload.get("kind") or payload.get("type") or payload.get("tool")
-    if isinstance(raw, str):
-        low = raw.lower()
+    # kind/type/tool are authoritative: an ``execute`` envelope keeps
+    # its command evidence even when an auxiliary field (``toolId``,
+    # ``name``) names a subagent tool — otherwise a spawned ``pytest``
+    # run would stop counting for test claims. A spawn name in one of
+    # the explicit fields still classifies as spawn.
+    held: str | None = None
+    for key in ("kind", "type", "tool"):
+        value = payload.get(key)
+        if not isinstance(value, str):
+            continue
+        low = value.lower()
         if low in _EXECUTE_KINDS:
             return "execute"
         if low in _WRITE_KINDS:
             return "write"
-        return "other"
+        if _is_spawn_name(value):
+            held = "spawn"
+        elif held is None:
+            held = "other"
+    if held == "spawn":
+        return "spawn"
+    if any(_is_spawn_name(payload.get(key)) for key in _SPAWN_AUX_KEYS):
+        return "spawn"
+    if held is not None:
+        return held
     title = payload.get("title")
     if isinstance(title, str) and (
         "subagent" in title.lower() or "sub-agent" in title.lower()

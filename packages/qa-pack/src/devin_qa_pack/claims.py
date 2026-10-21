@@ -96,12 +96,30 @@ _DELEGATION_RESULT = (
 )
 _DELEGATION_RE = re.compile(
     rf"\b(?:{_DELEGATION_VERB})\b[^.\n]{{0,60}}?\b{_DELEGATEE}\b"
-    rf"|\b{_DELEGATEE}\b[^.\n]{{0,60}}?\b(?:{_DELEGATION_VERB}|"
+    rf"|\bsub[-\s]?agente?s?\b[^.\n]{{0,60}}?\b(?:{_DELEGATION_VERB}|"
     rf"{_DELEGATION_RESULT})\b"
+    # a bare ``worker`` reporting a result verb is ambiguous — "the
+    # worker process completed the build" is ordinary activity, not a
+    # delegation; require a delegation verb in that order instead
+    rf"|\bworkers?\b[^.\n]{{0,60}}?\b(?:{_DELEGATION_VERB})\b"
     rf"|\b(?:deleguei|delegou|delegaram|delegad[oa]s?)\b"
     rf"|\bsub[-\s]?agentes?\b",
     re.IGNORECASE,
 )
+
+_NEGATION_RE = re.compile(r"\b(?:not|n't|never|não|nem|nunca)\b", re.IGNORECASE)
+
+
+def _delegation_negated(line: str, match: re.Match[str]) -> bool:
+    """A delegation cue in a negated clause is a denial, not a claim —
+    "I did not delegate to a worker" must not yield a delegation claim
+    that a session audit would then dispute."""
+    prefix = line[max(0, match.start() - 48) : match.start()]
+    # only the clause nearest the cue can negate it
+    clause = re.split(r"[,;.!?:()\[\]]", prefix)[-1]
+    return bool(
+        _NEGATION_RE.search(clause) or _NEGATION_RE.search(match.group(0))
+    )
 
 _HTTP_CLAIM_RES = (
     re.compile(
@@ -177,7 +195,10 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
     ):
         for m in _URL_RE.finditer(line):
             yield URL, m.group(0).rstrip(".,);'\"")
-    if _DELEGATION_RE.search(line):
+    if any(
+        not _delegation_negated(line, m)
+        for m in _DELEGATION_RE.finditer(line)
+    ):
         yield DELEGATION, DELEGATION
 
 
