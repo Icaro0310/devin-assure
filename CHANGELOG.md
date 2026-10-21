@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **Docs** — `README.corporate-windows.md` gains three recipe sections:
+  *Read-only operation* (every command reads local Devin data only; a
+  copied `--sessions-db` gives a hard no-touch guarantee), *What cannot
+  be delegated* (local-only is posture, not enforcement — the opt-in
+  `--online`/`--source mcp` flags exist and stay unused), and *Reporting
+  false positives* (reports are not auto-redacted — excerpt the verdict
+  block, pass it through `devin-redact` when installed, verify before
+  sharing). `README.md` documents the same read-only guarantee for all
+  platforms.
 - **Action** — the published root `action.yml` ("devin-qa-pack audit")
   installs the pack from `github.action_path` (the checked-out revision
   under test) instead of `git+https://…@${{ github.sha }}`: inside a
