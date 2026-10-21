@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **CI** — `pr-approve` caller bumped from v1.5 to v1.6 in
+  `auto-approve.yml` (the v1.6 gate adds cross-repo fix anchors and
+  gate-eligible concurrency); `test_auto_approve_workflow.py` now pins
+  the gate version exactly so a silent downgrade is caught.
 - **Feature** — `devin-metrics commits`: session→commit correlation.
   40-hex SHAs and `/commit/<sha>` repo URLs are extracted from
   `tool_call_state` payloads via
