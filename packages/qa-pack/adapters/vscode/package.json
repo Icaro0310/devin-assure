@@ -2,7 +2,7 @@
   "name": "devin-qa-pack",
   "displayName": "devin-qa-pack",
   "description": "QA audits for Devin sessions, inside the editor. Thin adapter: the extension shells out to the devin-qa-pack CLI and renders the result — no audit logic is reimplemented here.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "icaro0310",
   "license": "MIT",
   "devin-qa-pack-cli": ">=0.1.2,<0.3",

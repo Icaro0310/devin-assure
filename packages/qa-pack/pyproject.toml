@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "devin-qa-pack"
-version = "0.2.1"
+version = "0.3.0"
 description = "QA audit for agent sessions: verifies deliverable claims (tests, commits, files, pushes) against recorded tool-call ground truth across Devin CLI, Copilot CLI, Codex CLI and VS Code chat stores."
 readme = "README.md"
 license = { text = "MIT" }
