@@ -53,6 +53,16 @@ class SessionAudit:
             s: sum(1 for r in self.results if r.status == s) for s in _STATUSES
         }
 
+    def uncovered(self) -> list[str]:
+        """``kind/detail`` names of the claims lacking corroborating
+        evidence — the disputed/unverifiable results a ``PARTIAL``
+        verdict otherwise summarizes as bare counts."""
+        return [
+            f"{r.claim.kind}/{r.claim.detail or '-'}"
+            for r in self.results
+            if r.status != VERIFIED
+        ]
+
 
 def _verdict(results: list[VerifiedClaim]) -> str:
     if not results:
@@ -217,6 +227,7 @@ def audit_dict(audit: SessionAudit) -> dict[str, Any]:
         "working_directory": audit.working_directory,
         "verdict": audit.verdict,
         "summary": audit.counts(),
+        "uncovered": audit.uncovered(),
         "claims": [_claim_dict(r) for r in audit.results],
     }
     if audit.warnings:
@@ -237,13 +248,19 @@ def audits_payload(
 def render_audit(audit: SessionAudit) -> str:
     counts = audit.counts()
     title = f"  {audit.title}" if audit.title else ""
-    lines = [
-        (f"{audit.verdict}  {audit.session_id}{title} — "
-         f"{len(audit.results)} claim(s): "
-         f"{counts[VERIFIED]} verified, "
-         f"{counts[DISPUTED]} disputed, "
-         f"{counts[UNVERIFIABLE]} unverifiable")
-    ]
+    head = (
+        f"{audit.verdict}  {audit.session_id}{title} — "
+        f"{len(audit.results)} claim(s): "
+        f"{counts[VERIFIED]} verified, "
+        f"{counts[DISPUTED]} disputed, "
+        f"{counts[UNVERIFIABLE]} unverifiable"
+    )
+    uncovered = audit.uncovered()
+    if uncovered:
+        # A bare PARTIAL says *some* claim lacked evidence without
+        # naming it — the verdict detail names the uncovered claims.
+        head += f" — uncovered: {', '.join(uncovered)}"
+    lines = [head]
     for r in audit.results:
         detail = r.claim.detail or "-"
         lines.append(

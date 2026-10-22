@@ -240,6 +240,21 @@ def test_verdicts_ledger_appends_per_session(sessions_db, tmp_path, capsys):
         "sess-verified", "sess-disputed"]
 
 
+def test_verdicts_ledger_names_uncovered_claims(sessions_db, tmp_path, capsys):
+    """The compact ledger line names the claims that lacked evidence —
+    the sweep/dashboard shouldn't have to re-audit to know which."""
+    data_dir = tmp_path / "data"
+    rc = main(["session-end", "--sessions-db", str(sessions_db),
+               "--session-id", "sess-disputed", "--data-dir", str(data_dir)])
+    assert rc == 0
+    rec = json.loads(
+        (data_dir / "qa" / "verdicts.jsonl").read_text().splitlines()[0])
+    assert rec["verdict"] == "PARTIAL"
+    assert rec["uncovered"] == ["tests/tests", "commit/deadbee"]
+    summary = capsys.readouterr().out
+    assert "uncovered: tests/tests, commit/deadbee" in summary
+
+
 def test_verdicts_ledger_records_skipped(sessions_db, tmp_path, capsys):
     data_dir = tmp_path / "data"
     rc = main(["session-end", "--sessions-db", str(sessions_db),

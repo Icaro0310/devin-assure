@@ -50,6 +50,9 @@ def sweep_record(audit: SessionAudit, audited_at: str) -> dict[str, Any]:
     }
     if audit.surface:
         record["surface"] = audit.surface
+    uncovered = audit.uncovered()
+    if uncovered:
+        record["uncovered"] = uncovered
     return record
 
 

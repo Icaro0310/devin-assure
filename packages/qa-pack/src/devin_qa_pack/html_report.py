@@ -53,10 +53,12 @@ vertical-align:top;word-break:break-word}
 tr:last-child td{border-bottom:none}
 .num{text-align:right}
 .badge{display:inline-block;padding:.05rem .5rem;border-radius:10px;
-font-size:.7rem;font-weight:600;border:1px solid var(--border)}
-.badge.pass{color:var(--ok);border-color:var(--ok)}
-.badge.partial{color:var(--warn);border-color:var(--warn)}
-.badge.unverified{color:var(--mut);border-color:var(--mut)}
+font-size:.7rem;font-weight:600;border:1px solid var(--border);
+text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
+.badge.pass,.badge.verified{color:var(--ok);border-color:var(--ok)}
+.badge.partial,.badge.warning{color:var(--warn);border-color:var(--warn)}
+.badge.disputed{color:var(--bad);border-color:var(--bad)}
+.badge.unverified,.badge.unverifiable{color:var(--mut);border-color:var(--mut)}
 .st-verified{color:var(--ok)}
 .st-disputed{color:var(--bad)}
 .st-unverifiable{color:var(--mut)}
@@ -152,12 +154,20 @@ def _sessions_table(audits: list[SessionAudit]) -> str:
     )
 
 
+def _status_badge(status: str) -> str:
+    """Claim statuses get the same pill treatment as verdicts — the
+    badge carries its text label, never color alone."""
+    return (
+        f'<span class="badge {_e(status.lower())}">{_e(status)}</span>'
+    )
+
+
 def _claim_rows(audit: SessionAudit) -> str:
     rows = []
     for r in audit.results:
         rows.append(
             "<tr>"
-            f'<td class="st-{_e(r.status)}">{_e(r.status)}</td>'
+            f"<td>{_status_badge(r.status)}</td>"
             f"<td>{_e(r.claim.kind)}</td>"
             f"<td>{_e(r.claim.detail or '—')}</td>"
             f"<td>{_e(r.evidence)}</td>"
@@ -167,7 +177,7 @@ def _claim_rows(audit: SessionAudit) -> str:
     for w in audit.warnings:
         rows.append(
             "<tr>"
-            '<td class="st-unverifiable">warning</td>'
+            f'<td>{_status_badge("warning")}</td>'
             f'<td colspan="4">{_e(w)}</td>'
             "</tr>"
         )

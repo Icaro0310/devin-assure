@@ -32,6 +32,20 @@ def test_contains_verdict_counts_and_sessions(sessions_db):
     assert "verified" in html and "disputed" in html
 
 
+def test_verdict_and_status_badges(sessions_db):
+    """Verdicts and per-claim statuses render as labeled badges (color +
+    text, never color alone) in the summary table and detail sections."""
+    html = render_html(_audits(sessions_db), sessions_db)
+    for cls in ("pass", "partial", "unverified"):
+        assert f'class="badge {cls}"' in html
+    for cls in ("verified", "disputed", "unverifiable"):
+        assert f'class="badge {cls}"' in html
+    # the badge always carries its text label
+    for label in ("PASS", "PARTIAL", "UNVERIFIED",
+                  "verified", "disputed", "unverifiable"):
+        assert f">{label}</span>" in html
+
+
 def test_deterministic_output(sessions_db):
     audits = _audits(sessions_db)
     assert render_html(audits, "db.sqlite") == render_html(audits, "db.sqlite")

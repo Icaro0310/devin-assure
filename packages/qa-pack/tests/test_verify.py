@@ -2,7 +2,9 @@
 
 from devin_qa_pack.claims import (
     COMMIT,
+    COVERAGE,
     DELEGATION,
+    EVAL,
     FILE,
     HTTP,
     PUSH,
@@ -586,4 +588,137 @@ def test_vscode_incomplete_spawn_stays_unverifiable():
     assert calls and calls[0].status == "pending"
     result = verify_claim(
         claim(DELEGATION, DELEGATION), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+# -- coverage claims ------------------------------------------------------------
+
+
+def test_coverage_claim_verified_by_percent_in_output():
+    calls = parse_tool_calls([
+        exec_state("pytest --cov",
+                   output="Name  Stmts  Miss  Cover\n"
+                          "TOTAL   123    16   87%\n"),
+    ])
+    result = verify_claim(claim(COVERAGE, "87"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_coverage_claim_verified_by_keyed_field():
+    calls = parse_tool_calls([
+        tstate("tc", {"kind": "execute",
+                      "rawOutput": {"coverage_percent": 87.5}}),
+    ])
+    result = verify_claim(claim(COVERAGE, "87.5"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_coverage_claim_verified_by_line_rate():
+    # cobertura XML stores 0-1 rates — "line-rate=0.85" is 85%
+    calls = parse_tool_calls([
+        tstate("tc", {"kind": "execute",
+                      "rawOutput": {"output": 'line-rate="0.85"'}}),
+    ])
+    result = verify_claim(claim(COVERAGE, "85"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_coverage_claim_disputed_by_different_percent():
+    calls = parse_tool_calls([
+        exec_state("pytest --cov", output="TOTAL  100  40  60%"),
+    ])
+    result = verify_claim(claim(COVERAGE, "87"), calls, "/nonexistent")
+    assert result.status == DISPUTED
+    assert "60" in result.evidence
+
+
+def test_coverage_claim_unverifiable_when_no_percent_recorded():
+    calls = parse_tool_calls([exec_state("pytest -q")])
+    result = verify_claim(claim(COVERAGE, "87"), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+def test_coverage_claim_unverifiable_when_ground_truth_unreadable():
+    states = [tstate("tc-null")]  # NULL payloads → dropped
+    result = verify_claim(claim(COVERAGE, "87"), parse_tool_calls(states),
+                          "/nonexistent", raw_call_count=len(states))
+    assert result.status == UNVERIFIABLE
+
+
+def test_coverage_command_threshold_is_not_evidence():
+    # --cov-fail-under=80 in the *invocation* is a threshold the caller
+    # set, not a measured percent — it must not corroborate the claim.
+    calls = parse_tool_calls([
+        exec_state("pytest --cov --cov-fail-under=80"),
+    ])
+    result = verify_claim(claim(COVERAGE, "80"), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+# -- eval claims ----------------------------------------------------------------
+
+
+def test_eval_claim_verified_by_score_in_output():
+    calls = parse_tool_calls([
+        exec_state("python -m evals run", output="eval score: 0.92"),
+    ])
+    result = verify_claim(claim(EVAL, "0.92"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_eval_claim_verified_by_keyed_field():
+    calls = parse_tool_calls([
+        tstate("tc", {"kind": "execute",
+                      "rawOutput": {"score": 0.85, "cases": 20}}),
+    ])
+    result = verify_claim(claim(EVAL, "0.85"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_eval_claim_percent_matches_percent_scale():
+    # "85%" normalizes to the percent literal — it never rescales
+    calls = parse_tool_calls([
+        exec_state("devin-evals run", output="accuracy=85%"),
+    ])
+    result = verify_claim(claim(EVAL, "85"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_eval_claim_tally_verified_by_matching_tally():
+    calls = parse_tool_calls([
+        exec_state("python eval.py", output="final score: 18/20"),
+    ])
+    result = verify_claim(claim(EVAL, "18/20"), calls, "/nonexistent")
+    assert result.status == VERIFIED
+
+
+def test_eval_claim_disputed_by_different_score():
+    calls = parse_tool_calls([
+        exec_state("python -m evals run", output="eval score: 0.61"),
+    ])
+    result = verify_claim(claim(EVAL, "0.92"), calls, "/nonexistent")
+    assert result.status == DISPUTED
+    assert "0.61" in result.evidence
+
+
+def test_eval_claim_unverifiable_when_no_score_recorded():
+    calls = parse_tool_calls([exec_state("git status")])
+    result = verify_claim(claim(EVAL, "0.92"), calls, "/nonexistent")
+    assert result.status == UNVERIFIABLE
+
+
+def test_eval_claim_unverifiable_when_ground_truth_unreadable():
+    states = [tstate("tc-null")]  # NULL payloads → dropped
+    result = verify_claim(claim(EVAL, "0.92"), parse_tool_calls(states),
+                          "/nonexistent", raw_call_count=len(states))
+    assert result.status == UNVERIFIABLE
+
+
+def test_eval_command_line_is_not_evidence():
+    # an invocation carrying "--target-score 0.9" is the request —
+    # only recorded output counts
+    calls = parse_tool_calls([
+        exec_state("run eval --target-score 0.9"),
+    ])
+    result = verify_claim(claim(EVAL, "0.9"), calls, "/nonexistent")
     assert result.status == UNVERIFIABLE

@@ -47,6 +47,8 @@ from devin_qa_pack.adapters.base import SourceSession
 from devin_qa_pack.claims import claims_from_pairs
 from devin_qa_pack.verify import (
     ParsedToolCall,
+    _coverage_values,
+    _eval_scores,
     _http_statuses,
     _passed_counts,
     _strings,
@@ -409,14 +411,19 @@ def load(
         ]
         texts: list[str] = list(_strings(started)) + outputs
         statuses: set[int] = set(_http_statuses(started))
+        joined_output = "".join(outputs)
         # Terminal chunks are one contiguous stdout stream — join before
         # extracting, or a "47 passed" split across updates is missed.
-        counts: set[int] = set(_passed_counts("".join(outputs)))
+        counts: set[int] = set(_passed_counts(joined_output))
+        coverage: set[str] = set(_coverage_values(joined_output))
+        scores: set[str] = set(_eval_scores(joined_output))
         status = "unknown"
         if completed is not None:
             texts.extend(_strings(completed))
             statuses |= set(_http_statuses(completed))
             counts |= set(_passed_counts(completed))
+            coverage |= set(_coverage_values(completed))
+            scores |= set(_eval_scores(completed))
             status = _status_for("shell_process_completed", completed)
         elif started:
             status = "pending"
@@ -432,6 +439,8 @@ def load(
                 "\\", "/"),
             http_statuses=tuple(sorted(statuses)),
             passed_counts=tuple(sorted(counts)),
+            coverage_values=tuple(sorted(coverage)),
+            eval_scores=tuple(sorted(scores)),
         ))
 
     for item in standalone:
@@ -445,6 +454,8 @@ def load(
             search_text=" ".join(texts).lower().replace("\\", "/"),
             http_statuses=tuple(sorted(set(_http_statuses(contents)))),
             passed_counts=tuple(sorted(set(_passed_counts(contents)))),
+            coverage_values=tuple(sorted(set(_coverage_values(contents)))),
+            eval_scores=tuple(sorted(set(_eval_scores(contents)))),
         ))
 
     return SourceSession(

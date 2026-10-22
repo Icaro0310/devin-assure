@@ -38,7 +38,8 @@ Part of the [awesome-devin](https://github.com/Icaro0310/awesome-devin) ecosyste
 
 Flagship QA audit for Devin sessions: checks that what a session *claims* it
 delivered is backed by what its tool calls *actually did* — tests run,
-commits created, files written, work pushed, HTTP statuses returned —
+commits created, files written, work pushed, HTTP statuses returned,
+eval scores and coverage numbers reported, work delegated to subagents —
 and prints a verdict per session: `PASS` / `PARTIAL` / `UNVERIFIED`.
 
 ## The problem
@@ -68,7 +69,9 @@ tool reads that table via
 and treats it as **ground truth**: a "tests passed" claim must be backed
 by a run/execute call that ran a test runner and completed; "47 tests
 passed" must match a recorded `47 passed` in the tool output; "committed
-`sha`" must show the hash in a call or in `git log`. Text-only auditors
+`sha`" must show the hash in a call or in `git log`; "coverage is at
+87%" or "the eval score was 0.92" must match a recorded percent/score
+in tool-call output. Text-only auditors
 *cannot* do this — remove Devin's store and the check disappears.
 
 ## Install
@@ -149,9 +152,9 @@ devin-qa-pack audit --source mcp --session <cloud-session-id>
 Real output, on the synthetic fixture from the quick start:
 
 ```text
-UNVERIFIED  sess-unverifiable  Mystery session — 1 claim(s): 0 verified, 0 disputed, 1 unverifiable
+UNVERIFIED  sess-unverifiable  Mystery session — 1 claim(s): 0 verified, 0 disputed, 1 unverifiable — uncovered: file/docs/spec.pdf
   [unverifiable] file/docs/spec.pdf: no matching tool call and working dir not on disk
-PARTIAL  sess-disputed  Disputed session — 2 claim(s): 0 verified, 2 disputed, 0 unverifiable
+PARTIAL  sess-disputed  Disputed session — 2 claim(s): 0 verified, 2 disputed, 0 unverifiable — uncovered: tests/tests, commit/deadbee
   [disputed    ] tests/tests: no execute call matching `tests` recorded
   [disputed    ] commit/deadbee: no commit call recorded and no repo on disk to check
 PASS  sess-verified  Verified session — 4 claim(s): 4 verified, 0 disputed, 0 unverifiable
@@ -167,7 +170,10 @@ Recorded as an asciicast: [assets/demo.cast](assets/demo.cast) —
 The `report` subcommand audits all sessions (or one with `--session`,
 bounded with `--limit`) and writes a single deterministic HTML file:
 verdict counts, a per-session table and a per-claim breakdown with
-evidence and the source excerpt for every checked claim.
+evidence and the source excerpt for every checked claim. Verdicts and
+claim statuses render as labeled badges (color + text, never color
+alone) — the report stays self-contained: inline CSS, zero JS, no
+external assets.
 
 `--sessions-db` may be omitted. It auto-detects
 `%APPDATA%/devin/cli/sessions.db` on Windows and
@@ -261,8 +267,10 @@ verified.
 Each run also appends one compact JSON line to `verdicts.jsonl` next to
 the side file (`<data-dir>/qa/verdicts.jsonl` by default) — a
 machine-readable ledger with `session_id`, `verdict`, `audited_at`,
-claim counts and the skip `reason`, for dashboards and triggers. The
-append is best-effort; the side file remains the contract.
+claim counts, the `uncovered` claim names (disputed/unverifiable
+`kind/detail` list, omitted when empty) and the skip `reason`, for
+dashboards and triggers. The append is best-effort; the side file
+remains the contract.
 
 **Fail-soft:** `session-end` always exits `0` once it ran — the verdict
 travels in the side file, so a hook can never fail the host session. A
@@ -355,10 +363,15 @@ in the entry and the scope flags are mutually exclusive — run
 `audit --transcript` runs the same claim/evidence model over non-Devin
 transcripts via the adapters in `src/devin_qa_pack/adapters/`:
 
-- **`aider`** — `.aider.chat.history.md`. `> /run` and `> /test` records
-  become execute calls with `unknown` status (the history does not store
-  exit codes), so test claims resolve `unverifiable`; commit claims are
-  checked against `git log` in the working directory.
+- **`aider`** — `.aider.chat.history.md`. `#### /run`, `#### /test`,
+  `#### /git` and `#### !cmd` input lines become execute calls with
+  `unknown` status (the history does not store exit codes), so action
+  claims like "tests passed" resolve `unverifiable`; the `>`-blockquoted
+  tool output (`Applied edit to …`, `Commit <sha> …`, recorded test
+  output) is pooled as evidence, so value claims — pass counts, HTTP
+  statuses, coverage, eval scores — and file/commit details still
+  corroborate. Commit claims are also checked against `git log` in the
+  working directory.
 - **`claude-code`** — session `.jsonl` transcripts. `Bash` → execute,
   `Write`/`Edit`/`MultiEdit`/`NotebookEdit` → write, `tool_result`
   blocks mark calls completed/failed.
@@ -429,6 +442,11 @@ network is off by default and the audit is fully offline otherwise.
 - Counted test claims work the same way: "47 tests passed" is `verified`
   when recorded output reports `47 passed`, `disputed` when it reports
   a different count and `unverifiable` when no output records a count.
+  So do coverage and eval-score claims: "coverage is at 87%" needs a
+  recorded 87% (coverage.py's `TOTAL` row, a `coverage`/`line-rate`
+  payload field, or a "coverage …87%" output string); "the eval score
+  was 0.92" needs a recorded `0.92`. Values compare on the scale
+  written — an `85%` claim matches a recorded `85`, never `0.85`.
 - File/commit checks use `sessions.working_directory` only when it
   exists on disk and is a git repo — otherwise they rely on tool-call
   evidence alone.

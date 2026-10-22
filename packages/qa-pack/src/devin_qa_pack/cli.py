@@ -77,7 +77,8 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="devin-qa-pack",
         description="Audit Devin sessions: verify deliverable claims "
-        "(tests, commits, files, pushes) against tool_call_state ground truth.",
+        "(tests, commits, files, pushes, evals, coverage, delegations) "
+        "against tool_call_state ground truth.",
     )
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"

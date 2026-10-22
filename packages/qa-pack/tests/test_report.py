@@ -8,6 +8,7 @@ from devin_qa_pack.report import (
     audit_all,
     audit_session,
     audits_payload,
+    render_audit,
 )
 
 
@@ -49,7 +50,7 @@ def test_audit_all_respects_limit(sessions_db):
     with SessionsStore(sessions_db) as store:
         audits = audit_all(store)
         limited = audit_all(store, limit=2)
-    assert len(audits) == 7
+    assert len(audits) == 8
     assert len(limited) == 2
 
 
@@ -84,6 +85,42 @@ def test_delegated_session_is_pass(sessions_db):
     assert audit.results[0].status == "verified"
 
 
+def test_scores_session_is_pass(sessions_db):
+    with SessionsStore(sessions_db) as store:
+        audit = audit_session(store, _session(store, "sess-scores"))
+    assert audit.verdict == PASS
+    assert {(r.claim.kind, r.claim.detail) for r in audit.results} == {
+        ("eval", "0.92"),
+        ("coverage", "87"),
+    }
+    assert all(r.status == "verified" for r in audit.results)
+
+
+def test_partial_verdict_names_uncovered_claims(sessions_db):
+    # PARTIAL must say *which* claims lacked evidence, not just counts
+    with SessionsStore(sessions_db) as store:
+        audit = audit_session(store, _session(store, "sess-disputed"))
+    assert audit.verdict == PARTIAL
+    assert audit.uncovered() == ["tests/tests", "commit/deadbee"]
+    head = render_audit(audit).splitlines()[0]
+    assert "uncovered: tests/tests, commit/deadbee" in head
+
+
+def test_unverifiable_claims_are_named_too(sessions_db):
+    with SessionsStore(sessions_db) as store:
+        audit = audit_session(store, _session(store, "sess-unverifiable"))
+    assert audit.verdict == UNVERIFIED
+    assert audit.uncovered() == ["file/docs/spec.pdf"]
+    assert "uncovered: file/docs/spec.pdf" in render_audit(audit)
+
+
+def test_pass_verdict_has_no_uncovered_suffix(sessions_db):
+    with SessionsStore(sessions_db) as store:
+        audit = audit_session(store, _session(store, "sess-verified"))
+    assert audit.uncovered() == []
+    assert "uncovered" not in render_audit(audit)
+
+
 def test_payload_shape(sessions_db):
     with SessionsStore(sessions_db) as store:
         payload = audits_payload([audit_session(store, _session(store, "sess-verified"))],
@@ -93,6 +130,7 @@ def test_payload_shape(sessions_db):
     assert entry["session_id"] == "sess-verified"
     assert entry["verdict"] == "PASS"
     assert set(entry["summary"]) == {"verified", "disputed", "unverifiable"}
+    assert entry["uncovered"] == []
     for c in entry["claims"]:
         assert set(c) == {"kind", "detail", "status", "evidence",
                           "node_id", "excerpt"}

@@ -11,18 +11,24 @@ from devin_qa_pack.cli import main
 from devin_qa_pack.report import PARTIAL, PASS, UNVERIFIED, audit_source
 from devin_qa_pack.verify import UNVERIFIABLE, VERIFIED
 
+# Real .aider.chat.history.md shape: `####` lines are user input (slash
+# commands included), `>` lines are blockquoted tool output, everything
+# else is assistant prose (the claim source).
 AIDER_HISTORY = """\
 # aider chat started at 2026-01-01 10:00:00
 
-> /add src/app.py
-
 #### fix the flaky test and run the suite
 
-I updated src/app.py to handle the retry and committed {sha}.
+I updated src/app.py to handle the retry.
 
-> /run python -m pytest -q
+> Applied edit to src/app.py
 
-All tests passed — pytest is green.
+#### /run python -m pytest -q
+
+> Add 1.2k tokens of command output to the chat? y
+> Added 12 lines of output to the chat.
+
+All tests passed — pytest is green. Committed {sha}.
 """
 
 
@@ -52,11 +58,97 @@ def test_aider_missing_commit_is_disputed(tmp_path: Path) -> None:
     assert by_kind["commit"] != VERIFIED
 
 
+def test_aider_commit_output_line_verifies(tmp_path: Path) -> None:
+    # The `> Commit <sha>` output line corroborates the commit claim
+    # even with no repo on disk — aider auto-commits land in history.
+    hist = tmp_path / ".aider.chat.history.md"
+    hist.write_text(
+        "# aider chat started\n\n#### ship it\n\n"
+        "Committed deadbee.\n\n#### /commit\n\n"
+        "> Commit deadbee aider: ship it\n",
+        encoding="utf-8",
+    )
+
+    audit = audit_source(aider.load(hist, working_directory=str(tmp_path)))
+
+    commit = next(r for r in audit.results if r.claim.kind == "commit")
+    assert commit.status == VERIFIED
+    assert "aider-output" in commit.evidence
+
+
+def test_aider_output_pool_verifies_counted_tests(tmp_path: Path) -> None:
+    # A recorded `> 47 passed` output line corroborates the counted
+    # tests claim — real evidence, not the /run invocation echo.
+    hist = tmp_path / ".aider.chat.history.md"
+    hist.write_text(
+        "# aider chat started\n\n#### run it\n\n"
+        "#### /run pytest -q\n\n"
+        "> ==== 47 passed in 0.4s ====\n\n"
+        "All 47 tests passed.\n",
+        encoding="utf-8",
+    )
+
+    audit = audit_source(aider.load(hist))
+
+    counted = next(
+        r for r in audit.results if r.claim.kind == "tests_passed"
+    )
+    assert counted.status == VERIFIED
+
+
+def test_aider_edit_output_verifies_file_claim(tmp_path: Path) -> None:
+    # `> Applied edit to src/app.py` backs a file claim through the
+    # pooled output's search text.
+    hist = tmp_path / ".aider.chat.history.md"
+    hist.write_text(
+        "# aider chat started\n\n#### fix it\n\n"
+        "I updated src/app.py to handle the retry.\n\n"
+        "> Applied edit to src/app.py\n",
+        encoding="utf-8",
+    )
+
+    audit = audit_source(aider.load(hist))
+
+    by_kind = {r.claim.kind: r.status for r in audit.results}
+    assert by_kind["file"] == VERIFIED
+
+
+def test_aider_bang_and_git_commands_become_execute_calls(tmp_path: Path) -> None:
+    hist = tmp_path / ".aider.chat.history.md"
+    hist.write_text(
+        "# aider chat started\n\n#### !pytest -q\n\n#### /git push\n\n",
+        encoding="utf-8",
+    )
+
+    view = aider.load(hist)
+
+    commands = [c.commands[0] for c in view.calls if c.kind == "execute"]
+    assert commands == ["pytest -q", "git push"]
+    assert all(c.status == "unknown" for c in view.calls)
+
+
+def test_aider_non_run_slash_commands_record_no_call(tmp_path: Path) -> None:
+    # /add, /model etc. never execute a shell command — they leave no
+    # execute record; their output still lands in the evidence pool.
+    hist = tmp_path / ".aider.chat.history.md"
+    hist.write_text(
+        "# aider chat started\n\n#### /add src/app.py\n\n"
+        "> Added src/app.py to the chat\n\n#### fix it\n\n"
+        "done.\n",
+        encoding="utf-8",
+    )
+
+    view = aider.load(hist)
+
+    assert [c.commands for c in view.calls] == [()]
+    assert "added src/app.py" in view.calls[0].search_text
+
+
 def test_aider_slash_commands_do_not_fabricate_pass(tmp_path: Path) -> None:
     """A recorded /run without a tests claim still audits UNVERIFIED."""
     hist = tmp_path / ".aider.chat.history.md"
     hist.write_text(
-        "# aider chat started\n\n> /run pytest -q\n", encoding="utf-8"
+        "# aider chat started\n\n#### /run pytest -q\n", encoding="utf-8"
     )
     assert audit_source(aider.load(hist)).verdict == UNVERIFIED
 
