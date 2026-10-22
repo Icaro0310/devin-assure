@@ -46,9 +46,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `name`/`toolName`/`tool_name`/`toolId` keys and "subagent" titles).
   A completed spawn verifies the claim, a failed spawn or no spawn
   call disputes it, unreadable ground truth stays unverifiable.
+- `eval` and `coverage` claim kinds: eval-score claims ("the eval score
+  was 0.92", "scored 85% on the benchmark", "evals: 18/20", PT
+  "avaliação/nota") and coverage claims ("coverage is at 87%",
+  "90% code coverage", PT "cobertura de 80%") are extracted with the
+  claimed literal as detail and checked against recorded tool-call
+  output the same way `http`/`tests_passed` claims are — `verified`
+  when a result-side payload records the same value (keyed fields like
+  `{"score": 0.92}`, `{"coverage_percent": 87}` or cobertura
+  `line-rate="0.85"` scaled ×100; output strings like "eval score:
+  0.92", "coverage: 87%", coverage.py's `TOTAL … 88%` row), `disputed`
+  when readable outputs record a different value, `unverifiable` when
+  no output records one or ground-truth rows are unreadable. Values
+  compare on the scale written — an `85%` claim matches a recorded
+  `85`, never `0.85`; invocation-side fields (`rawInput`/`command`/
+  `title`) never count.
+- PARTIAL/UNVERIFIED verdicts now name the uncovered claims:
+  `SessionAudit.uncovered()` lists `kind/detail` names of
+  disputed/unverifiable results, `audit_dict` carries an `uncovered`
+  field, the text formatter appends `— uncovered: kind/detail, …` to
+  the verdict line, the `session-end` one-line summary does the same,
+  and `verdicts.jsonl` records (sweep + session-end) carry `uncovered`
+  when non-empty.
+- HTML report: per-claim statuses and warnings in the detail sections
+  now render as labeled pill badges (`verified`/`disputed`/
+  `unverifiable`/`warning`), consistent with the verdict badges in the
+  sessions table — color plus text label, inline CSS only, output
+  stays deterministic.
 
 ### Fixed
 
+- `aider` adapter parsed `.aider.chat.history.md` with the roles
+  inverted: it treated `>` lines as the command record and `####` as
+  plain user turns. In the real format `####` lines carry user input
+  *including* slash commands (`#### /run pytest`, `#### !cmd`,
+  `#### /git push` → `git push`) and `>` lines are blockquoted
+  tool/system output. `/run`-family input lines now become execute
+  calls (still `unknown` status — no exit codes are recorded), and the
+  `>` output (`Applied edit to …`, `Commit <sha> …`, recorded test
+  output) pools into one evidence call, so value claims and
+  file/commit details corroborate against what aider actually wrote.
+- `session_end.py` dropped a duplicated `_append_jsonl`/`_verdict_record`
+  block left by a merge (second definition shadowed the first — behavior
+  was identical; this is cleanup, not a behavior change).
 - `README.md` demo embed and its surrounding link used repo-relative
   paths, which do not resolve on the PyPI project page; they now use
   absolute `raw.githubusercontent.com`/`github.com` URLs.

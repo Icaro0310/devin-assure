@@ -40,9 +40,11 @@ diretório de trabalho em disco.
   afirmações de teste (`tests`, com o runner quando citado), afirmações
   de teste com contagem (`tests_passed` + nº de testes, ex. "47
   passed"), de commit (`commit` + hash), de ficheiro (`file` + path),
-  de push (`push`) e de delegação (`delegation`, ex.: "deleguei a
-  análise a um subagente"). Só mensagens de papel agente; dedup por
-  `(kind, detail)`.
+  de push (`push`), de delegação (`delegation`, ex.: "deleguei a
+  análise a um subagente"), de score de avaliação (`eval` + literal,
+  ex.: "a avaliação teve nota 0.9") e de cobertura (`coverage` +
+  percentual, ex.: "cobertura de 87%"). Só mensagens de papel agente;
+  dedup por `(kind, detail)`.
 - `verify.py` — resolve cada afirmação contra `tool_call_state`, mais
   `git` quando `sessions.working_directory` é um repo em disco:
   `verified` / `disputed` / `unverifiable`.

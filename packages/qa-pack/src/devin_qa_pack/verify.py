@@ -30,13 +30,16 @@ from urllib.parse import urlparse
 
 from devin_qa_pack.claims import (
     COMMIT,
+    COVERAGE,
     DELEGATION,
+    EVAL,
     FILE,
     HTTP,
     PUSH,
     TESTS,
     TESTS_PASSED,
     Claim,
+    _norm_number,
 )
 from devin_qa_pack.evidence import EvidenceToolCall
 
@@ -118,6 +121,58 @@ _PASSED_COUNT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Coverage evidence inside tool-call payloads: keyed result fields like
+# ``{"coverage": 87}``/``{"line_rate": 0.85}`` (cobertura-XML style —
+# 0-1 rates scale to percent) plus percent strings in captured output
+# ("coverage: 87.5%", "85% code coverage", pytest-cov's
+# "TOTAL  1234  234  88%" table row, ``line-rate="0.85"`` attributes).
+_COVERAGE_KEY_NAMES = {
+    "coverage", "coverage_percent", "percent_covered", "line_coverage",
+    "branch_coverage", "total_coverage", "cov",
+}
+_COVERAGE_RATE_KEYS = {"line_rate", "line-rate", "branch_rate",
+                       "branch-rate"}
+_COV_LIT_RE = re.compile(r"\d+(?:\.\d+)?%?")
+_COVERAGE_STR_RES = (
+    re.compile(
+        r"\b(?:coverage|cobertura)\b[^%\n]{0,40}?"
+        r"(\d{1,3}(?:\.\d+)?)\s*%",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(\d{1,3}(?:\.\d+)?)\s*%\s+(?:[\w-]+\s+){0,2}"
+        r"(?:coverage|cobertura)\b",
+        re.IGNORECASE,
+    ),
+    # coverage.py's "TOTAL  1234  234  88%" table row — its single
+    # percent column is the total coverage
+    re.compile(
+        r"^[^\S\n]*TOTAL\b[^\n]*?\b(\d{1,3}(?:\.\d+)?)\s*%",
+        re.IGNORECASE | re.MULTILINE,
+    ),
+)
+_COVERAGE_RATE_RE = re.compile(
+    r"\b(?:line|branch)[-_]?rate\b[\"'\s:=]{0,3}(\d+(?:\.\d+)?)",
+    re.IGNORECASE,
+)
+
+# Eval-score evidence: keyed result fields (``{"score": 0.92}``,
+# ``{"accuracy": "85%"}``, ``{"pass_rate": "18/20"}``) plus
+# score-looking strings in captured output ("eval score: 0.92",
+# "accuracy=85%", "18/20"). Literals normalize through
+# ``_norm_number`` — ``85%`` reads as ``85``, never rescaled to 0.85.
+_EVAL_KEY_NAMES = {
+    "score", "eval_score", "evalscore", "accuracy", "pass_rate",
+    "passrate", "benchmark_score", "eval_result",
+}
+_EVAL_LIT_RE = re.compile(r"(?:\d+(?:\.\d+)?%?|\d+\s*/\s*\d+)")
+_EVAL_STR_RE = re.compile(
+    r"\b(?:evals?|evaluations?|benchmarks?|scores?|accuracy|"
+    r"pass[ _-]?rate)\b[^.\n]{0,15}?"
+    r"(\d+(?:\.\d+)?%?|\d+\s*/\s*\d+)(?![\w/])",
+    re.IGNORECASE,
+)
+
 
 def _http_statuses(value: Any) -> Iterable[int]:
     """HTTP status codes asserted anywhere in a tool-call payload."""
@@ -169,6 +224,89 @@ def _passed_counts(value: Any) -> Iterable[int]:
             yield int(m.group(1).replace(",", ""))
 
 
+def _rate_to_percent(value: Any) -> str | None:
+    """A cobertura-XML ``line-rate``-style 0-1 float as a percent literal."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        rate = float(value)
+    elif isinstance(value, str) and _COV_LIT_RE.fullmatch(value.strip()):
+        rate = float(value.strip().rstrip("%"))
+    else:
+        return None
+    if 0 <= rate <= 1:
+        return _norm_number(str(round(rate * 100, 6)))
+    if rate <= 100:
+        return _norm_number(str(rate))
+    return None
+
+
+def _coverage_values(value: Any) -> Iterable[str]:
+    """Coverage percents asserted in a tool call's *result* fields.
+
+    Normalized via :func:`_norm_number` so ``"85%"``, ``85.0`` and
+    ``{"coverage_percent": 85}`` all land on the same literal. Input-side
+    subtrees are skipped, like pass counts: a ``rawInput`` carrying a
+    ``--cov-fail-under`` threshold is the request, not a measured result.
+    """
+    if isinstance(value, dict):
+        for k, v in value.items():
+            low = str(k).lower()
+            if low in _INPUT_KEY_NAMES:
+                continue
+            if low in _COVERAGE_KEY_NAMES:
+                if isinstance(v, bool):
+                    pass  # JSON true/false — not a percent
+                elif isinstance(v, (int, float)) and 0 <= v <= 100:
+                    yield _norm_number(str(v))
+                elif isinstance(v, str) \
+                        and _COV_LIT_RE.fullmatch(v.strip()):
+                    yield _norm_number(v)
+            elif low in _COVERAGE_RATE_KEYS:
+                pct = _rate_to_percent(v)
+                if pct is not None:
+                    yield pct
+            yield from _coverage_values(v)
+    elif isinstance(value, list):
+        for v in value:
+            yield from _coverage_values(v)
+    elif isinstance(value, str):
+        for rx in _COVERAGE_STR_RES:
+            for m in rx.finditer(value):
+                yield _norm_number(m.group(1))
+        for m in _COVERAGE_RATE_RE.finditer(value):
+            pct = _rate_to_percent(m.group(1))
+            if pct is not None:
+                yield pct
+
+
+def _eval_scores(value: Any) -> Iterable[str]:
+    """Eval-score literals asserted in a tool call's *result* fields —
+    keyed score fields and score-looking strings in captured output.
+    Same input-side skip as pass counts: an invocation echoing
+    ``eval --target 0.9`` is the request, never a recorded result."""
+    if isinstance(value, dict):
+        for k, v in value.items():
+            low = str(k).lower()
+            if low in _INPUT_KEY_NAMES:
+                continue
+            if low in _EVAL_KEY_NAMES:
+                if isinstance(v, bool):
+                    pass  # JSON true/false — not a score
+                elif isinstance(v, (int, float)):
+                    yield _norm_number(str(v))
+                elif isinstance(v, str) \
+                        and _EVAL_LIT_RE.fullmatch(v.strip()):
+                    yield _norm_number(v)
+            yield from _eval_scores(v)
+    elif isinstance(value, list):
+        for v in value:
+            yield from _eval_scores(v)
+    elif isinstance(value, str):
+        for m in _EVAL_STR_RE.finditer(value):
+            yield _norm_number(m.group(1))
+
+
 @dataclass(frozen=True)
 class ParsedToolCall:
     tool_call_id: str
@@ -178,6 +316,8 @@ class ParsedToolCall:
     search_text: str  # all string values from both payloads, normalized
     http_statuses: tuple[int, ...]  # HTTP status codes found in the payloads
     passed_counts: tuple[int, ...]  # pass counts found in the payloads
+    coverage_values: tuple[str, ...] = ()  # coverage percents in the payloads
+    eval_scores: tuple[str, ...] = ()      # eval-score literals in the payloads
 
 
 @dataclass(frozen=True)
@@ -331,6 +471,12 @@ def parse_tool_call(call: EvidenceToolCall) -> ParsedToolCall | None:
     search = " ".join(strings + [tool_call_id])
     statuses = tuple(sorted({s for p in payloads for s in _http_statuses(p)}))
     counts = tuple(sorted({n for p in payloads for n in _passed_counts(p)}))
+    coverage = tuple(
+        sorted({v for p in payloads for v in _coverage_values(p)})
+    )
+    scores = tuple(
+        sorted({v for p in payloads for v in _eval_scores(p)})
+    )
     return ParsedToolCall(
         tool_call_id=tool_call_id,
         kind=_kind_of(call_payload, list(commands)),
@@ -339,6 +485,8 @@ def parse_tool_call(call: EvidenceToolCall) -> ParsedToolCall | None:
         search_text=search.lower().replace("\\", "/"),
         http_statuses=statuses,
         passed_counts=counts,
+        coverage_values=coverage,
+        eval_scores=scores,
     )
 
 
@@ -486,6 +634,95 @@ def _verify_tests_passed(
     )
 
 
+def _verify_coverage(
+    claim: Claim,
+    calls: list[ParsedToolCall],
+    raw_n: int,
+) -> VerifiedClaim:
+    """Coverage claims check *output values*, like ``tests_passed``
+    claims: ``verified`` when a recorded percent equals the claim,
+    ``disputed`` when outputs record a different percent,
+    ``unverifiable`` when no output records any percent (or the rows
+    holding it are unreadable)."""
+    claimed = _norm_number(claim.detail)
+    if not _COV_LIT_RE.fullmatch(claimed):
+        return VerifiedClaim(
+            claim, UNVERIFIABLE,
+            f"`{claim.detail}` is not a coverage percent",
+        )
+    for c in calls:
+        if claimed in c.coverage_values:
+            return VerifiedClaim(
+                claim, VERIFIED,
+                f"tool call {c.tool_call_id} output reports "
+                f"{claimed}% coverage",
+            )
+    # Unreadable rows may hold the corroborating run — a mismatch in a
+    # decoded one is not conclusive while ground truth stays opaque.
+    if raw_n > len(calls):
+        return VerifiedClaim(
+            claim, UNVERIFIABLE,
+            f"{raw_n - len(calls)} tool_call_state row(s) unreadable",
+        )
+    with_values = [c for c in calls if c.coverage_values]
+    if with_values:
+        c = with_values[0]
+        seen = ", ".join(f"{v}%" for v in c.coverage_values)
+        return VerifiedClaim(
+            claim, DISPUTED,
+            f"tool call {c.tool_call_id} output reports {seen} "
+            f"coverage, not {claimed}%",
+        )
+    return VerifiedClaim(
+        claim, UNVERIFIABLE,
+        "no tool output records a coverage percent",
+    )
+
+
+def _verify_eval(
+    claim: Claim,
+    calls: list[ParsedToolCall],
+    raw_n: int,
+) -> VerifiedClaim:
+    """Eval-score claims check *output values*: ``verified`` when a
+    recorded score literal equals the claim (same scale — an ``85%``
+    claim matches a recorded 85, never a recorded 0.85), ``disputed``
+    when outputs record a different score, ``unverifiable`` when no
+    output records any score (or the rows holding it are unreadable)."""
+    claimed = _norm_number(claim.detail)
+    if not _EVAL_LIT_RE.fullmatch(claimed):
+        return VerifiedClaim(
+            claim, UNVERIFIABLE,
+            f"`{claim.detail}` is not an eval score",
+        )
+    for c in calls:
+        if claimed in c.eval_scores:
+            return VerifiedClaim(
+                claim, VERIFIED,
+                f"tool call {c.tool_call_id} output reports "
+                f"score {claimed}",
+            )
+    # Unreadable rows may hold the corroborating run — a mismatch in a
+    # decoded one is not conclusive while ground truth stays opaque.
+    if raw_n > len(calls):
+        return VerifiedClaim(
+            claim, UNVERIFIABLE,
+            f"{raw_n - len(calls)} tool_call_state row(s) unreadable",
+        )
+    with_scores = [c for c in calls if c.eval_scores]
+    if with_scores:
+        c = with_scores[0]
+        seen = ", ".join(c.eval_scores)
+        return VerifiedClaim(
+            claim, DISPUTED,
+            f"tool call {c.tool_call_id} output reports score {seen}, "
+            f"not {claimed}",
+        )
+    return VerifiedClaim(
+        claim, UNVERIFIABLE, "no tool output records an eval score"
+    )
+
+
 def verify_claim(
     claim: Claim,
     calls: list[ParsedToolCall],
@@ -504,6 +741,10 @@ def verify_claim(
         return _verify_http(claim, calls, raw_n)
     if claim.kind == TESTS_PASSED:
         return _verify_tests_passed(claim, calls, raw_n)
+    if claim.kind == COVERAGE:
+        return _verify_coverage(claim, calls, raw_n)
+    if claim.kind == EVAL:
+        return _verify_eval(claim, calls, raw_n)
     matched = [c for c in calls if _matches(claim, c)]
 
     if any(c.status == "completed" for c in matched):

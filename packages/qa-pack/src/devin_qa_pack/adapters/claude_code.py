@@ -23,6 +23,8 @@ from devin_qa_pack.adapters.base import SourceSession
 from devin_qa_pack.claims import claims_from_pairs
 from devin_qa_pack.verify import (
     ParsedToolCall,
+    _coverage_values,
+    _eval_scores,
     _http_statuses,
     _passed_counts,
     _strings,
@@ -134,6 +136,8 @@ def load(path: str | Path, working_directory: str | None = None) -> SourceSessio
                 # counts come from the tool_result, never the tool_use
                 # input (a Write's `content` is the request, not output)
                 passed_counts=tuple(sorted(set(_passed_counts(output)))),
+                coverage_values=tuple(sorted(set(_coverage_values(output)))),
+                eval_scores=tuple(sorted(set(_eval_scores(output)))),
             )
         )
 

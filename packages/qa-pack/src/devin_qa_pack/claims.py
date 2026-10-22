@@ -2,7 +2,8 @@
 
 A *claim* is an assertion the agent made about delivered work: tests
 passed, a commit exists, a file was created/changed, work was pushed,
-work was delegated to a subagent. Only agent-role messages are scanned
+work was delegated to a subagent, an eval score or a coverage number
+was reported. Only agent-role messages are scanned
 — a user prompt quoting the same words is not a delivery claim.
 
 The input is the canonical :class:`EvidenceMessage` — store-specific
@@ -26,8 +27,13 @@ PUSH = "push"
 HTTP = "http"
 URL = "url"
 DELEGATION = "delegation"
+EVAL = "eval"
+COVERAGE = "coverage"
 
-CLAIM_KINDS = (TESTS, TESTS_PASSED, COMMIT, FILE, PUSH, HTTP, URL, DELEGATION)
+CLAIM_KINDS = (
+    TESTS, TESTS_PASSED, COMMIT, FILE, PUSH, HTTP, URL, DELEGATION,
+    EVAL, COVERAGE,
+)
 
 _RUNNER_TOKENS = (
     "cargo test",
@@ -135,6 +141,54 @@ _HTTP_CLAIM_RES = (
     ),
 )
 
+# Eval-score claims: "the eval score was 0.92", "evals: 18/20 passed",
+# "scored 85% on the benchmark" — the captured group is the claimed
+# score literal (decimal, percent or N/M tally); like an `http` claim it
+# checks *output values*, so it needs a recorded score in tool-call
+# output to verify. A `%` suffix reads on the percent scale ("85%" →
+# 85) — it never silently rescales to a 0-1 fraction.
+_EVAL_WORD = r"(?:evals?|evaluations?|benchmarks?|avalia[çc][ãa]o(?:es)?)"
+_EVAL_NUM = r"(?:\d+(?:\.\d+)?%?|\d+\s*/\s*\d+)"
+_EVAL_CLAIM_RES = (
+    # eval-word + metric word + value: "eval score was 0.92",
+    # "the benchmark result: 18/20", "avaliação nota 0.9"
+    re.compile(
+        rf"\b{_EVAL_WORD}\b[^.\n]{{0,30}}?\b"
+        rf"(?:score|scored|result|accuracy|nota|pontua[çc][ãa]o)\w*\b"
+        rf"[^.\n]{{0,25}}?({_EVAL_NUM})(?![\w/%])",
+        re.IGNORECASE,
+    ),
+    # bare "eval: 0.92" / "benchmark = 85%"
+    re.compile(
+        rf"\b{_EVAL_WORD}\b\s*[:=]\s*({_EVAL_NUM})(?![\w/%])",
+        re.IGNORECASE,
+    ),
+    # score-verb + value + eval-word: "scored 0.92 on the eval",
+    # "obteve 85% na avaliação"
+    re.compile(
+        rf"\b(?:scored?|earned|achieved|reached|obteve|atingiu)\b"
+        rf"[^.\n]{{0,25}}?({_EVAL_NUM})(?![\w/%])"
+        rf"[^.\n]{{0,30}}?\b{_EVAL_WORD}\b",
+        re.IGNORECASE,
+    ),
+)
+
+# Coverage claims: "coverage is at 87%", "coverage: 85.2%", "90% code
+# coverage", PT "cobertura de 80%" — the captured group is the claimed
+# percent (the `coverage`/`cobertura` keyword is always present, so a
+# bare "85%" elsewhere is never a claim).
+_COV_NUM = r"\d{1,3}(?:\.\d+)?"
+_COVERAGE_CLAIM_RES = (
+    re.compile(
+        rf"\b(?:coverage|cobertura)\b[^.\n%]{{0,40}}?({_COV_NUM})\s*%",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        rf"\b({_COV_NUM})\s*%\s+(?:[\w-]+\s+){{0,2}}(?:coverage|cobertura)\b",
+        re.IGNORECASE,
+    ),
+)
+
 _SKIP_ROLES = {"user", "human"}
 _MAX_EXCERPT = 160
 
@@ -164,6 +218,20 @@ def _excerpt(line: str) -> str:
 
 def _normalize_path(token: str) -> str:
     return token.replace("\\", "/").rstrip(".,;:!?)]}>")
+
+
+def _norm_number(literal: str) -> str:
+    """Canonical numeric claim/evidence literal: ``"85%"`` → ``"85"``,
+    ``"18 / 20"`` → ``"18/20"``, ``"0.90"`` → ``"0.9"``. A percent reads
+    on the percent scale — it never rescales to a 0-1 fraction, so an
+    ``85%`` claim only corroborates a recorded 85, not a recorded 0.85."""
+    lit = re.sub(r"\s*/\s*", "/", literal.strip().rstrip("%").strip())
+    if "/" in lit:
+        return lit
+    try:
+        return f"{float(lit):g}"
+    except ValueError:
+        return lit
 
 
 def _runner_in(line: str) -> str | None:
@@ -200,6 +268,12 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
         for m in _DELEGATION_RE.finditer(line)
     ):
         yield DELEGATION, DELEGATION
+    for rx in _EVAL_CLAIM_RES:
+        for m in rx.finditer(line):
+            yield EVAL, _norm_number(m.group(1))
+    for rx in _COVERAGE_CLAIM_RES:
+        for m in rx.finditer(line):
+            yield COVERAGE, _norm_number(m.group(1))
 
 
 def _collect(

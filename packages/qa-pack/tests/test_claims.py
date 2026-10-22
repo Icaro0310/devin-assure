@@ -5,7 +5,9 @@ import json
 from devin_internals.parsers import SessionsStore
 from devin_qa_pack.claims import (
     COMMIT,
+    COVERAGE,
     DELEGATION,
+    EVAL,
     FILE,
     HTTP,
     PUSH,
@@ -268,5 +270,81 @@ def test_delegation_claims_deduplicate():
     nodes = [
         make_node("I delegated the scan to a subagent.", node_id=1),
         make_node("the subagent reported back clean.", node_id=2),
+    ]
+    assert len(extract_claims(nodes)) == 1
+
+
+# -- eval claims ---------------------------------------------------------------
+
+
+def test_eval_claim_score_phrasings():
+    for text, detail in (
+        ("the eval score was 0.92", "0.92"),
+        ("eval score: 85%", "85"),
+        ("evals: 18/20", "18/20"),
+        ("the benchmark result was 0.87", "0.87"),
+        ("scored 0.9 on the eval", "0.9"),
+        ("eval accuracy reached 91%", "91"),
+        ("a avaliação teve nota 0.9", "0.9"),
+    ):
+        claims = extract_claims([make_node(text)])
+        assert [(c.kind, c.detail) for c in claims] == [
+            (EVAL, detail)
+        ], text
+
+
+def test_eval_claim_deduplicates_same_score():
+    claims = extract_claims(
+        [make_node("eval score was 0.92 — scored 0.92 on the eval.")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(EVAL, "0.92")]
+
+
+def test_eval_claim_requires_a_number():
+    # "the eval passed" is a test-flavored assertion, not a score claim
+    for text in (
+        "the evals passed",
+        "ran the eval suite",
+        "eval results look good",
+    ):
+        assert extract_claims([make_node(text)]) == [], text
+
+
+def test_eval_claim_ignores_user_messages():
+    nodes = [make_node("did the eval score reach 0.9?", role="user")]
+    assert extract_claims(nodes) == []
+
+
+# -- coverage claims -----------------------------------------------------------
+
+
+def test_coverage_claim_percent_phrasings():
+    for text, detail in (
+        ("coverage is at 87%", "87"),
+        ("coverage: 85.2%", "85.2"),
+        ("test coverage reached 90%", "90"),
+        ("achieved 87.5% coverage", "87.5"),
+        ("90% of code coverage", "90"),
+        ("cobertura de 80%", "80"),
+        ("atingimos 85% de cobertura", "85"),
+    ):
+        claims = extract_claims([make_node(text)])
+        assert [(c.kind, c.detail) for c in claims] == [
+            (COVERAGE, detail)
+        ], text
+
+
+def test_coverage_claim_requires_the_keyword():
+    # a bare percent is not a coverage claim
+    assert extract_claims([make_node("reduced runtime by 85%")]) == []
+    # coverage without a percent carries nothing checkable
+    assert extract_claims(
+        [make_node("coverage looks good now")]) == []
+
+
+def test_coverage_claims_deduplicate():
+    nodes = [
+        make_node("coverage is at 87%", node_id=1),
+        make_node("yes, coverage at 87% confirmed", node_id=2),
     ]
     assert len(extract_claims(nodes)) == 1

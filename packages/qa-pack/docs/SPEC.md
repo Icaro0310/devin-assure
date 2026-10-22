@@ -44,8 +44,11 @@ call or in `git log` of the on-disk working directory.
   path), push claims (`push`), HTTP-status claims (`http` + status
   code, e.g. "the API returned 200"), delegation claims (`delegation`,
   e.g. "delegated the scan to a subagent"; PT phrasings like "deleguei"
-  / "subagente" count too). Agent-role messages only; claims
-  deduplicated by `(kind, detail)`.
+  / "subagente" count too), eval-score claims (`eval` + score literal,
+  e.g. "the eval score was 0.92", "scored 85% on the benchmark",
+  "evals: 18/20") and coverage claims (`coverage` + percent, e.g.
+  "coverage is at 87%"; PT "cobertura" counts). Agent-role messages
+  only; claims deduplicated by `(kind, detail)`.
 - `verify.py` — resolve each claim against `tool_call_state` ground
   truth, plus `git` when `sessions.working_directory` is a repo on disk:
   `verified` / `disputed` / `unverifiable`.
@@ -83,6 +86,8 @@ Per claim kind, given the session's parsed tool calls:
 | `file` | a tool call references the path, or the file exists under the on-disk working dir | matching call failed, or file absent under on-disk working dir | no disk path and no tool call to check |
 | `http` | a tool-call payload/output records the claimed status code | recorded outputs show a different status code | no output records any status, or ground-truth rows unreadable |
 | `delegation` | a subagent-spawn call (`run_subagent`/`spawn_agent`/`task`-style tool names, `title` mentioning "subagent") recorded and completed | matching spawn call failed, or no spawn call recorded | matching spawn call still running, or ground-truth rows unreadable |
+| `eval` | a tool-call payload/output records the claimed score literal (`score`/`accuracy`/`pass_rate` fields, "eval score: 0.92", "18/20" output) on the same scale — `85%` reads as `85`, never rescaled | recorded outputs report a different score | no output records a score, or ground-truth rows unreadable |
+| `coverage` | a tool-call payload/output records the claimed percent (`coverage`/`line_coverage` fields, cobertura `line-rate="0.85"` scaled ×100, "coverage: 87%" output, coverage.py `TOTAL … 88%` row) | recorded outputs report a different percent | no output records a percent, or ground-truth rows unreadable |
 
 "Unreadable ground truth" = `tool_call_state` rows exist but every
 payload is NULL (interrupted call) or fails JSON decode — the
@@ -130,6 +135,7 @@ only (`2`).
       "working_directory": "…",
       "verdict": "PASS|PARTIAL|UNVERIFIED",
       "summary": {"verified": 3, "disputed": 1, "unverifiable": 0},
+      "uncovered": ["kind/detail", "…"],
       "claims": [
         {"kind": "tests", "detail": "pytest", "status": "verified",
          "evidence": "`python -m pytest -q` completed (tc-1)",

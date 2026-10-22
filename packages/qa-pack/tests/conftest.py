@@ -115,6 +115,9 @@ def sessions_db(tmp_path: Path) -> Path:
       whose recorded output carries ``HTTP/1.1 200 OK``.
     - ``sess-delegated``: a "delegated to a subagent" claim backed by a
       completed ``run_subagent`` spawn call.
+    - ``sess-scores``: an eval-score claim ("eval score was 0.92") and a
+      coverage claim ("coverage is at 87%"), each backed by recorded
+      tool-call output carrying the claimed value.
     """
     db = create_sessions_db(tmp_path / "sessions.db", n_sessions=0)
     missing_wd = str(tmp_path / "no-such-wd")
@@ -232,6 +235,38 @@ def sessions_db(tmp_path: Path) -> Path:
                 "status": "completed",
                 "rawInput": {"prompt": "scan the codebase for flaky tests"},
             },
+        )
+
+        # Between sess-delegated and sess-http so sess-http stays the
+        # most recently active session for session-end tests.
+        add_session(con, "sess-scores", missing_wd, "Scores session",
+                    created=_BASE_TS_MS + 13_500_000)
+        add_message(
+            con,
+            "sess-scores",
+            1,
+            "agent",
+            "Evals finished — the eval score was 0.92 and coverage is "
+            "at 87%.",
+        )
+        add_tool_call(
+            con,
+            "sess-scores",
+            "tc-eval",
+            exec_call(
+                "python -m evals run",
+                output="eval finished: score 0.92\naccuracy=0.88",
+            ),
+        )
+        add_tool_call(
+            con,
+            "sess-scores",
+            "tc-cov",
+            exec_call(
+                "pytest --cov",
+                output="Name  Stmts  Miss  Cover\n"
+                       "TOTAL   123    16   87%\n",
+            ),
         )
     con.close()
     return db
