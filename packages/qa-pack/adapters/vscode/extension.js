@@ -17,8 +17,8 @@ let auditSeq = 0, lastRun = null;
 // test/cli-contract.test.js asserts the pin, these bounds and the real CLI
 // version agree. The floor is patch-level: --within (audit scoping) first
 // shipped in CLI 0.1.2 — 0.1.0 accepts the argv but argparse exits 2 on it.
-const COMPATIBLE_CLI = { min: [0, 1, 2], maxExclusive: [0, 3, 0] };
-const CLI_RANGE = ">=0.1.2,<0.3";
+const COMPATIBLE_CLI = { min: [0, 1, 2], maxExclusive: [0, 4, 0] };
+const CLI_RANGE = ">=0.1.2,<0.4";
 
 function parseVersion(version) {
   const m = /^(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.-]*)?$/.exec(

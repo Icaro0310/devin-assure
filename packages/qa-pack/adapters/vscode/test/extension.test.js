@@ -296,13 +296,13 @@ test("runJson rejects a self-reported out-of-range CLI version", async () => {
   __internals__.deps.runCli = () =>
     Promise.resolve({
       code: 0,
-      stdout: JSON.stringify({ ...PAYLOAD, version: "0.3.0" }),
+      stdout: JSON.stringify({ ...PAYLOAD, version: "0.4.0" }),
       stderr: "",
     });
   try {
     await assert.rejects(
       __internals__.runJson(["audit", "--all", "--json"]),
-      /CLI 0\.3\.0 is outside the range.*update the extension/s,
+      /CLI 0\.4\.0 is outside the range.*update the extension/s,
     );
   } finally {
     __internals__.deps.runCli = real;
@@ -373,8 +373,9 @@ test("cliCompatStatus honors prerelease precedence at the bounds", async () => {
   assert.strictEqual(s("0.1.2-rc1"), "too-old", "0.1.2-rc1 is below the 0.1.2 floor");
   assert.strictEqual(s("0.1.3-rc1"), "compatible");
   assert.strictEqual(s("0.2.0"), "compatible", "the 0.2.x line is inside the range");
-  assert.strictEqual(s("0.3.0-rc1"), "compatible", "0.3.0-rc1 is below 0.3.0");
-  assert.strictEqual(s("0.3.0"), "too-new");
+  assert.strictEqual(s("0.3.0"), "compatible", "the 0.3.x line is inside the range");
+  assert.strictEqual(s("0.4.0-rc1"), "compatible", "0.4.0-rc1 is below 0.4.0");
+  assert.strictEqual(s("0.4.0"), "too-new");
   assert.strictEqual(s("0.1.2+build5"), "compatible", "build metadata does not downgrade");
 });
 
@@ -489,7 +490,7 @@ test("extraArgs error note reports too-old and too-new verdicts accurately", asy
   try {
     for (const [version, want] of [
       ["0.1.0", /also outside.*upgrade the CLI/s],
-      ["0.3.0", /also outside.*downgrade the CLI or update the extension/s],
+      ["0.4.0", /also outside.*downgrade the CLI or update the extension/s],
     ]) {
       __internals__.resetProbe();
       testExtras = ["--bogus"];
