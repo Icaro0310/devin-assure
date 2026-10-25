@@ -120,7 +120,10 @@ _DELEGATION_RE = re.compile(
     re.IGNORECASE,
 )
 
-_CLAUSE_BREAK = r"[,;.!?:()\[\]—–]"
+# A "." only ends a clause at a sentence boundary — followed by
+# whitespace or end-of-line — so tokens like "src/a.py", "v1.2" or
+# "87.5" do not sever the scope a negator or coordinator spans.
+_CLAUSE_BREAK = r"[,;!?:()\[\]—–]|\.(?=\s|$)"
 
 # Coordinators join assertions inside a punctuation-delimited clause.
 # One ends a quantity negator's scope ("no failures and tests passed"
@@ -130,6 +133,41 @@ _CLAUSE_BREAK = r"[,;.!?:()\[\]—–]"
 # extend a denial, so they are deliberately absent.
 _COORDINATOR_RE = re.compile(
     r"\b(?:and|but|or|yet|so|then|e|mas|ou|por[eé]m)\b",
+    re.IGNORECASE,
+)
+
+# Boundary splitter for scope analysis — the same coordinators plus
+# the negative coordinators "nor"/"neither"/"nem", which are absent
+# from _COORDINATOR_RE because they extend a denial rather than open
+# an independent conjunct.
+_COORD_SPLIT_RE = re.compile(
+    r"\b(?:and|but|or|nor|neither|yet|so|then|e|mas|ou|nem|por[eé]m)\b",
+    re.IGNORECASE,
+)
+
+# Disjunction words — an "or"/"nor" sibling that is framed, negated
+# or names a failed outcome makes the whole disjunction uncertain:
+# "tests passed or maybe they failed" asserts no pass.
+_DISJUNCT_WORDS = frozenset({"or", "ou", "nor", "neither", "nem"})
+
+# A disjunction sibling naming a failed outcome as the alternative —
+# "tests passed or they failed" claims neither side.
+_OUTCOME_ALT_RE = re.compile(
+    r"\b(?:fail\w*|broken|error\w*|falh\w*|erros?)\b",
+    re.IGNORECASE,
+)
+
+# A conjunct carrying a subject or a finite verb opens a new clause a
+# quantity negator cannot reach ("no failures and tests passed"
+# asserts the tests); a gerund or bare complement continues the
+# negated phrase ("without creating a.py or updating b.py" denies
+# both files).
+_NEW_CLAUSE_RE = re.compile(
+    r"\b(?:i|we|you|they|it|he|she|eu|n[oó]s|eles?|elas?|voc[eê]s?)\b"
+    r"|\b(?:is|are|was|were|am|be|been|has|have|had|do|does|did|will|"
+    r"would|shall|can|could|may|might|must|foi|era|est[aá]|estava|"
+    r"ser|s[aã]o|tem|t[eê]m|tinha|havia)\b"
+    r"|\b\w+ed\b",
     re.IGNORECASE,
 )
 
@@ -244,6 +282,50 @@ def _match_suppressed(line: str, match: re.Match[str]) -> bool:
     conjunct = re.split(_COORDINATOR_RE, clause)[-1]
     if _QUANTITY_NEGATION_RE.search(conjunct + match.group(0)):
         return True
+    post = re.split(_CLAUSE_BREAK, line[match.end() :])[0]
+    # coordination-aware scope checks: the cue's whole clause split on
+    # every coordinator (negative ones included, since they still mark
+    # a phrase boundary for the scans below)
+    seps = list(_COORD_SPLIT_RE.finditer(clause + match.group(0) + post))
+    if seps:
+        whole = clause + match.group(0) + post
+        starts = [0] + [s.end() for s in seps]
+        ends = [s.start() for s in seps] + [len(whole)]
+        segs = [whole[a:b] for a, b in zip(starts, ends)]
+        words = [s.group(0).lower() for s in seps]
+        cue_seg = next(i for i, b in enumerate(ends) if b > len(clause))
+        # an "or"/"nor" disjunction sibling that is framed, negated or
+        # names a failed outcome makes the disjunction uncertain —
+        # neither side is asserted ("tests passed or maybe they
+        # failed" claims no pass)
+        lo = hi = cue_seg
+        while lo > 0 and words[lo - 1] in _DISJUNCT_WORDS:
+            lo -= 1
+        while hi < len(words) and words[hi] in _DISJUNCT_WORDS:
+            hi += 1
+        for i, seg in enumerate(segs):
+            if i == cue_seg or not lo <= i <= hi:
+                continue
+            if (
+                _NONASSERTION_RE.search(seg)
+                or _CLAUSAL_NEGATION_RE.search(seg)
+                or _QUANTITY_NEGATION_RE.search(seg)
+                or _OUTCOME_ALT_RE.search(seg)
+            ):
+                return True
+        # a quantity negator's scope crosses a coordinator while the
+        # next conjunct still continues the governed phrase —
+        # "without creating a.py or updating b.py" denies both — but
+        # a conjunct opening a new clause ends it ("no failures and
+        # tests passed" claims the tests)
+        k = cue_seg - 1
+        while k >= 0 and (
+            words[k] in _DISJUNCT_WORDS
+            or not _NEW_CLAUSE_RE.search(segs[k + 1])
+        ):
+            if _QUANTITY_NEGATION_RE.search(segs[k]):
+                return True
+            k -= 1
     # the frame check covers the cue's whole clause — a trailing
     # conditional/hedge ("tests pass if run") still voids the claim —
     # but a coordinator after the cue opens a new conjunct whose
@@ -253,7 +335,7 @@ def _match_suppressed(line: str, match: re.Match[str]) -> bool:
         + match.group(0)
         + re.split(
             _COORDINATOR_RE,
-            re.split(_CLAUSE_BREAK, line[match.end() :])[0],
+            post,
         )[0]
     )
     if _NONASSERTION_RE.search(framed):

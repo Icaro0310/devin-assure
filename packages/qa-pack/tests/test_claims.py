@@ -479,6 +479,56 @@ def test_quantity_denial_does_not_cross_a_coordinator():
     assert claims == []
 
 
+def test_quantity_denial_extends_over_a_continued_phrase():
+    """"without X or Y" denies every item while the next conjunct
+    continues the governed phrase — a gerund or a bare complement —
+    rather than opening a new clause."""
+    for text in (
+        "without creating src/a.py or updating src/b.py",
+        "without creating src/a.py and updating src/b.py",
+        "without creating src/a.py or src/b.py",
+        "sem criar src/a.py ou atualizar src/b.py",
+        "no commit a1b2c3d or push b2b3c4d",
+    ):
+        assert extract_claims([make_node(text)]) == [], text
+
+
+def test_disjunction_with_uncertain_sibling_yields_no_claims():
+    """An "or"/"nor" alternative that is hedged, negated or names a
+    failed outcome makes the whole disjunction uncertain — neither
+    side is an assertion."""
+    for text in (
+        "the tests passed or maybe they failed",
+        "maybe the tests failed or they passed",
+        "the tests passed or they did not",
+        "the tests passed or they failed",
+        "the tests passed nor did they fail",
+        "coverage is 87% or it might be lower",
+        "pushed to origin or possibly not",
+        "os testes passaram ou talvez falharam",
+    ):
+        assert extract_claims([make_node(text)]) == [], text
+
+
+def test_plain_coordination_keeps_each_side():
+    """A coordination of plain assertions still claims each side —
+    only framed/negated siblings poison the disjunction."""
+    claims = extract_claims(
+        [make_node("tests passed or coverage is 87%")]
+    )
+    assert {(c.kind, c.detail) for c in claims} == {
+        (TESTS, TESTS),
+        (COVERAGE, "87"),
+    }
+    claims = extract_claims(
+        [make_node("committed a1b2c3d or pushed to origin")]
+    )
+    assert {(c.kind, c.detail) for c in claims} == {
+        (COMMIT, "a1b2c3d"),
+        (PUSH, PUSH),
+    }
+
+
 # -- non-assertion frames (adversarial) ----------------------------------------
 
 

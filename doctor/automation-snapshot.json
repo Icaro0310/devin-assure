@@ -1,0 +1,875 @@
+{
+  "tasks": [
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 192M /bin/bash -c '/usr/bin/python3 /home/ikaros/devin/personal-agent-system/scripts/office-freshness-check.py' >>/home/ikaros/logs/office-freshness.log 2>&1",
+      "id": "0b35926d235666b7-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 192M /bin/bash -c '/usr/bin/python3 /home/ikaros/devin/personal-agent-system/scripts/office-freshness-check.py' >>/home/ikaros/logs/office-freshness.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 2048M /bin/bash -c '/home/ikaros/.local/bin/session-janitor-run.sh' >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "1175047eeec2d3fe-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 2048M /bin/bash -c '/home/ikaros/.local/bin/session-janitor-run.sh' >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/vm-backup.sh >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "1e53b27c1f8c28e5-0",
+      "name": "/home/ikaros/.local/bin/vm-backup.sh >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 256M /bin/bash -c '/home/ikaros/.local/bin/heartbeat-trigger.sh' >>/home/ikaros/.slack-bridge/heartbeat-wake.log 2>&1",
+      "id": "29c6f85d5e21f028-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 256M /bin/bash -c '/home/ikaros/.local/bin/heartbeat-trigger.sh' >>/home/ikaros/.slack-bridge/heartbeat-wake.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c '/usr/bin/python3 /home/ikaros/devin/personal-agent-system/scripts/gsc-report.py' >> /home/ikaros/.local/state/gsc-report/cron.log 2>&1",
+      "id": "2e42213c06e0f7d7-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c '/usr/bin/python3 /home/ikaros/devin/personal-agent-system/scripts/gsc-report.py' >> /home/ikaros/.local/state/gsc-report/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/kill-stale-orphans.sh",
+      "id": "33f4a831a1078351-0",
+      "name": "/home/ikaros/.local/bin/kill-stale-orphans.sh",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 768M /bin/bash -c '/home/ikaros/.venvs/devin-backup/bin/devin-backup create --data-dir /home/ikaros/.config/Devin --out /home/ikaros/backups' >>/home/ikaros/backups/cron.log 2>&1",
+      "id": "3b1253b5179e4e9e-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 768M /bin/bash -c '/home/ikaros/.venvs/devin-backup/bin/devin-backup create --data-dir /home/ikaros/.config/Devin --out /home/ikaros/backups' >>/home/ikaros/backups/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 256M /bin/bash -c '/usr/bin/python3 /home/ikaros/.local/bin/vm-uptime-check.py' >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "3d8d522c48555aec-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 256M /bin/bash -c '/usr/bin/python3 /home/ikaros/.local/bin/vm-uptime-check.py' >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/session-dispatcher.py --event Scheduled --handler janitor.space-report' >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "3e23460f1cf57b45-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/session-dispatcher.py --event Scheduled --handler janitor.space-report' >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/fork-janitor.py' >>/home/ikaros/logs/fork-janitor.log 2>&1",
+      "id": "48796682c14b6811-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/fork-janitor.py' >>/home/ikaros/logs/fork-janitor.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/session-dispatcher.py --event Scheduled --handler skills.audit' >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "4b772a8bbdd4544d-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/session-dispatcher.py --event Scheduled --handler skills.audit' >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "DEVIN_HEAVY=1 /home/ikaros/.local/bin/cgroup-run.sh 768M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/session-sweep.py' >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "4bb814d56efd11a8-0",
+      "name": "DEVIN_HEAVY=1 /home/ikaros/.local/bin/cgroup-run.sh 768M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/session-sweep.py' >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 192M /bin/bash -c 'python3 $HOME/devin/devin-ecosystem/devin-dashboard/tools/laptop_reporter.py'",
+      "id": "4e2d2367f6b2929a-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 192M /bin/bash -c 'python3 $HOME/devin/devin-ecosystem/devin-dashboard/tools/laptop_reporter.py'",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 256M /bin/bash -c 'cd $HOME/devin/personal-agent-system && PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin $HOME/.local/bin/node scripts/ecosystem-traffic.mjs' >>$HOME/logs/cron.log 2>&1",
+      "id": "56929e18d7017ab1-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 256M /bin/bash -c 'cd $HOME/devin/personal-agent-system && PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin $HOME/.local/bin/node scripts/ecosystem-traffic.mjs' >>$HOME/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/gh-notif-silence.sh",
+      "id": "624c3aedc22e879d-0",
+      "name": "/home/ikaros/.local/bin/gh-notif-silence.sh",
+      "surface": "cron"
+    },
+    {
+      "command": "DEVIN_HEAVY=1 /home/ikaros/.local/bin/cgroup-run.sh 1024M /bin/bash -c 'cd $HOME/devin/personal-agent-system && PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin $HOME/.local/bin/node scripts/weekly-testgen.mjs --apply' >>$HOME/logs/cron.log 2>&1",
+      "id": "700aac869ff0a5a4-0",
+      "name": "DEVIN_HEAVY=1 /home/ikaros/.local/bin/cgroup-run.sh 1024M /bin/bash -c 'cd $HOME/devin/personal-agent-system && PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin $HOME/.local/bin/node scripts/weekly-testgen.mjs --apply' >>$HOME/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/cleanup-slack-sessions.py' >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "71f6ed4826c169f5-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/cleanup-slack-sessions.py' >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/djaevin-calibration-run.sh >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "8083ea532751ac27-0",
+      "name": "/home/ikaros/.local/bin/djaevin-calibration-run.sh >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/session-db-maint-when-idle.sh",
+      "id": "817ad9a869071286-0",
+      "name": "/home/ikaros/.local/bin/session-db-maint-when-idle.sh",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/mailbox-wake-watch.sh",
+      "id": "89cccdbbb0291533-0",
+      "name": "/home/ikaros/.local/bin/mailbox-wake-watch.sh",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.venvs/devin-backup/bin/devin-backup rotate --out /home/ikaros/backups --keep 10 --yes >>/home/ikaros/backups/cron.log 2>&1",
+      "id": "968f2135e5d7138d-0",
+      "name": "/home/ikaros/.venvs/devin-backup/bin/devin-backup rotate --out /home/ikaros/backups --keep 10 --yes >>/home/ikaros/backups/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c '/home/ikaros/.local/bin/djaevin-quiz-run.sh' >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "a2d843e030cd1b24-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c '/home/ikaros/.local/bin/djaevin-quiz-run.sh' >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/vault-compressor.py' >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "a816b6a7e9166647-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/vault-compressor.py' >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/qa-weekly-digest.py' >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "b77f1a29adecc879-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/qa-weekly-digest.py' >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/vm-keepalive.sh",
+      "id": "b786ea3a0b92e15e-0",
+      "name": "/home/ikaros/.local/bin/vm-keepalive.sh",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/session-dispatcher.py --event Scheduled --handler learning.weekly-extract' >>/home/ikaros/logs/cron.log 2>&1",
+      "id": "bf074897e0e12090-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 512M /bin/bash -c 'cd /home/ikaros/devin/personal-agent-system && /usr/bin/python3 scripts/session-dispatcher.py --event Scheduled --handler learning.weekly-extract' >>/home/ikaros/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/cgroup-run.sh 768M /bin/bash -c 'PATH=/home/ikaros/.local/bin:/usr/bin:/bin /usr/bin/python3 /home/ikaros/devin/personal-agent-system/scripts/answer-runner.py' >> /home/ikaros/.local/state/answer-runner/runner.log 2>&1",
+      "id": "c2d6449bd06de4a6-0",
+      "name": "/home/ikaros/.local/bin/cgroup-run.sh 768M /bin/bash -c 'PATH=/home/ikaros/.local/bin:/usr/bin:/bin /usr/bin/python3 /home/ikaros/devin/personal-agent-system/scripts/answer-runner.py' >> /home/ikaros/.local/state/answer-runner/runner.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/obsidian-watchdog.sh",
+      "id": "c5fa2b552dc2d6bb-0",
+      "name": "/home/ikaros/.local/bin/obsidian-watchdog.sh",
+      "surface": "cron"
+    },
+    {
+      "command": "/home/ikaros/devin/personal-agent-system/scripts/ecosystem-health.sh",
+      "id": "c732e60ae0421ba7-0",
+      "name": "/home/ikaros/devin/personal-agent-system/scripts/ecosystem-health.sh",
+      "surface": "cron"
+    },
+    {
+      "command": "DEVIN_HEAVY=1 /home/ikaros/.local/bin/cgroup-run.sh 1024M /bin/bash -c 'cd $HOME/devin/personal-agent-system && PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin $HOME/.local/bin/node scripts/weekly-ecosystem-scout.mjs --apply' >>$HOME/logs/cron.log 2>&1",
+      "id": "d8c22a3c3454deeb-0",
+      "name": "DEVIN_HEAVY=1 /home/ikaros/.local/bin/cgroup-run.sh 1024M /bin/bash -c 'cd $HOME/devin/personal-agent-system && PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin $HOME/.local/bin/node scripts/weekly-ecosystem-scout.mjs --apply' >>$HOME/logs/cron.log 2>&1",
+      "surface": "cron"
+    },
+    {
+      "command": ":/usr/bin/blueman-applet",
+      "id": "app-blueman@autostart.service",
+      "name": "app-blueman@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": " ; \"/usr/bin/brave-browser-stable\"",
+      "id": "app-brave\\x2dbrowser@fc0d924e59654689a4f7895da92df6d8.service",
+      "name": "app-brave\\x2dbrowser@fc0d924e59654689a4f7895da92df6d8.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": " ; \"/usr/share/devin-desktop/devin-desktop\"",
+      "id": "app-devin\\x2ddesktop@94522bafd2d44bd5b23aefc0bc37235b.service",
+      "name": "app-devin\\x2ddesktop@94522bafd2d44bd5b23aefc0bc37235b.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/libexec/geoclue-2.0/demos/agent",
+      "id": "app-geoclue\\x2ddemo\\x2dagent@autostart.service",
+      "name": "app-geoclue\\x2ddemo\\x2dagent@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/kup-daemon",
+      "id": "app-kup\\x2ddaemon@autostart.service",
+      "name": "app-kup\\x2ddaemon@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/lubuntu-update",
+      "id": "app-lubuntu\\x2dupdate\\x2dautostart@autostart.service",
+      "name": "app-lubuntu\\x2dupdate\\x2dautostart@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/pcmanfm-qt --desktop --profile=lxqt",
+      "id": "app-lxqt\\x2ddesktop@autostart.service",
+      "name": "app-lxqt\\x2ddesktop@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/lxqt-globalkeysd",
+      "id": "app-lxqt\\x2dglobalkeyshortcuts@autostart.service",
+      "name": "app-lxqt\\x2dglobalkeyshortcuts@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/lxqt-notificationd",
+      "id": "app-lxqt\\x2dnotifications@autostart.service",
+      "name": "app-lxqt\\x2dnotifications@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/lxqt-panel",
+      "id": "app-lxqt\\x2dpanel@autostart.service",
+      "name": "app-lxqt\\x2dpanel@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/lxqt-policykit-agent",
+      "id": "app-lxqt\\x2dpolicykit\\x2dagent@autostart.service",
+      "name": "app-lxqt\\x2dpolicykit\\x2dagent@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/lxqt-powermanagement",
+      "id": "app-lxqt\\x2dpowermanagement@autostart.service",
+      "name": "app-lxqt\\x2dpowermanagement@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/qlipper",
+      "id": "app-lxqt\\x2dqlipper\\x2dautostart@autostart.service",
+      "name": "app-lxqt\\x2dqlipper\\x2dautostart@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/lxqt-runner",
+      "id": "app-lxqt\\x2drunner@autostart.service",
+      "name": "app-lxqt\\x2drunner@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/xscreensaver -no-splash",
+      "id": "app-lxqt\\x2dxscreensaver\\x2dautostart@autostart.service",
+      "name": "app-lxqt\\x2dxscreensaver\\x2dautostart@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/nm-applet",
+      "id": "app-nm\\x2dapplet@autostart.service",
+      "name": "app-nm\\x2dapplet@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/nm-tray",
+      "id": "app-nm\\x2dtray\\x2dautostart@autostart.service",
+      "name": "app-nm\\x2dtray\\x2dautostart@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/lib/x86_64-linux-gnu/libexec/DiscoverNotifier --check-delay 20",
+      "id": "app-org.kde.discover.notifier@autostart.service",
+      "name": "app-org.kde.discover.notifier@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/lib/x86_64-linux-gnu/libexec/plasma-fallback-session-restore",
+      "id": "app-org.kde.plasma\\x2dfallback\\x2dsession\\x2drestore@autostart.service",
+      "name": "app-org.kde.plasma\\x2dfallback\\x2dsession\\x2drestore@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/spectacle --dbus",
+      "id": "app-org.kde.spectacle.service",
+      "name": "app-org.kde.spectacle.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/system-config-printer-applet",
+      "id": "app-print\\x2dapplet@autostart.service",
+      "name": "app-print\\x2dapplet@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/usr/bin/snap userd --autostart",
+      "id": "app-snap\\x2duserd\\x2dautostart@autostart.service",
+      "name": "app-snap\\x2duserd\\x2dautostart@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": ":/home/ikaros/.local/bin/sysmon-tray.py",
+      "id": "app-sysmon\\x2dtray@autostart.service",
+      "name": "app-sysmon\\x2dtray@autostart.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/bin/sh -ec '\\",
+      "id": "appmenu-gtk-module.service",
+      "name": "appmenu-gtk-module.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/at-spi-bus-launcher",
+      "id": "at-spi-dbus-bus.service",
+      "name": "at-spi-dbus-bus.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/blueman-applet",
+      "id": "blueman-applet.service",
+      "name": "blueman-applet.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/blueman-manager",
+      "id": "blueman-manager.service",
+      "name": "blueman-manager.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/colord-session",
+      "id": "colord-session.service",
+      "name": "colord-session.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/bluetooth/obexd",
+      "id": "dbus-org.bluez.obex.service",
+      "name": "dbus-org.bluez.obex.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/dbus-daemon --session --address=systemd: --nofork --nopidfile --systemd-activation --syslog-only",
+      "id": "dbus.service",
+      "name": "dbus.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/dconf-service",
+      "id": "dconf.service",
+      "name": "dconf.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "%h/.local/bin/devin-dashboard-tray.py",
+      "id": "devin-dashboard-tray.service",
+      "name": "devin-dashboard-tray.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/python3 /home/ikaros/devin/devin-ecosystem/devin-control/packages/office/probe.py --hub http://127.0.0.1:8790 --interval 3",
+      "id": "devin-office-probe.service",
+      "name": "devin-office-probe.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/home/ikaros/devin/searxng/.venv/bin/python -m searx.webapp",
+      "id": "devin-searxng.service",
+      "name": "devin-searxng.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/ssh -N -T -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -R 2223:localhost:22 devin-vm",
+      "id": "devin-vm-rtunnel.service",
+      "name": "devin-vm-rtunnel.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/dirmngr --supervised --honor-http-proxy",
+      "id": "dirmngr.service",
+      "name": "dirmngr.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/pipewire -c filter-chain.conf",
+      "id": "filter-chain.service",
+      "name": "filter-chain.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/glib-pacrunner",
+      "id": "glib-pacrunner.service",
+      "name": "glib-pacrunner.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/gpg-agent --supervised",
+      "id": "gpg-agent.service",
+      "name": "gpg-agent.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/gvfs-afc-volume-monitor",
+      "id": "gvfs-afc-volume-monitor.service",
+      "name": "gvfs-afc-volume-monitor.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/gvfsd",
+      "id": "gvfs-daemon.service",
+      "name": "gvfs-daemon.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/gvfs-goa-volume-monitor",
+      "id": "gvfs-goa-volume-monitor.service",
+      "name": "gvfs-goa-volume-monitor.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/gvfs-gphoto2-volume-monitor",
+      "id": "gvfs-gphoto2-volume-monitor.service",
+      "name": "gvfs-gphoto2-volume-monitor.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/gvfsd-metadata",
+      "id": "gvfs-metadata.service",
+      "name": "gvfs-metadata.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/gvfs-mtp-volume-monitor",
+      "id": "gvfs-mtp-volume-monitor.service",
+      "name": "gvfs-mtp-volume-monitor.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/gvfs-udisks2-volume-monitor",
+      "id": "gvfs-udisks2-volume-monitor.service",
+      "name": "gvfs-udisks2-volume-monitor.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/kf6/baloo_file",
+      "id": "kde-baloo.service",
+      "name": "kde-baloo.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/gnupg/keyboxd --supervised",
+      "id": "keyboxd.service",
+      "name": "keyboxd.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/kio-fuse -f",
+      "id": "kio-fuse.service",
+      "name": "kio-fuse.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "find %h/.launchpadlib/api.launchpad.net/cache -type f -mtime +30 -delete",
+      "id": "launchpadlib-cache-clean.service",
+      "name": "launchpadlib-cache-clean.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "find %h/.launchpadlib/api.launchpad.net/cache -type f -mtime +30 -delete",
+      "id": "launchpadlib-cache-clean.timer",
+      "name": "launchpadlib-cache-clean.timer",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/python3 /home/ikaros/devin/personal-agent-system/mcp/mcp-hub.py",
+      "id": "mcp-hub.service",
+      "name": "mcp-hub.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/mpris-proxy",
+      "id": "mpris-proxy.service",
+      "name": "mpris-proxy.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/bluetooth/obexd",
+      "id": "obex.service",
+      "name": "obex.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "%h/Applications/obsidian/obsidian --no-sandbox --disable-gpu-sandbox --ozone-platform=wayland --enable-features=WaylandWindowDecorations --js-flags=--max-old-space-size=4096",
+      "id": "obsidian.service",
+      "name": "obsidian.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "orca --replace",
+      "id": "orca.service",
+      "name": "orca.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "",
+      "id": "pipewire-media-session.service",
+      "name": "pipewire-media-session.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/pipewire-pulse",
+      "id": "pipewire-pulse.service",
+      "name": "pipewire-pulse.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/wireplumber",
+      "id": "pipewire-session-manager.service",
+      "name": "pipewire-session-manager.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/pipewire",
+      "id": "pipewire.service",
+      "name": "pipewire.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/pk-debconf-helper",
+      "id": "pk-debconf-helper.service",
+      "name": "pk-debconf-helper.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/baloorunner",
+      "id": "plasma-baloorunner.service",
+      "name": "plasma-baloorunner.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/dolphin --daemon",
+      "id": "plasma-dolphin.service",
+      "name": "plasma-dolphin.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "",
+      "id": "plasma-foreground-booster.service",
+      "name": "plasma-foreground-booster.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/gmenudbusmenuproxy",
+      "id": "plasma-gmenudbusmenuproxy.service",
+      "name": "plasma-gmenudbusmenuproxy.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/kaccess",
+      "id": "plasma-kaccess.service",
+      "name": "plasma-kaccess.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/kactivitymanagerd",
+      "id": "plasma-kactivitymanagerd.service",
+      "name": "plasma-kactivitymanagerd.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/qt6/bin/qdbus org.kde.kcminit /kcminit org.kde.KCMInit.runPhase1",
+      "id": "plasma-kcminit-phase1.service",
+      "name": "plasma-kcminit-phase1.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/kcminit_startup",
+      "id": "plasma-kcminit.service",
+      "name": "plasma-kcminit.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/kded6",
+      "id": "plasma-kded6.service",
+      "name": "plasma-kded6.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/kglobalacceld",
+      "id": "plasma-kglobalaccel.service",
+      "name": "plasma-kglobalaccel.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/knighttimed",
+      "id": "plasma-knighttimed.service",
+      "name": "plasma-knighttimed.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/krunner --daemon",
+      "id": "plasma-krunner.service",
+      "name": "plasma-krunner.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/kscreen_osd_service",
+      "id": "plasma-kscreen-osd.service",
+      "name": "plasma-kscreen-osd.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/kf6/kscreen_backend_launcher",
+      "id": "plasma-kscreen.service",
+      "name": "plasma-kscreen.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/ksmserver",
+      "id": "plasma-ksmserver.service",
+      "name": "plasma-ksmserver.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/ksplashqml",
+      "id": "plasma-ksplash.service",
+      "name": "plasma-ksplash.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/ksystemstats",
+      "id": "plasma-ksystemstats.service",
+      "name": "plasma-ksystemstats.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/share/libpam-kwallet-common/pam_kwallet_init",
+      "id": "plasma-kwallet-pam.service",
+      "name": "plasma-kwallet-pam.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/kwin_wayland_wrapper --xwayland",
+      "id": "plasma-kwin_wayland.service",
+      "name": "plasma-kwin_wayland.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/kwin_x11 --replace",
+      "id": "plasma-kwin_x11.service",
+      "name": "plasma-kwin_x11.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/plasmashell --no-respawn",
+      "id": "plasma-plasmashell.service",
+      "name": "plasma-plasmashell.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/polkit-kde-authentication-agent-1",
+      "id": "plasma-polkit-agent.service",
+      "name": "plasma-polkit-agent.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/org_kde_powerdevil",
+      "id": "plasma-powerdevil.service",
+      "name": "plasma-powerdevil.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "-/usr/lib/qt6/bin/qdbus org.kde.ksmserver /KSMServer org.kde.KSMServerInterface.restoreSession",
+      "id": "plasma-restoresession.service",
+      "name": "plasma-restoresession.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/kcminit_startup",
+      "id": "plasma-workspace.service",
+      "name": "plasma-workspace.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/lib/x86_64-linux-gnu/libexec/xdg-desktop-portal-kde",
+      "id": "plasma-xdg-desktop-portal-kde.service",
+      "name": "plasma-xdg-desktop-portal-kde.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/xembedsniproxy",
+      "id": "plasma-xembedsniproxy.service",
+      "name": "plasma-xembedsniproxy.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "",
+      "id": "pulseaudio.service",
+      "name": "pulseaudio.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/home/ikaros/.venvs/qwenpaw-bridge/bin/python /home/ikaros/devin/qwenpaw-suite/bridge/bridge.py",
+      "id": "qwenpaw-bridge.service",
+      "name": "qwenpaw-bridge.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/home/ikaros/.local/bin/node /home/ikaros/devin/personal-agent-system/gateways/src/slack-poll.js",
+      "id": "slack-poll.service",
+      "name": "slack-poll.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/snap userd --agent",
+      "id": "snapd.session-agent.service",
+      "name": "snapd.session-agent.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/speech-dispatcher -s -t 0",
+      "id": "speech-dispatcher.service",
+      "name": "speech-dispatcher.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/spice-vdagent -x",
+      "id": "spice-vdagent.service",
+      "name": "spice-vdagent.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/ssh-agent -D",
+      "id": "ssh-agent.service",
+      "name": "ssh-agent.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "-systemd-ask-password *** --no-tty",
+      "id": "systemd-ask-password@.service",
+      "name": "systemd-ask-password@.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "",
+      "id": "systemd-exit.service",
+      "name": "systemd-exit.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "",
+      "id": "systemd-remount-fs.service",
+      "name": "systemd-remount-fs.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "systemd-tmpfiles --user --clean",
+      "id": "systemd-tmpfiles-clean.service",
+      "name": "systemd-tmpfiles-clean.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "systemd-tmpfiles --user --clean",
+      "id": "systemd-tmpfiles-clean.timer",
+      "name": "systemd-tmpfiles-clean.timer",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "systemd-tmpfiles --user --create --remove --boot",
+      "id": "systemd-tmpfiles-setup.service",
+      "name": "systemd-tmpfiles-setup.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "%h/.local/bin/tailscaled --statedir=%h/.local/share/tailscale --socket=%h/.local/share/tailscale/tailscaled.sock --tun=userspace-networking --no-logs-no-support",
+      "id": "tailscaled.service",
+      "name": "tailscaled.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/user-session-migration",
+      "id": "user-session-migration.service",
+      "name": "user-session-migration.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/ssh -N -L 11435:localhost:11434 -L 8765:localhost:8765 -L 8900:localhost:8900 -L 8790:localhost:8790 devin-vm -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3",
+      "id": "vm-ollama-tunnel.service",
+      "name": "vm-ollama-tunnel.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/wireplumber",
+      "id": "wireplumber.service",
+      "name": "wireplumber.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/wireplumber -p %i",
+      "id": "wireplumber@.service",
+      "name": "wireplumber@.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/xdg-desktop-portal-gtk",
+      "id": "xdg-desktop-portal-gtk.service",
+      "name": "xdg-desktop-portal-gtk.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/xdg-desktop-portal-lxqt",
+      "id": "xdg-desktop-portal-lxqt.service",
+      "name": "xdg-desktop-portal-lxqt.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/xdg-desktop-portal-rewrite-launchers",
+      "id": "xdg-desktop-portal-rewrite-launchers.service",
+      "name": "xdg-desktop-portal-rewrite-launchers.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/xdg-desktop-portal",
+      "id": "xdg-desktop-portal.service",
+      "name": "xdg-desktop-portal.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/xdg-document-portal",
+      "id": "xdg-document-portal.service",
+      "name": "xdg-document-portal.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/libexec/xdg-permission-store",
+      "id": "xdg-permission-store.service",
+      "name": "xdg-permission-store.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/xdg-user-dirs-update",
+      "id": "xdg-user-dirs.service",
+      "name": "xdg-user-dirs.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/xscreensaver",
+      "id": "xscreensaver.service",
+      "name": "xscreensaver.service",
+      "surface": "systemd-user"
+    },
+    {
+      "command": "/usr/bin/ydotoold",
+      "id": "ydotool.service",
+      "name": "ydotool.service",
+      "surface": "systemd-user"
+    }
+  ],
+  "version": 1
+}
