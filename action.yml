@@ -65,18 +65,37 @@ runs:
           args=(audit --all --limit "$LIMIT")
         fi
         [ -n "$SESSIONS_DB" ] && args+=(--sessions-db "$SESSIONS_DB")
-        # When the comment leg is enabled, persist the JSON payload for
-        # the PR-comment step to read — --out is the sweep artifact
-        # contract: it leaves the text stdout and the verdict exit code
-        # unchanged, so the audit still runs exactly once.
+        # Persist the JSON payload for the PR-comment step ONLY when
+        # that step can actually run (same condition as its `if:`): an
+        # --out write failure exits 2, so requesting an artifact a
+        # disabled comment leg would never read must not change a
+        # passing audit's exit code.
+        want_comment=false
         if [ -n "$COMMENT" ] && [ "$COMMENT" != "never" ] && [ "$COMMENT" != "false" ]; then
-          args+=(--out "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/devin-qa-pack-audit.json")
+          if [ "$COMMENT" = "always" ] || [ "$COMMENT" = "true" ] || [ "${GITHUB_EVENT_NAME:-}" = "pull_request" ]; then
+            want_comment=true
+          fi
+        fi
+        if [ "$want_comment" = "true" ]; then
+          # Unique per run attempt AND per step invocation (PID+RANDOM),
+          # cleared before the audit runs — a retried job or a second
+          # use of the action can never pick up a stale verdict left by
+          # an earlier invocation whose audit failed before writing.
+          QA_AUDIT_JSON="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/devin-qa-pack-audit-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-0}-$$-${RANDOM}.json"
+          rm -f "$QA_AUDIT_JSON"
+          args+=(--out "$QA_AUDIT_JSON")
+          # Hand the path to the comment step — exported BEFORE the
+          # audit runs so a failing verdict (non-zero exit) still leaves
+          # the marker for the always() reporting leg.
+          if [ -n "${GITHUB_ENV:-}" ]; then
+            echo "QA_AUDIT_JSON=$QA_AUDIT_JSON" >> "$GITHUB_ENV"
+          fi
         fi
         devin-qa-pack "${args[@]}"
     - name: Comment verdict on PR
       # Reporting leg, not a gate — always() so a failing audit verdict
-      # still gets posted. Every failure path warns and exits 0: the
-      # verdict is the check, the comment is only reporting. Needs
+      # still gets posted, continue-on-error plus set +e/exit 0 so no
+      # failure path here can change the check outcome. Needs
       # `permissions: pull-requests: write` on the caller job —
       # composite actions cannot self-grant.
       if: >-
@@ -86,14 +105,13 @@ runs:
         (inputs.comment == 'always' ||
          inputs.comment == 'true' ||
          github.event_name == 'pull_request')
+      continue-on-error: true
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
       run: |
         set +e
-        QA_AUDIT_JSON="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/devin-qa-pack-audit.json"
-        QA_AUDIT_BODY="$QA_AUDIT_JSON.comment.md"
         if [ -z "${GH_TOKEN:-}" ]; then
           echo "::warning::no token for gh pr comment — pass the token input or grant the job pull-requests: write; skipping PR comment"
           exit 0
@@ -102,10 +120,16 @@ runs:
           echo "::warning::gh CLI not on PATH — skipping PR comment"
           exit 0
         fi
-        if [ ! -s "$QA_AUDIT_JSON" ]; then
-          echo "::warning::no audit payload at $QA_AUDIT_JSON — skipping PR comment"
+        # The audit step exports QA_AUDIT_JSON (a unique per-invocation
+        # path under RUNNER_TEMP). A missing or empty file means the
+        # audit failed before it could write — warn and skip, never
+        # repost a stale verdict and never fail the job.
+        QA_AUDIT_JSON="${QA_AUDIT_JSON:-}"
+        if [ -z "$QA_AUDIT_JSON" ] || [ ! -s "$QA_AUDIT_JSON" ]; then
+          echo "::warning::no audit payload at ${QA_AUDIT_JSON:-<not exported>} — skipping PR comment"
           exit 0
         fi
+        QA_AUDIT_BODY="$QA_AUDIT_JSON.comment.md"
         if [ -z "$PR_NUMBER" ] && [ -n "${GITHUB_REF_NAME:-}" ]; then
           # comment: always on a non-PR event — resolve the open PR for
           # the pushed branch, if one exists.
@@ -117,8 +141,13 @@ runs:
           echo "::warning::no pull request found for this event — skipping PR comment"
           exit 0
         fi
-        python3 - "$QA_AUDIT_JSON" > "$QA_AUDIT_BODY" <<'PY'
+        QA_RUN_URL=""
+        if [ -n "${GITHUB_RUN_ID:-}" ] && [ -n "${GITHUB_REPOSITORY:-}" ]; then
+          QA_RUN_URL="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+        fi
+        QA_RUN_URL="$QA_RUN_URL" python3 - "$QA_AUDIT_JSON" > "$QA_AUDIT_BODY" <<'PY'
         import json
+        import os
         import sys
 
         payload = json.load(open(sys.argv[1], encoding="utf-8"))
@@ -129,30 +158,26 @@ runs:
             key=order.get,
             default="UNVERIFIED",
         )
+        # Aggregate only — session titles, claim names and the local db
+        # path stay in the artifact on the runner: a public PR comment
+        # must not leak filesystem paths or task detail.
         lines = [f"## devin-qa-pack audit — {worst}", ""]
         for s in sessions:
             counts = s.get("summary", {})
-            head = f"`{s.get('session_id', '?')}`"
-            title = (s.get("title") or "").replace("`", "'")[:60]
-            if title:
-                head += f" — {title}"
             lines.append(
-                f"- **{s.get('verdict', '?')}** {head} — "
+                f"- **{s.get('verdict', '?')}** `{s.get('session_id', '?')}` — "
                 f"{counts.get('verified', 0)} verified, "
                 f"{counts.get('disputed', 0)} disputed, "
                 f"{counts.get('unverifiable', 0)} unverifiable"
             )
-            uncovered = s.get("uncovered") or []
-            if uncovered:
-                named = ", ".join(u.replace("`", "'") for u in uncovered)
-                lines.append(f"  - uncovered: {named}")
-        lines += [
-            "",
+        footer = (
             f"<sub>devin-qa-pack {payload.get('version', '?')} · "
-            f"{len(sessions)} session(s) audited · "
-            f"source: {payload.get('sessions_db', '?')}</sub>",
-            "<!-- devin-qa-pack-audit -->",
-        ]
+            f"{len(sessions)} session(s) audited"
+        )
+        run_url = os.environ.get("QA_RUN_URL", "")
+        if run_url:
+            footer += f" · [workflow run]({run_url})"
+        lines += ["", footer + "</sub>", "<!-- devin-qa-pack-audit -->"]
         sys.stdout.write("\n".join(lines) + "\n")
         PY
         if [ ! -s "$QA_AUDIT_BODY" ]; then
@@ -160,11 +185,27 @@ runs:
           exit 0
         fi
         # Re-runs update the previous verdict comment instead of
-        # spamming new ones — look ours up by the marker tag.
-        COMMENT_ID="$(gh api \
-          "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" \
-          --jq '[.[] | select(.body | contains("<!-- devin-qa-pack-audit -->"))] | last | .id // empty' \
-          2>/dev/null)"
+        # spamming new ones — look ours up by the marker tag across ALL
+        # pages (--paginate + `jq -s 'add // []'` flattens the pages; a
+        # PR can hold far more than 100 comments). Only bot-owned
+        # comments qualify (.user.login): a marker pasted by a human
+        # author is a forgery — never edit it, post a fresh comment.
+        COMMENT_ID=""
+        if command -v jq >/dev/null 2>&1; then
+          COMMENTS_JSON="$(gh api \
+            "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" \
+            --paginate 2>/dev/null)"
+          COMMENT_ID="$(printf '%s\n' "$COMMENTS_JSON" | jq -s '
+            (add // [])
+            | [.[] | select(
+                (.body | contains("<!-- devin-qa-pack-audit -->"))
+                and (.user.login == "github-actions[bot]"
+                     or .user.login == "devin-ai-integration[bot]"
+                     or .user.login == "app/github-actions"))]
+            | last | (.id // empty)' 2>/dev/null)"
+        else
+          echo "::warning::jq not on PATH — cannot look up a previous verdict comment; posting a fresh one"
+        fi
         if [ -n "$COMMENT_ID" ]; then
           gh api -X PATCH \
             "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID" \
