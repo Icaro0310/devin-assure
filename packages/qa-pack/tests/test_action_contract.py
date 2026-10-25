@@ -425,11 +425,15 @@ def test_audit_step_adds_out_only_when_comment_posts(
     out_path = Path(argv[argv.index("--out") + 1])
     assert out_path.parent == tmp_path
     assert re.fullmatch(r"devin-qa-pack-audit-4242-3-.+-.+\.json", out_path.name)
-    # the path reached the comment step via GITHUB_ENV
-    assert (
-        f"QA_AUDIT_JSON={out_path}"
-        in github_env.read_text(encoding="utf-8").splitlines()
+    # the path reached the comment step via GITHUB_ENV; compare as Path
+    # so Windows backslash/forward-slash mix in the written line does not
+    # matter
+    env_line = next(
+        line
+        for line in github_env.read_text(encoding="utf-8").splitlines()
+        if line.startswith("QA_AUDIT_JSON=")
     )
+    assert Path(env_line.split("=", 1)[1]) == out_path
 
 
 @pytest.mark.skipif(BASH is None, reason="contract needs bash")
