@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ("did not run pytest, but tests passed" still claims). The `n't`
   alternation now matches contractions (no word boundary precedes the
   `n`), and "not only"/"não só" read as affirmations, not denials.
+- Claim extraction no longer sources claims from `tool`/`system`-role
+  messages — tool output and system prompts are evidence channels, not
+  agent assertions, so claim-shaped text in them (a pasted pytest log,
+  an instruction block) could only fabricate claims. Clause framing now
+  also covers non-assertion contexts: a cue under a modal/intent frame
+  ("I will push", "going to commit", "let me delegate", "vou fazer
+  push"), a conditional ("if tests pass"), a hedge ("probably pushed",
+  "I think tests passed", "acho que"), reported speech ("the user said
+  tests passed") or an interrogative clause ("did the tests pass?")
+  yields no claim — an ambiguous read resolves to no claim, never a
+  phantom one. Missing denial words were added ("no", "nor",
+  "neither", "none", "without", "zero", "cannot", "cant", PT
+  "nenhum", "jamais", "sem") and the negator's scope is the whole
+  clause — the fixed-width prefix window let a distant "not" escape.
+  Frames stay clause-scoped, so "maybe tests passed; definitely pushed
+  to origin" still claims the push.
 
 ## [0.3.0] - 2026-10-22
 
