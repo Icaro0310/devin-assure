@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **CI** — bump `docker/login-action` from 3.7.0 to 4.6.0 in the Docker publish workflow (Dependabot).
 - **Docs** — `README.corporate-windows.md` gains three recipe sections:
   *Read-only operation* (every command reads local Devin data only; a
   copied `--sessions-db` gives a hard no-touch guarantee), *What cannot
