@@ -65,6 +65,11 @@ runs:
           args=(audit --all --limit "$LIMIT")
         fi
         [ -n "$SESSIONS_DB" ] && args+=(--sessions-db "$SESSIONS_DB")
+        # GitHub expressions compare input strings case-insensitively
+        # and bash does not — normalize so a mixed-case value gates
+        # --out exactly the way the comment step's `if:` gates the post
+        # (tr over ${var,,} keeps macOS bash 3.2 runners working).
+        COMMENT="$(printf '%s' "${COMMENT:-}" | tr '[:upper:]' '[:lower:]')"
         # Persist the JSON payload for the PR-comment step ONLY when
         # that step can actually run (same condition as its `if:`): an
         # --out write failure exits 2, so requesting an artifact a
@@ -168,8 +173,18 @@ runs:
         lines = [f"## devin-qa-pack audit — {worst}", ""]
         for s in sessions:
             counts = s.get("summary", {})
+            # A backtick or newline in a session-store id would break
+            # out of the inline code span and inject markdown into a
+            # public PR comment — strip them so the id always renders
+            # inside one code span on one line.
+            sid = (
+                str(s.get("session_id", "?"))
+                .replace("`", "")
+                .replace("\r", " ")
+                .replace("\n", " ")
+            )
             lines.append(
-                f"- **{s.get('verdict', '?')}** `{s.get('session_id', '?')}` — "
+                f"- **{s.get('verdict', '?')}** `{sid}` — "
                 f"{counts.get('verified', 0)} verified, "
                 f"{counts.get('disputed', 0)} disputed, "
                 f"{counts.get('unverifiable', 0)} unverifiable"
@@ -196,16 +211,21 @@ runs:
         # author is a forgery — never edit it, post a fresh comment.
         COMMENT_ID=""
         if command -v jq >/dev/null 2>&1; then
+          # A caller-supplied `token` posts as ITS account, not a bot —
+          # resolve the authenticated login so re-runs update our own
+          # comment instead of stacking duplicates.
+          COMMENTER="$(gh api user 2>/dev/null | jq -r '.login // empty' 2>/dev/null)"
           COMMENTS_JSON="$(gh api \
             "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" \
             --paginate 2>/dev/null)"
-          COMMENT_ID="$(printf '%s\n' "$COMMENTS_JSON" | jq -s '
+          COMMENT_ID="$(printf '%s\n' "$COMMENTS_JSON" | jq -s --arg me "$COMMENTER" '
             (add // [])
             | [.[] | select(
                 (.body | contains("<!-- devin-qa-pack-audit -->"))
                 and (.user.login == "github-actions[bot]"
                      or .user.login == "devin-ai-integration[bot]"
-                     or .user.login == "app/github-actions"))]
+                     or .user.login == "app/github-actions"
+                     or ($me != "" and .user.login == $me)))]
             | last | (.id // empty)' 2>/dev/null)"
         else
           echo "::warning::jq not on PATH — cannot look up a previous verdict comment; posting a fresh one"

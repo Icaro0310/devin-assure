@@ -378,6 +378,14 @@ def test_comment_body_is_aggregate_only() -> None:
         ("always", "push", True),
         ("true", "push", True),
         ("always", "pull_request", True),
+        # GitHub `if:` compares inputs case-insensitively — the audit
+        # step's bash gate must agree, or the comment leg runs with no
+        # payload (ALWAYS) / a passing audit requests an artifact a
+        # disabled leg never reads (NEVER).
+        ("ALWAYS", "push", True),
+        ("Always", "pull_request", True),
+        ("NEVER", "pull_request", False),
+        ("False", "push", False),
     ],
 )
 def test_audit_step_adds_out_only_when_comment_posts(
@@ -484,6 +492,10 @@ GH_STUB = """#!/usr/bin/env bash
 printf 'CALL %s\\n' "$*" >> "${GH_STUB_LOG:-/dev/null}"
 if [ "${1:-}" = "pr" ] && [ "${2:-}" = "list" ]; then
   cat "${GH_STUB_PRLIST:-/dev/null}"
+  exit 0
+fi
+if [ "${1:-}" = "api" ] && [ "${2:-}" = "user" ]; then
+  cat "${GH_STUB_USER:-/dev/null}"
   exit 0
 fi
 for arg in "$@"; do
@@ -720,3 +732,101 @@ def test_comment_body_has_no_private_detail(tmp_path: Path) -> None:
         "uncovered",
     ):
         assert leak not in body
+
+
+@pytest.mark.skipif(
+    BASH is None or JQ is None or PYTHON3 is None,
+    reason="contract needs bash+jq+python3",
+)
+def test_comment_step_updates_comment_owned_by_token_login(
+    tmp_path: Path,
+) -> None:
+    """A caller-supplied PAT posts as its own account, not as a bot —
+    the lookup must resolve `gh api user` and update that comment on
+    re-runs instead of stacking duplicates. A marker comment from ANY
+    other login stays a forgery and is never edited."""
+    (tmp_path / "user.json").write_text(
+        '{"login": "alice-dev"}', encoding="utf-8"
+    )
+    (tmp_path / "comments.json").write_text(
+        json.dumps(
+            [
+                _gh_comment(333, "alice-dev"),
+                _gh_comment(999, "other-human"),
+            ]
+        ),
+        encoding="utf-8",
+    )
+    env = _comment_env(tmp_path)
+    env["GH_STUB_USER"] = str(tmp_path / "user.json")
+    proc = _run_step(_comment_step(), env=env)
+    assert proc.returncode == 0, proc.stderr
+    calls = _calls(tmp_path)
+    assert any("api user" in c for c in calls)
+    assert any("PATCH" in c and "issues/comments/333" in c for c in calls)
+    assert not any("issues/comments/999" in c for c in calls)
+    assert not any("pr comment" in c for c in calls)
+
+
+@pytest.mark.skipif(
+    BASH is None or JQ is None or PYTHON3 is None,
+    reason="contract needs bash+jq+python3",
+)
+def test_comment_step_posts_fresh_when_token_login_unresolvable(
+    tmp_path: Path,
+) -> None:
+    """`gh api user` failing (expired PAT, api down) must degrade to
+    the bot-only allowlist — a human-authored marker is still never
+    patched and the run still exits 0."""
+    (tmp_path / "comments.json").write_text(
+        json.dumps([_gh_comment(222, "pr-author")]),
+        encoding="utf-8",
+    )
+    # GH_STUB_USER unset — the stub's `api user` branch cats /dev/null
+    proc = _run_step(_comment_step(), env=_comment_env(tmp_path))
+    assert proc.returncode == 0, proc.stderr
+    calls = _calls(tmp_path)
+    assert any("pr comment 5" in c for c in calls)
+    assert not any("issues/comments/222" in c for c in calls)
+
+
+@pytest.mark.skipif(
+    BASH is None or JQ is None or PYTHON3 is None,
+    reason="contract needs bash+jq+python3",
+)
+def test_comment_body_sanitizes_session_id(tmp_path: Path) -> None:
+    """A session id holding a backtick or newline would break out of
+    the inline code span and inject markdown into a public PR
+    comment — it must render inside one code span on one line."""
+    payload = dict(AUDIT_PAYLOAD)
+    payload["sessions"] = [
+        {
+            **AUDIT_PAYLOAD["sessions"][0],
+            "session_id": "evil`id\n## injected",
+            "verdict": "PASS",
+        }
+    ]
+    env = _comment_env(tmp_path)
+    # _comment_env seeds audit.json with the shared payload — overwrite
+    # it AFTER so the hostile id is what the step renders
+    payload_file = tmp_path / "audit.json"
+    payload_file.write_text(json.dumps(payload), encoding="utf-8")
+    (tmp_path / "comments.json").write_text("[]", encoding="utf-8")
+    env["QA_AUDIT_JSON"] = str(payload_file)
+    proc = _run_step(_comment_step(), env=env)
+    assert proc.returncode == 0, proc.stderr
+    body = _body(tmp_path)
+    # the raw backtick never reaches the body — nothing can escape
+    # the code span
+    assert "evil`id" not in body
+    # the newline became a space — the id cannot open a `## heading`
+    # line of its own
+    assert not any(
+        line.lstrip().startswith("## injected")
+        for line in body.splitlines()
+    )
+    session_line = next(
+        line for line in body.splitlines() if "evil" in line
+    )
+    assert session_line.count("`") == 2
+    assert "evilid" in session_line
