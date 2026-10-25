@@ -150,6 +150,10 @@ runs:
         import os
         import sys
 
+        # Windows runners default stdout to cp1252 — reconfigure so the
+        # em-dashes/middle-dots below reach the file (and the gh call)
+        # as UTF-8 instead of mojibake in the posted comment.
+        sys.stdout.reconfigure(encoding="utf-8")
         payload = json.load(open(sys.argv[1], encoding="utf-8"))
         sessions = payload.get("sessions", [])
         order = {"PASS": 0, "UNVERIFIED": 1, "PARTIAL": 2}
