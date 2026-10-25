@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `devin-evals dream replay <sessions.db>`: re-emits a real session as an
+  anonymized synthetic template (`devin-dream/session-template` v1) for
+  corpus bootstrap. Structure is preserved — message count, roles and
+  node linkage, the tool-call sequence, labels — while every content
+  string becomes a deterministic `<kind>_<sha256[:8]>` placeholder, so
+  raw text (prompts, tool output, paths, titles, ids) never reaches the
+  template. `--session-id` selects one session, `-o` writes the template,
+  `--emit-db` materializes the anonymized session(s) through the same
+  generator as `unit`/`fleet` (round-trip verified by tests). Fails
+  loudly on missing/corrupt db, unknown schema version and missing
+  session id; empty sessions table is a clean "no sessions".
+  `SessionSpec.message_parents` (new optional field) carries the
+  preserved forest linkage into regenerated dbs. Known gap:
+  `prompt_history`/`rendered_commits`/`subagent_heads` are not replayed.
 - Defect class **D11 — cross-session secret reuse** (dream's original
   D10, "segredo reutilizado entre sessões", closes a coverage gap the
   absorbed catalogue left between D04's secret-in-output and D09's

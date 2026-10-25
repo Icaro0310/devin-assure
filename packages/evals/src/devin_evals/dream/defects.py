@@ -63,6 +63,10 @@ class SessionSpec:
     # fleet extras — empty/0 keeps the unit-defect behavior unchanged
     workspace_dirs: tuple[str, ...] = ()   # defaults to [working_directory]
     duration_ms: int = 120_000             # created_at -> last_activity_at
+    # replay extras — preserved forest linkage: message_parents[i] is the
+    # 1-based node position of message i's parent (None = root). Empty =
+    # linear chain, the historical default.
+    message_parents: tuple[int | None, ...] = ()
 
 
 def _msg(role: str, content: str, n: int) -> tuple[str, str]:

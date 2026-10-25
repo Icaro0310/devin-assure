@@ -109,12 +109,21 @@ def _insert_spec(con: sqlite3.Connection, spec: SessionSpec, i: int) -> None:
                         "defect": spec.defect_id}),
         ),
     )
+    parents = spec.message_parents
     for node_id, (role, blob) in enumerate(spec.messages, start=1):
+        parent = (
+            parents[node_id - 1] if node_id - 1 < len(parents)
+            else (None if node_id == 1 else node_id - 1)
+        )
+        # a parent must point at an earlier node — a dangling, self or
+        # forward reference falls back to the linear chain
+        if parent is not None and not 1 <= parent < node_id:
+            parent = None if node_id == 1 else node_id - 1
         con.execute(
             "INSERT INTO message_nodes(session_id, node_id, parent_node_id,"
             " chat_message, created_at, metadata)"
             " VALUES (?, ?, ?, ?, ?, ?)",
-            (spec.session_id, node_id, None if node_id == 1 else node_id - 1,
+            (spec.session_id, node_id, parent,
              blob, created + node_id * 10_000,
              json.dumps({"synthetic": True})),
         )
