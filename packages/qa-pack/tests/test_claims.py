@@ -418,3 +418,144 @@ def test_not_only_is_affirmation_not_denial():
         [make_node("not only did coverage reach 87%")]
     )
     assert [(c.kind, c.detail) for c in claims] == [(COVERAGE, "87")]
+
+
+def test_bare_denial_words_yield_no_claims():
+    """"no"/"nor"/"none"/"without"/"cannot" deny like "not" does — a
+    cue under one is a denial, not a claim."""
+    for text in (
+        "no tests passed",
+        "no tests are passing",
+        "there is no commit a1b2c3d yet",
+        "no push to origin happened",
+        "zero tests passed",
+        "none of the tests passed",
+        "neither the tests nor the build passed",
+        "the build broke, nor did the tests pass",
+        "the run ended without tests passing",
+        "no coverage at 87%",
+        "cannot push to origin",
+        "nenhum commit a1b2c3d foi feito",
+        "ficou sem push para origin",
+    ):
+        assert extract_claims([make_node(text)]) == [], text
+
+
+def test_denial_window_spans_the_whole_clause():
+    """The negator's scope is the whole clause, not a fixed prefix
+    width — a "not" far from the cue still voids it."""
+    claims = extract_claims(
+        [
+            make_node(
+                "I did not under any circumstances whatsoever at any "
+                "point run the suite where tests passed"
+            )
+        ]
+    )
+    assert claims == []
+
+
+# -- non-assertion frames (adversarial) ----------------------------------------
+
+
+def test_intent_and_modal_frames_yield_no_claims():
+    """Plans are not delivery claims — "I will push", "going to
+    commit", "let me delegate" describe intent; auditing one disputes
+    work the agent never asserted."""
+    for text in (
+        "I will run the tests",
+        "I will push to origin",
+        "I will commit a1b2c3d",
+        "I will create src/config.py",
+        "I will delegate to a subagent",
+        "I'm going to push to origin",
+        "let me push to origin",
+        "let's commit a1b2c3d",
+        "I need to push to origin",
+        "I plan to push to origin",
+        "about to commit a1b2c3d",
+        "I want to commit a1b2c3d",
+        "I could push to origin",
+        "the tests would pass if run",
+        "coverage will reach 87%",
+        "I will check the eval score of 0.9",
+        "I forgot to commit a1b2c3d",
+        "I was unable to push to origin",
+        "the tests are unlikely to pass",
+        "failed to push to origin",
+        "vou fazer push para origin",
+    ):
+        assert extract_claims([make_node(text)]) == [], text
+
+
+def test_conditionals_hedges_and_questions_yield_no_claims():
+    """Hypotheticals, hedged beliefs and questions are ambiguous — the
+    safe read is no claim."""
+    for text in (
+        "if tests pass I will merge",
+        "if tests passed, the release is ready",
+        "I think tests passed",
+        "probably pushed to origin",
+        "maybe the tests passed",
+        "tests seem to pass",
+        "did the tests pass?",
+        "how did the tests pass so fast?",
+        "tests pass? not really",
+        "make sure tests pass before merge",
+        "acho que coverage is 87%",
+    ):
+        assert extract_claims([make_node(text)]) == [], text
+
+
+def test_reported_speech_is_not_the_agents_claim():
+    """A claim quoted from the user/task/spec is someone else's words,
+    not a delivery assertion."""
+    for text in (
+        "the user said tests passed",
+        "the user said 'tests passed' but I have not run them",
+        "the user asked me to push to origin",
+        "the task requires a commit a1b2c3d",
+        "the spec says coverage is 80%",
+    ):
+        assert extract_claims([make_node(text)]) == [], text
+
+
+def test_frames_are_clause_scoped_not_global():
+    """A modal or hedge in one clause never cancels the next clause's
+    affirmed claim."""
+    claims = extract_claims(
+        [make_node("I will push later; committed a1b2c3d")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(COMMIT, "a1b2c3d")]
+    claims = extract_claims(
+        [make_node("maybe tests passed; definitely pushed to origin")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(PUSH, PUSH)]
+
+
+def test_affirmations_still_claim_through_new_frames():
+    """Completed-work phrasings that resemble frames keep claiming —
+    "was able to", "made sure", "verified" are assertions."""
+    claims = extract_claims([make_node("I was able to push to origin")])
+    assert [(c.kind, c.detail) for c in claims] == [(PUSH, PUSH)]
+    claims = extract_claims([make_node("I made sure tests passed")])
+    assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
+    claims = extract_claims([make_node("I verified the tests pass")])
+    assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
+
+
+# -- speaker attribution (injection) --------------------------------------------
+
+
+def test_tool_and_system_roles_are_not_scanned():
+    """Tool output and system prompts are evidence channels, not agent
+    assertions — claim-shaped text in them must never become a claim."""
+    for role in ("tool", "tool_result", "function", "system"):
+        nodes = [
+            EvidenceMessage(
+                role=normalize_role(role),
+                text="all tests passed, coverage is 87%",
+                ts_ms=None,
+            )
+        ]
+        assert extract_claims(nodes) == [], role

@@ -4,7 +4,9 @@ A *claim* is an assertion the agent made about delivered work: tests
 passed, a commit exists, a file was created/changed, work was pushed,
 work was delegated to a subagent, an eval score or a coverage number
 was reported. Only agent-role messages are scanned
-— a user prompt quoting the same words is not a delivery claim.
+— a user prompt quoting the same words is not a delivery claim,
+and neither is tool output or a system prompt, which are evidence
+channels, not assertions.
 
 The input is the canonical :class:`EvidenceMessage` — store-specific
 payload decoding (``chat_message`` JSON for the Devin store) happens in
@@ -118,30 +120,110 @@ _DELEGATION_RE = re.compile(
     re.IGNORECASE,
 )
 
-# "not only"/"não só" are affirmations, not denials — "not only did
-# tests pass" still claims the tests.
+_CLAUSE_BREAK = r"[,;.!?:()\[\]—–]"
+
+# Denial words — "no", "nor", "none", "without", "zero" deny like
+# "not"/"never" do; PT adds "nem", "nunca", "jamais", "nenhum(a)",
+# "sem". "not only"/"não só" are affirmations, not denials — "not only
+# did tests pass" still claims the tests.
 _NEGATION_RE = re.compile(
-    r"\b(?:never|nem|nunca)\b"
+    r"\b(?:never|cannot|cant|no|nor|neither|none|without|zero|"
+    r"nem|nunca|jamais|nenhum(?:a|s)?|sem)\b"
     r"|\bnot\b(?!\s+only\b)"
     r"|\bnão\b(?!\s+só\b)"
     r"|n['’]t\b",
     re.IGNORECASE,
 )
 
+# Frames that make a clause not an assertion: intent/modality ("I will
+# push", "I'm going to commit", "vou fazer push"), conditions ("if
+# tests pass"), hedges ("probably pushed", "tests seem ok", "acho que
+# passou") and reported speech ("the user said tests passed", "the
+# spec requires a commit"). A cue under one describes a plan, a
+# hypothetical or someone else's words — extracting it fabricates a
+# claim the audit then disputes against work that was never asserted.
+_NONASSERTION_RE = re.compile(
+    # modals & future markers — "will push", "I'll commit", "we can
+    # deploy", "tests would pass"
+    r"\b(?:will|would|could|should|shall|must|may|might|can|gonna|"
+    r"wanna|ought)\b|['’]ll\b"
+    # purpose/obligation/request frames — "<verb> [<someone>] to":
+    # "going to push", "need to run", "supposed to pass", "have to
+    # deploy", "in order to", "asked me to push", "told us to commit",
+    # "want the tests to pass"
+    r"|\b(?:going|about|plan\w*|need\w*|want\w*|intend\w*|hope\w*|"
+    r"tr(?:y|ies|ying)|aim\w*|mean\w*|expect\w*|supposed|prepar\w*|"
+    r"have|has|had|used|ought|remember\w*|forg\w*|fail\w*|neglect\w*|"
+    r"un(?:able|willing|likely)|ask\w*|tell\w*|order\w*|instruct\w*|"
+    r"request\w*|direct\w*|in\s+order)"
+    r"\s+(?:\w+\s+){0,4}to\b"
+    # instructions — "make sure tests pass" is a directive, not a
+    # report ("I made sure tests passed" still claims)
+    r"|\bmake\s+sure\b"
+    # permission/precursor frames — "let me push", "let's commit"
+    r"|\blet\s+(?:me|us)\b|\blet['’]?s\b"
+    # conditionals — "if tests pass", "unless they fail", "whether it
+    # passed" are hypotheticals, not reports
+    r"|\b(?:if|unless|whether)\b"
+    # hedges — "probably pushed", "tests seem ok", "I think coverage
+    # is 87%", "acho que passou"
+    r"|\b(?:probably|possibly|maybe|perhaps|hopefully|apparently|"
+    r"presumably|likely)\b"
+    r"|\bseem\w*\b|\bappear\w*\b|\blooks?\s+like\b|\bsounds?\s+like\b"
+    r"|\b(?:i|we)\s+(?:think|believe|guess|suppose|suspect|assume|"
+    r"imagine|reckon|hope|feel)\b"
+    # reported speech — "the user said tests passed", "the task
+    # requires a commit": the words are someone else's, not the
+    # agent's delivery claim
+    r"|\b(?:user|task|spec|docs?|instructions?|ticket|issue|prompt|"
+    r"requirements?)\s+(?:said|says?|asked?|told|wrote|reads?|states?|"
+    r"requires?|requests?|mentions?|wants?|expects?)\b"
+    # PT — futures ("vou", "irá", "pretendo", "planejo", "preciso",
+    # "quero", "devo", "tenho que") and hedges ("acho", "parece",
+    # "talvez", "provavelmente")
+    r"|\b(?:vou|vamos|vai|ir[aá]|pretend\w*|planej\w*|quer\w*|"
+    r"precis\w*|devo|deve|te(?:nho|m)\s+que)\b"
+    r"|\b(?:acho|acredito|imagino|suponho|parece\w*|talvez|"
+    r"provavelmente|possivelmente|aparentemente)\b",
+    re.IGNORECASE,
+)
 
-def _match_negated(line: str, match: re.Match[str]) -> bool:
-    """A claim cue in a negated clause is a denial, not a claim —
-    "I did not delegate to a worker" or "tests did not pass" must not
-    yield a claim that a session audit would then dispute. The check
-    is clause-scoped: a negator voids its own clause, never a cue in
-    the next one ("did not test, but committed abc123" still claims
-    the commit)."""
-    prefix = line[max(0, match.start() - 48) : match.start()]
+
+def _match_suppressed(line: str, match: re.Match[str]) -> bool:
+    """Whether the cue in ``match`` fails to assert a claim.
+
+    Three clause-scoped frames mean "no claim" — a frame inside one
+    clause never cancels a real claim in the next ("did not test, but
+    committed abc123" still claims the commit):
+
+    - a denial — "tests did not pass", "no coverage at 87%",
+      "ficou sem push";
+    - a non-assertion frame — intent ("I will push"), condition
+      ("if tests pass"), hedge ("probably committed") or reported
+      speech ("the user said tests pass"); the frame may trail the
+      cue inside its clause ("tests pass if run");
+    - a question — a clause closed by "?" asks, it does not assert
+      ("did the tests pass?").
+
+    A post-cue denial is *not* a frame — "committed a1b2c3d not
+    b2b3c4d" still claims the first hash; the trailing "not" negates
+    the second one.
+    """
+    prefix = line[: match.start()]
     # only the clause nearest the cue can negate it
-    clause = re.split(r"[,;.!?:()\[\]—–]", prefix)[-1]
-    return bool(
-        _NEGATION_RE.search(clause) or _NEGATION_RE.search(match.group(0))
-    )
+    clause = re.split(_CLAUSE_BREAK, prefix)[-1]
+    if _NEGATION_RE.search(clause + match.group(0)):
+        return True
+    # the frame check covers the cue's whole clause — a trailing
+    # conditional/hedge ("tests pass if run") still voids the claim
+    framed = clause + match.group(0) + re.split(
+        _CLAUSE_BREAK, line[match.end() :]
+    )[0]
+    if _NONASSERTION_RE.search(framed):
+        return True
+    # "?" closing the cue's clause marks a question, not a claim
+    nxt = re.search(_CLAUSE_BREAK, line[match.end() :])
+    return bool(nxt and nxt.group(0) == "?")
 
 _HTTP_CLAIM_RES = (
     re.compile(
@@ -205,7 +287,7 @@ _COVERAGE_CLAIM_RES = (
     ),
 )
 
-_SKIP_ROLES = {"user", "human"}
+_SKIP_ROLES = {"user", "human", "tool", "system"}
 _MAX_EXCERPT = 160
 
 
@@ -253,45 +335,46 @@ def _norm_number(literal: str) -> str:
 def _runner_in(line: str) -> str | None:
     for token in _RUNNER_TOKENS:  # multi-word runners first
         for m in re.finditer(rf"\b{re.escape(token)}\b", line, re.IGNORECASE):
-            # a runner named in a denied clause ("did not run pytest")
-            # must not become the claim's detail
-            if not _match_negated(line, m):
+            # a runner named in a suppressed clause ("did not run
+            # pytest", "I will run pytest") must not become the
+            # claim's detail
+            if not _match_suppressed(line, m):
                 return token
     return None
 
 
 def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
     if any(
-        not _match_negated(line, m) for m in _TESTS_RE.finditer(line)
+        not _match_suppressed(line, m) for m in _TESTS_RE.finditer(line)
     ):
         yield TESTS, _runner_in(line) or TESTS
     for m in _PASSED_COUNT_RE.finditer(line):
-        if not _match_negated(line, m):
+        if not _match_suppressed(line, m):
             yield TESTS_PASSED, m.group(1).replace(",", "")
     if any(
-        not _match_negated(line, m)
+        not _match_suppressed(line, m)
         for m in _COMMIT_WORD_RE.finditer(line)
     ):
         # each detail must live in an affirmed clause too — "did not
         # commit a1b2c3d; committed b1b2c3d" claims only the second hash
         for m in _HEX_RE.finditer(line):
-            if not _match_negated(line, m):
+            if not _match_suppressed(line, m):
                 yield COMMIT, m.group(0).lower()
-    if any(not _match_negated(line, m) for m in _PUSH_RE.finditer(line)):
+    if any(not _match_suppressed(line, m) for m in _PUSH_RE.finditer(line)):
         yield PUSH, PUSH
     if any(
-        not _match_negated(line, m)
+        not _match_suppressed(line, m)
         for m in _FILE_VERB_RE.finditer(line)
     ):
         for m in _PATH_TOKEN_RE.finditer(line):
-            if not _match_negated(line, m):
+            if not _match_suppressed(line, m):
                 yield FILE, _normalize_path(m.group(0))
     for rx in _HTTP_CLAIM_RES:
         for m in rx.finditer(line):
-            if not _match_negated(line, m):
+            if not _match_suppressed(line, m):
                 yield HTTP, m.group(1)
     if any(
-        not _match_negated(line, m)
+        not _match_suppressed(line, m)
         for m in re.finditer(
             r"\b(?:deployed|live|hosted|available|published|running)\b",
             line,
@@ -299,20 +382,20 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
         )
     ):
         for m in _URL_RE.finditer(line):
-            if not _match_negated(line, m):
+            if not _match_suppressed(line, m):
                 yield URL, m.group(0).rstrip(".,);'\"")
     if any(
-        not _match_negated(line, m)
+        not _match_suppressed(line, m)
         for m in _DELEGATION_RE.finditer(line)
     ):
         yield DELEGATION, DELEGATION
     for rx in _EVAL_CLAIM_RES:
         for m in rx.finditer(line):
-            if not _match_negated(line, m):
+            if not _match_suppressed(line, m):
                 yield EVAL, _norm_number(m.group(1))
     for rx in _COVERAGE_CLAIM_RES:
         for m in rx.finditer(line):
-            if not _match_negated(line, m):
+            if not _match_suppressed(line, m):
                 yield COVERAGE, _norm_number(m.group(1))
 
 
