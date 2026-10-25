@@ -1,11 +1,14 @@
-"""devin-dream CLI: unit | inject | fleet."""
+"""devin-dream CLI: unit | inject | fleet | replay."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from pathlib import Path
+
+from devin_internals.schema import SchemaError
 
 from devin_evals.dream.defects import ADVERSARIAL, DEFECTS, UNIT_IDS
 from devin_evals.dream.generate import (
@@ -14,6 +17,12 @@ from devin_evals.dream.generate import (
     write_fleet_manifest,
     write_sessions_db,
     write_state_vscdb,
+)
+from devin_evals.dream.replay import (
+    ReplayError,
+    dumps_template,
+    envelope_to_specs,
+    replay_db,
 )
 
 
@@ -101,8 +110,46 @@ def _cmd_fleet(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_replay(args: argparse.Namespace) -> int:
+    """Re-emit real session(s) as an anonymized synthetic template."""
+    try:
+        envelope = replay_db(args.db, session_id=args.session_id)
+    except (SchemaError, ReplayError, sqlite3.Error, OSError) as e:
+        print(f"replay: {e}", file=sys.stderr)
+        return 2
+    n = len(envelope["sessions"])
+    if args.emit_db:
+        if n == 0:
+            print(f"replay: no sessions in {args.db} — "
+                  "nothing to emit", file=sys.stderr)
+            return 0
+        try:
+            db = write_sessions_db(args.emit_db,
+                                   envelope_to_specs(envelope))
+        except (ReplayError, ValueError) as e:
+            print(f"replay: {e}", file=sys.stderr)
+            return 2
+        print(f"replay: {n} session(s) anonymized -> {db}")
+        return 0
+    out = dumps_template(envelope)
+    if args.out:
+        p = Path(args.out)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(out, encoding="utf-8")
+        dest = str(p)
+    else:
+        sys.stdout.write(out)
+        dest = "stdout"
+    if n == 0:
+        print(f"replay: no sessions in {args.db}", file=sys.stderr)
+    else:
+        print(f"replay: {n} session(s) anonymized -> {dest}",
+              file=sys.stderr if dest == "stdout" else sys.stdout)
+    return 0
+
+
 def add_dream_subcommands(sub) -> None:
-    """Register unit/inject/fleet on an argparse subparsers collection."""
+    """Register unit/inject/fleet/replay on a subparsers collection."""
 
     u = sub.add_parser("unit", help="one sessions.db + expected.json per defect")
     u.add_argument("--out", required=True)
@@ -135,6 +182,21 @@ def add_dream_subcommands(sub) -> None:
                    help="write fleet.json with per-session archetype and "
                         "expected properties")
     f.set_defaults(func=_cmd_fleet)
+
+    r = sub.add_parser(
+        "replay",
+        help="re-emit real session(s) as an anonymized synthetic template")
+    r.add_argument("db", help="path to a real sessions.db (read-only)")
+    r.add_argument("--session-id", default=None,
+                   help="replay only this session id (default: all)")
+    r.add_argument("-o", "--out", default=None, metavar="PATH",
+                   help="write the template JSON to PATH "
+                        "(default: stdout)")
+    r.add_argument("--emit-db", default=None, metavar="PATH",
+                   help="materialize the anonymized session(s) as a "
+                        "synthetic sessions.db at PATH instead of "
+                        "emitting the template")
+    r.set_defaults(func=_cmd_replay)
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -182,7 +182,26 @@ devin-evals dream unit   --out out/                 # one dir per defect + expec
 devin-evals dream unit   --out out/ --defect D01 D03
 devin-evals dream inject --out adv/ --n 5           # adversarial (D07/D08) + scorecard
 devin-evals dream fleet  --out big/ --sessions 2000 --seed 1 --manifest
+devin-evals dream replay real/sessions.db -o template.json
+devin-evals dream replay real/sessions.db --session-id <id> --emit-db new/sessions.db
 ```
+
+`replay` bootstraps a corpus from real cases: it re-emits a session's
+*shape* as a `devin-dream/session-template` (v1) — message count, roles
+and forest linkage, the tool-call sequence and labels are preserved —
+while every content string is replaced by a deterministic
+`<kind>_<sha256[:8]>` placeholder (`msg_…`, `str_…`, `sess_…`, `dir_…`,
+`tc_NNNN_…`). Raw prompts, tool output, paths, titles and ids never
+reach the template, so the generated corpus cannot leak secrets; equal
+content maps to equal placeholders, and the same input db always
+produces the same template bytes. `--emit-db` materializes the
+anonymized session(s) through the same generator path as `unit`/`fleet`,
+so the round-trip parses under the gated `sessions.db` reader. Replay
+fails loudly on a missing/corrupt db, an unknown schema version, or a
+`--session-id` that isn't there; an empty sessions table is a clean
+"no sessions". Known gap: `prompt_history`, `rendered_commits` and
+`subagent_heads` side tables are not replayed (the spec has no fields
+for them).
 
 Secrets and PII in generated fixtures are always obviously fake
 public-documentation values — nothing real is ever generated or read.
