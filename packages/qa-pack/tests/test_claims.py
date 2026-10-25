@@ -641,6 +641,26 @@ def test_post_cue_frame_does_not_cross_a_coordinator():
     ) == []
 
 
+def test_adjacent_sentences_keep_independent_scopes():
+    """A missing space after a period does not merge two sentences —
+    "passed.I" is still a boundary, so a following plan frame cannot
+    suppress the asserted claim in the first sentence."""
+    claims = extract_claims(
+        [make_node("tests passed.I will push to origin")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
+    claims = extract_claims(
+        [make_node("committed a1b2c3d.I might tag it later")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(COMMIT, "a1b2c3d")]
+    # mid-token dots stay glued — the uppercase rule must not split
+    # version strings or filename extensions written in lowercase
+    claims = extract_claims(
+        [make_node("did not create config.Yaml files")]
+    )
+    assert claims == []
+
+
 # -- speaker attribution (injection) --------------------------------------------
 
 

@@ -123,7 +123,7 @@ _DELEGATION_RE = re.compile(
 # A "." only ends a clause at a sentence boundary — followed by
 # whitespace or end-of-line — so tokens like "src/a.py", "v1.2" or
 # "87.5" do not sever the scope a negator or coordinator spans.
-_CLAUSE_BREAK = r"[,;!?:()\[\]—–]|\.(?=\s|$)"
+_CLAUSE_BREAK = r"[,;!?:()\[\]—–]|\.(?=\s|$|[A-Z])"
 
 # Coordinators join assertions inside a punctuation-delimited clause.
 # One ends a quantity negator's scope ("no failures and tests passed"
