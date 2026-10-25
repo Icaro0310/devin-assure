@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **CI** — `pr-approve` caller repinned from v1.6 to v1.9 in
+  `auto-approve.yml` (the v1.9 gate fixes the self-cancel so a
+  successful approval no longer renders as a failed check, and adds
+  fresh-head recheck plus paginated dedup);
+  `test_auto_approve_workflow.py` pins the caller contract.
 - **Docs** — `README.corporate-windows.md` gains three recipe sections:
   *Read-only operation* (every command reads local Devin data only; a
   copied `--sessions-db` gives a hard no-touch guarantee), *What cannot
