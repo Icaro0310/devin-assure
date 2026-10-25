@@ -455,6 +455,30 @@ def test_denial_window_spans_the_whole_clause():
     assert claims == []
 
 
+def test_quantity_denial_does_not_cross_a_coordinator():
+    """"No"/"zero"/"without" bind the noun they precede — a conjoined
+    positive report is a claim: "no failures and tests passed" asserts
+    the tests, denied only on the negator's own conjunct."""
+    claims = extract_claims([make_node("no failures and tests passed")])
+    assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
+    claims = extract_claims([make_node("no errors and tests passed")])
+    assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
+    claims = extract_claims(
+        [make_node("zero errors but coverage is 87%")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(COVERAGE, "87")]
+    # the denial still holds on its own conjunct — only the affirmed
+    # conjunct claims
+    claims = extract_claims(
+        [make_node("tests passed and no commit a1b2c3d")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
+    claims = extract_claims(
+        [make_node("no failures and no tests passed")]
+    )
+    assert claims == []
+
+
 # -- non-assertion frames (adversarial) ----------------------------------------
 
 
@@ -542,6 +566,29 @@ def test_affirmations_still_claim_through_new_frames():
     assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
     claims = extract_claims([make_node("I verified the tests pass")])
     assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
+
+
+def test_post_cue_frame_does_not_cross_a_coordinator():
+    """A modal or intent frame governs its own conjunct — a completed
+    assertion joined by "and"/"but" still claims; only the planned
+    conjunct is suppressed."""
+    claims = extract_claims(
+        [make_node("the tests passed and I will push to origin")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
+    claims = extract_claims(
+        [make_node("committed a1b2c3d but I will push to origin later")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(COMMIT, "a1b2c3d")]
+    claims = extract_claims(
+        [make_node("updated src/a.py and I will create src/b.py")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(FILE, "src/a.py")]
+    # a pre-cue modal still scopes over following conjuncts — "will
+    # X and Y" plans both
+    assert extract_claims(
+        [make_node("I will run the tests and push to origin")]
+    ) == []
 
 
 # -- speaker attribution (injection) --------------------------------------------

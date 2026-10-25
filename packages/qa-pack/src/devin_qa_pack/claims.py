@@ -122,16 +122,35 @@ _DELEGATION_RE = re.compile(
 
 _CLAUSE_BREAK = r"[,;.!?:()\[\]—–]"
 
-# Denial words — "no", "nor", "none", "without", "zero" deny like
-# "not"/"never" do; PT adds "nem", "nunca", "jamais", "nenhum(a)",
-# "sem". "not only"/"não só" are affirmations, not denials — "not only
-# did tests pass" still claims the tests.
-_NEGATION_RE = re.compile(
-    r"\b(?:never|cannot|cant|no|nor|neither|none|without|zero|"
-    r"nem|nunca|jamais|nenhum(?:a|s)?|sem)\b"
+# Coordinators join assertions inside a punctuation-delimited clause.
+# One ends a quantity negator's scope ("no failures and tests passed"
+# still claims the tests) and opens a new conjunct a post-cue frame
+# cannot reach back across ("tests passed and I will push" still
+# claims the tests). "nor"/"neither" are negative coordinators — they
+# extend a denial, so they are deliberately absent.
+_COORDINATOR_RE = re.compile(
+    r"\b(?:and|but|or|yet|so|then|e|mas|ou|por[eé]m)\b",
+    re.IGNORECASE,
+)
+
+# Clausal denials — "not"/"never"/"nor" scope over the whole clause,
+# including across coordinators ("did not test and deploy" asserts
+# neither); PT adds "nem", "nunca", "jamais", "não". "not only"/"não
+# só" are affirmations, not denials — "not only did tests pass" still
+# claims the tests.
+_CLAUSAL_NEGATION_RE = re.compile(
+    r"\b(?:never|cannot|cant|nor|neither|nem|nunca|jamais)\b"
     r"|\bnot\b(?!\s+only\b)"
     r"|\bnão\b(?!\s+só\b)"
     r"|n['’]t\b",
+    re.IGNORECASE,
+)
+
+# Quantity denials — "no", "none", "without", "zero" (PT "nenhum(a)",
+# "sem") bind the noun they precede, not every later assertion in the
+# clause: "no errors but coverage is 87%" still claims the coverage.
+_QUANTITY_NEGATION_RE = re.compile(
+    r"\b(?:no|none|without|zero|nenhum(?:a|s)?|sem)\b",
     re.IGNORECASE,
 )
 
@@ -208,17 +227,35 @@ def _match_suppressed(line: str, match: re.Match[str]) -> bool:
     A post-cue denial is *not* a frame — "committed a1b2c3d not
     b2b3c4d" still claims the first hash; the trailing "not" negates
     the second one.
+
+    Coordinators bound both scopes differently per direction. A
+    quantity negator stops at the next coordinator — "no failures and
+    tests passed" still claims the tests — while clausal negators keep
+    the whole clause. A modal or intent frame keeps the whole clause
+    before the cue ("I will push and commit" plans both) but stops at
+    the first coordinator after it — "tests passed and I will push"
+    plans only the push.
     """
     prefix = line[: match.start()]
     # only the clause nearest the cue can negate it
     clause = re.split(_CLAUSE_BREAK, prefix)[-1]
-    if _NEGATION_RE.search(clause + match.group(0)):
+    if _CLAUSAL_NEGATION_RE.search(clause + match.group(0)):
+        return True
+    conjunct = re.split(_COORDINATOR_RE, clause)[-1]
+    if _QUANTITY_NEGATION_RE.search(conjunct + match.group(0)):
         return True
     # the frame check covers the cue's whole clause — a trailing
-    # conditional/hedge ("tests pass if run") still voids the claim
-    framed = clause + match.group(0) + re.split(
-        _CLAUSE_BREAK, line[match.end() :]
-    )[0]
+    # conditional/hedge ("tests pass if run") still voids the claim —
+    # but a coordinator after the cue opens a new conjunct whose
+    # frames govern that conjunct, not this one
+    framed = (
+        clause
+        + match.group(0)
+        + re.split(
+            _COORDINATOR_RE,
+            re.split(_CLAUSE_BREAK, line[match.end() :])[0],
+        )[0]
+    )
     if _NONASSERTION_RE.search(framed):
         return True
     # "?" closing the cue's clause marks a question, not a claim
