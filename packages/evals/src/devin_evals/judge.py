@@ -73,6 +73,9 @@ def run_judge(prompt: str, *, cwd: str, case_id: str,
     except (ValueError, json.JSONDecodeError):
         return {"ok": False, "error": "judge reply was not valid JSON",
                 "raw_tail": text[-200:]}
+    if not isinstance(verdict, dict):
+        return {"ok": False,
+                "error": f"judge reply is not a JSON object: {verdict!r}"}
     if verdict.get("verdict") not in ("pass", "fail"):
         return {"ok": False,
                 "error": f"invalid verdict: {verdict.get('verdict')!r}"}
