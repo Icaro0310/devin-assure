@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **CI** — bump `docker/build-push-action` from 6.19.2 to 7.4.0 in the Docker publish workflow (Dependabot).
 - **Docs** — `README.corporate-windows.md` gains three recipe sections:
   *Read-only operation* (every command reads local Devin data only; a
   copied `--sessions-db` gives a hard no-touch guarantee), *What cannot
