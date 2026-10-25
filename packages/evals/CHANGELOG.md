@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `devin-evals-mcp` exits with a one-line install hint when the `mcp` extra
   is missing instead of dumping a traceback; startup `ImportError`s
   from `.run()` keep their traceback.
+- `run_judge` validates that the bridge reply is a JSON **object** before
+  reading `verdict` — a pure non-object JSON reply now returns a clean
+  "not a JSON object" error (the full reply is parsed first, with the
+  `{`…`}` brace-window extract kept as fallback for prose-wrapped
+  replies).
 
 
 ### Added
