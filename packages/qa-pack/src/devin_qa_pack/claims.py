@@ -113,16 +113,21 @@ _DELEGATION_RE = re.compile(
     re.IGNORECASE,
 )
 
-_NEGATION_RE = re.compile(r"\b(?:not|n't|never|não|nem|nunca)\b", re.IGNORECASE)
+_NEGATION_RE = re.compile(
+    r"\b(?:not|never|não|nem|nunca)\b|n['’]t\b", re.IGNORECASE
+)
 
 
-def _delegation_negated(line: str, match: re.Match[str]) -> bool:
-    """A delegation cue in a negated clause is a denial, not a claim —
-    "I did not delegate to a worker" must not yield a delegation claim
-    that a session audit would then dispute."""
+def _match_negated(line: str, match: re.Match[str]) -> bool:
+    """A claim cue in a negated clause is a denial, not a claim —
+    "I did not delegate to a worker" or "tests did not pass" must not
+    yield a claim that a session audit would then dispute. The check
+    is clause-scoped: a negator voids its own clause, never a cue in
+    the next one ("did not test, but committed abc123" still claims
+    the commit)."""
     prefix = line[max(0, match.start() - 48) : match.start()]
     # only the clause nearest the cue can negate it
-    clause = re.split(r"[,;.!?:()\[\]]", prefix)[-1]
+    clause = re.split(r"[,;.!?:()\[\]—–]", prefix)[-1]
     return bool(
         _NEGATION_RE.search(clause) or _NEGATION_RE.search(match.group(0))
     )
@@ -243,37 +248,54 @@ def _runner_in(line: str) -> str | None:
 
 
 def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
-    if _TESTS_RE.search(line):
+    if any(
+        not _match_negated(line, m) for m in _TESTS_RE.finditer(line)
+    ):
         yield TESTS, _runner_in(line) or TESTS
     for m in _PASSED_COUNT_RE.finditer(line):
-        yield TESTS_PASSED, m.group(1).replace(",", "")
-    if _COMMIT_WORD_RE.search(line):
+        if not _match_negated(line, m):
+            yield TESTS_PASSED, m.group(1).replace(",", "")
+    if any(
+        not _match_negated(line, m)
+        for m in _COMMIT_WORD_RE.finditer(line)
+    ):
         for m in _HEX_RE.finditer(line):
             yield COMMIT, m.group(0).lower()
-    if _PUSH_RE.search(line):
+    if any(not _match_negated(line, m) for m in _PUSH_RE.finditer(line)):
         yield PUSH, PUSH
-    if _FILE_VERB_RE.search(line):
+    if any(
+        not _match_negated(line, m)
+        for m in _FILE_VERB_RE.finditer(line)
+    ):
         for m in _PATH_TOKEN_RE.finditer(line):
             yield FILE, _normalize_path(m.group(0))
     for rx in _HTTP_CLAIM_RES:
         for m in rx.finditer(line):
-            yield HTTP, m.group(1)
-    if re.search(
-        r"\b(?:deployed|live|hosted|available|published|running)\b", line, re.IGNORECASE
+            if not _match_negated(line, m):
+                yield HTTP, m.group(1)
+    if any(
+        not _match_negated(line, m)
+        for m in re.finditer(
+            r"\b(?:deployed|live|hosted|available|published|running)\b",
+            line,
+            re.IGNORECASE,
+        )
     ):
         for m in _URL_RE.finditer(line):
             yield URL, m.group(0).rstrip(".,);'\"")
     if any(
-        not _delegation_negated(line, m)
+        not _match_negated(line, m)
         for m in _DELEGATION_RE.finditer(line)
     ):
         yield DELEGATION, DELEGATION
     for rx in _EVAL_CLAIM_RES:
         for m in rx.finditer(line):
-            yield EVAL, _norm_number(m.group(1))
+            if not _match_negated(line, m):
+                yield EVAL, _norm_number(m.group(1))
     for rx in _COVERAGE_CLAIM_RES:
         for m in rx.finditer(line):
-            yield COVERAGE, _norm_number(m.group(1))
+            if not _match_negated(line, m):
+                yield COVERAGE, _norm_number(m.group(1))
 
 
 def _collect(

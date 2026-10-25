@@ -348,3 +348,36 @@ def test_coverage_claims_deduplicate():
         make_node("yes, coverage at 87% confirmed", node_id=2),
     ]
     assert len(extract_claims(nodes)) == 1
+
+
+# -- negated claims (adversarial) ------------------------------------------------
+
+
+def test_negated_sentences_yield_no_claims():
+    """A negated assertion must not become a claim — "did not X" is a
+    denial, and a phantom claim would audit as disputed against work
+    the agent never asserted."""
+    for text in (
+        "tests did not pass",
+        "the tests were not green",
+        "I did not commit a1b2c3d4e5",
+        "didn't push to origin",
+        "have not created src/report.html",
+        "the API never responded with 404",
+        "did not score 0.9 on the eval",
+        "coverage is not 87%",
+        "não commit a1b2c3d4e5",
+        "nunca dei push para origin",
+    ):
+        assert extract_claims([make_node(text)]) == [], text
+
+
+def test_negation_is_clause_scoped_not_global():
+    """A negator voids only its own clause — a denied test claim in one
+    clause must not suppress a real commit claim in the next."""
+    claims = extract_claims(
+        [make_node("did not run the tests, but committed a1b2c3d4e5")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [
+        (COMMIT, "a1b2c3d4e5")
+    ]
