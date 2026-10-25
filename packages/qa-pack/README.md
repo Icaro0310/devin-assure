@@ -358,6 +358,43 @@ Widen it via `args:` (e.g. `args: [--limit, "20"]`); `--session` and
 in the entry and the scope flags are mutually exclusive — run
 `devin-qa-pack audit --session <id>` directly instead.
 
+## GitHub Action (CI gate)
+
+The repository root publishes a composite action — it installs the pack
+from the checked-out revision (`github.action_path`) and fails the job
+when any audited session's verdict is not `PASS`:
+
+```yaml
+jobs:
+  qa-gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write   # only needed for the PR-comment leg
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit agent sessions
+        uses: Icaro0310/devin-assure@<tag-or-sha>
+        with:
+          sessions-db: path/to/sessions.db   # optional — auto-detects
+          comment: auto                      # default
+```
+
+Inputs: `sessions-db`, `session` (audit one session instead of
+`--all`), `limit` (default `20`), `python-version` (default `3.12`).
+
+The **comment leg** (`comment`, default `auto`) posts the per-session
+verdict as a PR comment via `gh pr comment` on `pull_request` events —
+on re-runs it updates its previous comment instead of adding new ones.
+`always` also fires on other events (resolving the open PR whose head
+is the pushed branch); `never`/`false` disables. The audit still runs
+exactly once — the payload reaches the comment step through the same
+`audit --out` artifact contract the scheduled sweep uses. `token`
+defaults to the job's `GITHUB_TOKEN`; the caller job must grant
+`permissions: pull-requests: write` (a composite action cannot
+self-grant). Posting is fail-open — a comment failure only prints a
+warning and never masks the audit verdict, which remains the gate.
+
 ## Auditing other agents (experimental)
 
 `audit --transcript` runs the same claim/evidence model over non-Devin

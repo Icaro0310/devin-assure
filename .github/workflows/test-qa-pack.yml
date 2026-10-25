@@ -5,10 +5,12 @@ on:
     branches: [main]
     paths:
       - 'packages/qa-pack/**'
+      - 'action.yml'
       - '.github/workflows/test-qa-pack.yml'
   pull_request:
     paths:
       - 'packages/qa-pack/**'
+      - 'action.yml'
       - '.github/workflows/test-qa-pack.yml'
 
 permissions:

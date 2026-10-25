@@ -81,7 +81,11 @@ Updated: 2026-10-04 · Milestone: **M1 (done) + QA-1 + QA-4** · Version: 0.1.0
 1. `git fsck`/`reflog` cross-check for commit claims beyond `cat-file`.
 2. Cost-per-claim stats (tokens/ACUs per verified claim — needs a cost
    data source; `cogs_json` is still marked unstable).
-3. GitHub Action mode — audit in CI, comment the verdict on the PR.
+3. ~~GitHub Action mode — audit in CI, comment the verdict on the
+   PR.~~ **Done:** the root `action.yml` gates the job on the audit
+   verdict and, on `pull_request` events (`comment: auto`, default),
+   posts the verdict as a PR comment via `gh pr comment` — needs
+   `pull-requests: write` on the caller job.
 4. PyPI publish (`pipx install devin-qa-pack`) — name + account needed.
 
 ## Blockers
