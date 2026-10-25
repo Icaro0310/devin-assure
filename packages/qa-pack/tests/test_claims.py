@@ -348,3 +348,73 @@ def test_coverage_claims_deduplicate():
         make_node("yes, coverage at 87% confirmed", node_id=2),
     ]
     assert len(extract_claims(nodes)) == 1
+
+
+# -- negated claims (adversarial) ------------------------------------------------
+
+
+def test_negated_sentences_yield_no_claims():
+    """A negated assertion must not become a claim — "did not X" is a
+    denial, and a phantom claim would audit as disputed against work
+    the agent never asserted."""
+    for text in (
+        "tests did not pass",
+        "the tests were not green",
+        "I did not commit a1b2c3d4e5",
+        "didn't push to origin",
+        "have not created src/report.html",
+        "the API never responded with 404",
+        "did not score 0.9 on the eval",
+        "coverage is not 87%",
+        "não commit a1b2c3d4e5",
+        "nunca dei push para origin",
+    ):
+        assert extract_claims([make_node(text)]) == [], text
+
+
+def test_negation_is_clause_scoped_not_global():
+    """A negator voids only its own clause — a denied test claim in one
+    clause must not suppress a real commit claim in the next."""
+    claims = extract_claims(
+        [make_node("did not run the tests, but committed a1b2c3d4e5")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [
+        (COMMIT, "a1b2c3d4e5")
+    ]
+
+
+def test_denied_details_do_not_ride_an_affirmed_cue():
+    """One affirmative cue must not launder denied details on the same
+    line — each hash/path is claimed only inside its own affirmed
+    clause."""
+    claims = extract_claims(
+        [make_node("I did not commit a1b2c3d; I committed b1b2c3d")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(COMMIT, "b1b2c3d")]
+    claims = extract_claims(
+        [make_node("did not create src/old.py; I updated src/new.py")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(FILE, "src/new.py")]
+
+
+def test_denial_then_affirmation_still_claims():
+    """A denied cue in an earlier clause must not swallow a later
+    affirmation — the cue regex stops at the clause boundary."""
+    claims = extract_claims(
+        [make_node("I did not run pytest, but tests passed")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
+    claims = extract_claims(
+        [make_node("I did not push to origin; I pushed to origin")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(PUSH, PUSH)]
+
+
+def test_not_only_is_affirmation_not_denial():
+    """"not only"/"não só" assert, they do not negate."""
+    claims = extract_claims([make_node("not only did tests pass")])
+    assert [(c.kind, c.detail) for c in claims] == [(TESTS, TESTS)]
+    claims = extract_claims(
+        [make_node("not only did coverage reach 87%")]
+    )
+    assert [(c.kind, c.detail) for c in claims] == [(COVERAGE, "87")]
