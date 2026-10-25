@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **CI** — bump `actions/download-artifact` from 4.3.0 to 8.0.2 in the PyPI publishing workflow (Dependabot).
 - **Docs** — `README.corporate-windows.md` gains three recipe sections:
   *Read-only operation* (every command reads local Devin data only; a
   copied `--sessions-db` gives a hard no-touch guarantee), *What cannot
