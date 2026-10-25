@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Claim extraction now applies clause-scoped negation to **every** claim
+  kind, not only `delegation` — a denied cue ("tests did not pass",
+  "didn't push to origin", "coverage is not 87%") no longer produces a
+  phantom claim that a session audit would then dispute. Denied details
+  are filtered per clause, so "did not commit a1b2c3d; committed
+  b1b2c3d" claims only the affirmed hash; cue regexes no longer span
+  clause boundaries, so a later affirmation survives an earlier denial
+  ("did not run pytest, but tests passed" still claims). The `n't`
+  alternation now matches contractions (no word boundary precedes the
+  `n`), and "not only"/"não só" read as affirmations, not denials.
+
 ## [0.3.0] - 2026-10-22
 
 ### Added

@@ -48,9 +48,14 @@ _RUNNER_TOKENS = (
     "nose",
 )
 
+# Clause-boundary-safe gap: a cue regex must never span a clause break —
+# "did not run pytest, but tests passed" contains a denial and an
+# affirmation; a gap that swallows the comma lets the earlier negator
+# cancel the later claim.
+_GAP = r"[^.\n,;!?—–]"
 _TESTISH = r"(?:tests?|test suite|pytest|unittest|jest|vitest|mocha|tox|nose)"
 _TESTS_RE = re.compile(
-    rf"\b{_TESTISH}\b[^.\n]*?\b(?:pass(?:ed|es|ing)?|green|succeed(?:ed|ing)?|ok)\b"
+    rf"\b{_TESTISH}\b{_GAP}*?\b(?:pass(?:ed|es|ing)?|green|succeed(?:ed|ing)?|ok)\b"
     rf"|\b\d+\s+(?:{_TESTISH}\s+)?passed\b",
     re.IGNORECASE,
 )
@@ -67,7 +72,7 @@ _COMMIT_WORD_RE = re.compile(r"\bcommit(?:s|ted|ting)?\b", re.IGNORECASE)
 _HEX_RE = re.compile(r"\b[0-9a-f]{7,40}\b")
 _PUSH_RE = re.compile(
     r"\bgit\s+push\b"
-    r"|\bpush(?:ed|ing)?\b[^.\n]*\b(?:origin|upstream|remote|main|master|branch)\b",
+    rf"|\bpush(?:ed|ing)?\b{_GAP}*\b(?:origin|upstream|remote|main|master|branch)\b",
     re.IGNORECASE,
 )
 _FILE_VERB_RE = re.compile(
@@ -101,20 +106,26 @@ _DELEGATION_RESULT = (
     r"retorn\w+|conclu\w+|entreg\w+"
 )
 _DELEGATION_RE = re.compile(
-    rf"\b(?:{_DELEGATION_VERB})\b[^.\n]{{0,60}}?\b{_DELEGATEE}\b"
-    rf"|\bsub[-\s]?agente?s?\b[^.\n]{{0,60}}?\b(?:{_DELEGATION_VERB}|"
+    rf"\b(?:{_DELEGATION_VERB})\b{_GAP}{{0,60}}?\b{_DELEGATEE}\b"
+    rf"|\bsub[-\s]?agente?s?\b{_GAP}{{0,60}}?\b(?:{_DELEGATION_VERB}|"
     rf"{_DELEGATION_RESULT})\b"
     # a bare ``worker`` reporting a result verb is ambiguous — "the
     # worker process completed the build" is ordinary activity, not a
     # delegation; require a delegation verb in that order instead
-    rf"|\bworkers?\b[^.\n]{{0,60}}?\b(?:{_DELEGATION_VERB})\b"
+    rf"|\bworkers?\b{_GAP}{{0,60}}?\b(?:{_DELEGATION_VERB})\b"
     rf"|\b(?:deleguei|delegou|delegaram|delegad[oa]s?)\b"
     rf"|\bsub[-\s]?agentes?\b",
     re.IGNORECASE,
 )
 
+# "not only"/"não só" are affirmations, not denials — "not only did
+# tests pass" still claims the tests.
 _NEGATION_RE = re.compile(
-    r"\b(?:not|never|não|nem|nunca)\b|n['’]t\b", re.IGNORECASE
+    r"\b(?:never|nem|nunca)\b"
+    r"|\bnot\b(?!\s+only\b)"
+    r"|\bnão\b(?!\s+só\b)"
+    r"|n['’]t\b",
+    re.IGNORECASE,
 )
 
 
@@ -135,7 +146,7 @@ def _match_negated(line: str, match: re.Match[str]) -> bool:
 _HTTP_CLAIM_RES = (
     re.compile(
         r"\b(?:returned|responded|replied|answered|came\s+back)\b"
-        r"[^.\n]*?\b([1-5]\d{2})\b",
+        rf"{_GAP}*?\b([1-5]\d{{2}})\b",
         re.IGNORECASE,
     ),
     re.compile(r"\bHTTP\s+(?:status\s*(?:code)?\s*)?([1-5]\d{2})\b",
@@ -158,9 +169,9 @@ _EVAL_CLAIM_RES = (
     # eval-word + metric word + value: "eval score was 0.92",
     # "the benchmark result: 18/20", "avaliação nota 0.9"
     re.compile(
-        rf"\b{_EVAL_WORD}\b[^.\n]{{0,30}}?\b"
+        rf"\b{_EVAL_WORD}\b{_GAP}{{0,30}}?\b"
         rf"(?:score|scored|result|accuracy|nota|pontua[çc][ãa]o)\w*\b"
-        rf"[^.\n]{{0,25}}?({_EVAL_NUM})(?![\w/%])",
+        rf"{_GAP}{{0,25}}?({_EVAL_NUM})(?![\w/%])",
         re.IGNORECASE,
     ),
     # bare "eval: 0.92" / "benchmark = 85%"
@@ -172,8 +183,8 @@ _EVAL_CLAIM_RES = (
     # "obteve 85% na avaliação"
     re.compile(
         rf"\b(?:scored?|earned|achieved|reached|obteve|atingiu)\b"
-        rf"[^.\n]{{0,25}}?({_EVAL_NUM})(?![\w/%])"
-        rf"[^.\n]{{0,30}}?\b{_EVAL_WORD}\b",
+        rf"{_GAP}{{0,25}}?({_EVAL_NUM})(?![\w/%])"
+        rf"{_GAP}{{0,30}}?\b{_EVAL_WORD}\b",
         re.IGNORECASE,
     ),
 )
@@ -185,7 +196,7 @@ _EVAL_CLAIM_RES = (
 _COV_NUM = r"\d{1,3}(?:\.\d+)?"
 _COVERAGE_CLAIM_RES = (
     re.compile(
-        rf"\b(?:coverage|cobertura)\b[^.\n%]{{0,40}}?({_COV_NUM})\s*%",
+        rf"\b(?:coverage|cobertura)\b[^.\n%,;!?—–]{{0,40}}?({_COV_NUM})\s*%",
         re.IGNORECASE,
     ),
     re.compile(
@@ -240,10 +251,12 @@ def _norm_number(literal: str) -> str:
 
 
 def _runner_in(line: str) -> str | None:
-    low = line.lower()
     for token in _RUNNER_TOKENS:  # multi-word runners first
-        if re.search(rf"\b{re.escape(token)}\b", low):
-            return token
+        for m in re.finditer(rf"\b{re.escape(token)}\b", line, re.IGNORECASE):
+            # a runner named in a denied clause ("did not run pytest")
+            # must not become the claim's detail
+            if not _match_negated(line, m):
+                return token
     return None
 
 
@@ -259,8 +272,11 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
         not _match_negated(line, m)
         for m in _COMMIT_WORD_RE.finditer(line)
     ):
+        # each detail must live in an affirmed clause too — "did not
+        # commit a1b2c3d; committed b1b2c3d" claims only the second hash
         for m in _HEX_RE.finditer(line):
-            yield COMMIT, m.group(0).lower()
+            if not _match_negated(line, m):
+                yield COMMIT, m.group(0).lower()
     if any(not _match_negated(line, m) for m in _PUSH_RE.finditer(line)):
         yield PUSH, PUSH
     if any(
@@ -268,7 +284,8 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
         for m in _FILE_VERB_RE.finditer(line)
     ):
         for m in _PATH_TOKEN_RE.finditer(line):
-            yield FILE, _normalize_path(m.group(0))
+            if not _match_negated(line, m):
+                yield FILE, _normalize_path(m.group(0))
     for rx in _HTTP_CLAIM_RES:
         for m in rx.finditer(line):
             if not _match_negated(line, m):
@@ -282,7 +299,8 @@ def _claims_in_line(line: str) -> Iterable[tuple[str, str]]:
         )
     ):
         for m in _URL_RE.finditer(line):
-            yield URL, m.group(0).rstrip(".,);'\"")
+            if not _match_negated(line, m):
+                yield URL, m.group(0).rstrip(".,);'\"")
     if any(
         not _match_negated(line, m)
         for m in _DELEGATION_RE.finditer(line)
