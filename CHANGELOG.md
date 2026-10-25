@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **CI** — bump `actions/checkout` from 4.2.2 to 7.0.1 across the eight checkout steps (Dependabot).
 - **Docs** — `README.corporate-windows.md` gains three recipe sections:
   *Read-only operation* (every command reads local Devin data only; a
   copied `--sessions-db` gives a hard no-touch guarantee), *What cannot
