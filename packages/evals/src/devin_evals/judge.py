@@ -66,13 +66,19 @@ def run_judge(prompt: str, *, cwd: str, case_id: str,
         tail = (proc.stderr or proc.stdout).strip()[-300:]
         return {"ok": False, "error": f"bridge exited {proc.returncode}: {tail}"}
     text = proc.stdout.split("===== TEXT =====")[-1].strip() or proc.stdout
+    # parse the whole reply first — a pure non-object JSON reply
+    # ("[1]") takes the type check below; only when the reply isn't one
+    # complete document do we fall back to the brace-window extract.
     try:
-        start = text.index("{")
-        end = text.rindex("}") + 1
-        verdict = json.loads(text[start:end])
+        verdict = json.loads(text)
     except (ValueError, json.JSONDecodeError):
-        return {"ok": False, "error": "judge reply was not valid JSON",
-                "raw_tail": text[-200:]}
+        try:
+            start = text.index("{")
+            end = text.rindex("}") + 1
+            verdict = json.loads(text[start:end])
+        except (ValueError, json.JSONDecodeError):
+            return {"ok": False, "error": "judge reply was not valid JSON",
+                    "raw_tail": text[-200:]}
     if not isinstance(verdict, dict):
         return {"ok": False,
                 "error": f"judge reply is not a JSON object: {verdict!r}"}
