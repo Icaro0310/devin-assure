@@ -31,9 +31,10 @@ def test_review_comment_trigger_re_evaluates_gate() -> None:
     assert _load()["on"]["pull_request_review_comment"]["types"] == ["created"]
 
 
-def test_gate_pin_is_v1_6() -> None:
-    """v1.6 adds cross-repo fix anchors and gate-eligible concurrency;
-    the pin must be exact so a silent downgrade is caught here."""
+def test_gate_pin_is_v1_9() -> None:
+    """v1.9 fixes the self-cancel so a successful approval no longer
+    renders as a failed check, plus fresh-head recheck and paginated
+    dedup; the pin must be exact so a silent downgrade is caught here."""
     job = _load()["jobs"]["approve"]
     uses = job["uses"]
-    assert uses == GATE_PIN + "v1.6"
+    assert uses == GATE_PIN + "v1.9"
