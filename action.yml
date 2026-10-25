@@ -23,6 +23,23 @@ inputs:
     description: Python used to install the pack
     required: false
     default: "3.12"
+  comment:
+    description: >-
+      Post the audit verdict as a PR comment via `gh pr comment`:
+      "auto" (default) posts on pull_request events, "always" also tries
+      on other events (resolving the open PR whose head is the pushed
+      branch), "never"/"false" disables. Reporting only — a comment
+      failure warns but never changes the gate outcome. Requires the
+      caller job to grant `permissions: pull-requests: write`;
+      composite actions cannot self-grant.
+    required: false
+    default: "auto"
+  token:
+    description: >-
+      Token used for `gh pr comment` — defaults to the workflow's
+      GITHUB_TOKEN and needs pull-requests: write to post.
+    required: false
+    default: ${{ github.token }}
 runs:
   using: composite
   steps:
@@ -40,6 +57,7 @@ runs:
         SESSIONS_DB: ${{ inputs.sessions-db }}
         SESSION_ID: ${{ inputs.session }}
         LIMIT: ${{ inputs.limit }}
+        COMMENT: ${{ inputs.comment }}
       run: |
         if [ -n "$SESSION_ID" ]; then
           args=(audit --session "$SESSION_ID")
@@ -47,4 +65,114 @@ runs:
           args=(audit --all --limit "$LIMIT")
         fi
         [ -n "$SESSIONS_DB" ] && args+=(--sessions-db "$SESSIONS_DB")
+        # When the comment leg is enabled, persist the JSON payload for
+        # the PR-comment step to read — --out is the sweep artifact
+        # contract: it leaves the text stdout and the verdict exit code
+        # unchanged, so the audit still runs exactly once.
+        if [ -n "$COMMENT" ] && [ "$COMMENT" != "never" ] && [ "$COMMENT" != "false" ]; then
+          args+=(--out "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/devin-qa-pack-audit.json")
+        fi
         devin-qa-pack "${args[@]}"
+    - name: Comment verdict on PR
+      # Reporting leg, not a gate — always() so a failing audit verdict
+      # still gets posted. Every failure path warns and exits 0: the
+      # verdict is the check, the comment is only reporting. Needs
+      # `permissions: pull-requests: write` on the caller job —
+      # composite actions cannot self-grant.
+      if: >-
+        always() &&
+        inputs.comment != 'never' &&
+        inputs.comment != 'false' &&
+        (inputs.comment == 'always' ||
+         inputs.comment == 'true' ||
+         github.event_name == 'pull_request')
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        set +e
+        QA_AUDIT_JSON="${RUNNER_TEMP:-${TMPDIR:-/tmp}}/devin-qa-pack-audit.json"
+        QA_AUDIT_BODY="$QA_AUDIT_JSON.comment.md"
+        if [ -z "${GH_TOKEN:-}" ]; then
+          echo "::warning::no token for gh pr comment — pass the token input or grant the job pull-requests: write; skipping PR comment"
+          exit 0
+        fi
+        if ! command -v gh >/dev/null 2>&1; then
+          echo "::warning::gh CLI not on PATH — skipping PR comment"
+          exit 0
+        fi
+        if [ ! -s "$QA_AUDIT_JSON" ]; then
+          echo "::warning::no audit payload at $QA_AUDIT_JSON — skipping PR comment"
+          exit 0
+        fi
+        if [ -z "$PR_NUMBER" ] && [ -n "${GITHUB_REF_NAME:-}" ]; then
+          # comment: always on a non-PR event — resolve the open PR for
+          # the pushed branch, if one exists.
+          PR_NUMBER="$(gh pr list -R "$GITHUB_REPOSITORY" --state open \
+            --head "$GITHUB_REF_NAME" --json number \
+            --jq '.[0].number // empty' 2>/dev/null)"
+        fi
+        if [ -z "$PR_NUMBER" ]; then
+          echo "::warning::no pull request found for this event — skipping PR comment"
+          exit 0
+        fi
+        python3 - "$QA_AUDIT_JSON" > "$QA_AUDIT_BODY" <<'PY'
+        import json
+        import sys
+
+        payload = json.load(open(sys.argv[1], encoding="utf-8"))
+        sessions = payload.get("sessions", [])
+        order = {"PASS": 0, "UNVERIFIED": 1, "PARTIAL": 2}
+        worst = max(
+            (s.get("verdict", "UNVERIFIED") for s in sessions),
+            key=order.get,
+            default="UNVERIFIED",
+        )
+        lines = [f"## devin-qa-pack audit — {worst}", ""]
+        for s in sessions:
+            counts = s.get("summary", {})
+            head = f"`{s.get('session_id', '?')}`"
+            title = (s.get("title") or "").replace("`", "'")[:60]
+            if title:
+                head += f" — {title}"
+            lines.append(
+                f"- **{s.get('verdict', '?')}** {head} — "
+                f"{counts.get('verified', 0)} verified, "
+                f"{counts.get('disputed', 0)} disputed, "
+                f"{counts.get('unverifiable', 0)} unverifiable"
+            )
+            uncovered = s.get("uncovered") or []
+            if uncovered:
+                named = ", ".join(u.replace("`", "'") for u in uncovered)
+                lines.append(f"  - uncovered: {named}")
+        lines += [
+            "",
+            f"<sub>devin-qa-pack {payload.get('version', '?')} · "
+            f"{len(sessions)} session(s) audited · "
+            f"source: {payload.get('sessions_db', '?')}</sub>",
+            "<!-- devin-qa-pack-audit -->",
+        ]
+        sys.stdout.write("\n".join(lines) + "\n")
+        PY
+        if [ ! -s "$QA_AUDIT_BODY" ]; then
+          echo "::warning::could not render the verdict comment body — skipping PR comment"
+          exit 0
+        fi
+        # Re-runs update the previous verdict comment instead of
+        # spamming new ones — look ours up by the marker tag.
+        COMMENT_ID="$(gh api \
+          "repos/$GITHUB_REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" \
+          --jq '[.[] | select(.body | contains("<!-- devin-qa-pack-audit -->"))] | last | .id // empty' \
+          2>/dev/null)"
+        if [ -n "$COMMENT_ID" ]; then
+          gh api -X PATCH \
+            "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT_ID" \
+            -f body="$(cat "$QA_AUDIT_BODY")" > /dev/null \
+            || echo "::warning::could not update the verdict comment — audit verdict unaffected (job missing pull-requests: write?)"
+        else
+          gh pr comment "$PR_NUMBER" -R "$GITHUB_REPOSITORY" \
+            --body-file "$QA_AUDIT_BODY" \
+            || echo "::warning::could not post the verdict comment — audit verdict unaffected (job missing pull-requests: write?)"
+        fi
+        exit 0

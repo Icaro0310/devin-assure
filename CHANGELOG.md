@@ -7,6 +7,23 @@
   successful approval no longer renders as a failed check, and adds
   fresh-head recheck plus paginated dedup);
   `test_auto_approve_workflow.py` pins the caller contract.
+- **Action** — the root `action.yml` gains the PR-comment leg the M2
+  queue promised ("audit in CI, comment the verdict on the PR"). New
+  inputs: `comment` (`auto` posts on `pull_request` events — the
+  default; `always` also resolves the open PR for the pushed branch on
+  other events; `never`/`false` disables) and `token` (defaults to the
+  workflow's `GITHUB_TOKEN`). When the leg is enabled the audit step
+  forwards `--out` so the JSON payload lands in the runner temp dir in
+  the same invocation — the audit still runs once and its verdict exit
+  code is unchanged. A gated `Comment verdict on PR` step (`always()`,
+  so a failing audit still gets reported) renders the payload into a
+  per-session verdict list, posts it via `gh pr comment`, and updates
+  the action's previous comment on re-runs instead of spamming new
+  ones. Posting is fail-open — every failure path warns and exits 0:
+  the verdict is the check, the comment is only reporting. Callers need
+  `permissions: pull-requests: write` on the job (composite actions
+  cannot self-grant). `test-qa-pack.yml` now also triggers on
+  `action.yml` changes so the contract suite covers action-only PRs.
 - **Docs** — `README.corporate-windows.md` gains three recipe sections:
   *Read-only operation* (every command reads local Devin data only; a
   copied `--sessions-db` gives a hard no-touch guarantee), *What cannot
