@@ -174,6 +174,11 @@ def _build_parser() -> argparse.ArgumentParser:
     report.add_argument(
         "--allow-domain", action="append", default=[], metavar="D",
         help="domain allowed for --online checks (repeatable)")
+    report.add_argument(
+        "--redact", action="store_true",
+        help="redact secrets in the serialized report before writing "
+        "(devin-redact engine; fail-closed — a redaction error means "
+        "no file is written)")
 
     se = sub.add_parser(
         "session-end",
@@ -490,12 +495,32 @@ def _cmd_report(args: argparse.Namespace) -> int:
             if audits is None:
                 return 2
     out = Path(args.out).expanduser()
+    html = render_html(audits, db)
+    n_redacted = 0
+    if args.redact:
+        # Output-boundary redaction: the serialized report is masked as a
+        # whole. Fail closed — a redaction error means the unredacted
+        # report is never written.
+        try:
+            from devin_qa_pack.redact import RedactError, redact_output
+        except ImportError as exc:  # devin-redact not installed
+            print(f"error: --redact needs devin-redact ({exc}) — "
+                  "report not written", file=sys.stderr)
+            return 2
+        try:
+            html, n_redacted = redact_output(html)
+        except RedactError as exc:
+            print(f"error: {exc} — report not written", file=sys.stderr)
+            return 2
     try:
-        out.write_text(render_html(audits, db), encoding="utf-8")
+        out.write_text(html, encoding="utf-8")
     except OSError as exc:
         print(f"error: cannot write {out}: {exc}", file=sys.stderr)
         return 2
-    print(f"wrote HTML report for {len(audits)} session(s) → {out}")
+    suffix = (
+        f" ({n_redacted} secret(s) redacted)" if args.redact else ""
+    )
+    print(f"wrote HTML report for {len(audits)} session(s) → {out}{suffix}")
     return 0 if all(a.verdict == PASS for a in audits) else 1
 
 

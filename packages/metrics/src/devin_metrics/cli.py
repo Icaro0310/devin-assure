@@ -5,7 +5,12 @@ Subcommands (read-only, no network, all accept ``--json``):
 - ``summary``   headline numbers + per-model table + top-5 longest sessions
 - ``projects``  per-project (``working_directory``) session/activity table
 - ``commits``   session→commit correlation: 40-hex SHAs + repo URLs
-                extracted from ``tool_call_state`` payloads
+                extracted from ``tool_call_state`` payloads;
+                ``--verify`` self-audits the recorded refs (format,
+                orphans, recomputed counts/digest) — exit 1 on mismatch
+- ``alerts``    ``--rules FILE`` evaluates a JSON rules file against the
+                summary metrics — exit 1 when any rule fires, 2 on a
+                bad rules file
 - ``daily``     per-day activity; ``--days N`` keeps the N most recent days
 - ``digest``    ``--weekly`` composes summary+daily+watch into one report
                 file (``digest-YYYY-Www.md``); incremental via the shared
@@ -37,6 +42,7 @@ from devin_metrics.aggregate import (
     summarize,
     watch_report,
 )
+from devin_metrics.alerts import RulesError, evaluate, load_rules, render_alerts
 from devin_metrics.churn import churn_report, render_churn
 from devin_metrics.collect import MetricsSnapshot, collect
 from devin_metrics.dashboard.collect import collect_stats
@@ -55,6 +61,7 @@ from devin_metrics.render import (
     render_projects_md,
     render_summary_md,
 )
+from devin_metrics.verify import render_verify, verify_commits
 
 
 def _resolve(args: argparse.Namespace) -> tuple[Path, Path]:
@@ -103,9 +110,32 @@ def cmd_daily(args: argparse.Namespace) -> int:
 
 
 def cmd_commits(args: argparse.Namespace) -> int:
-    report = commits_report(_snapshot(args))
+    snap = _snapshot(args)
+    if args.verify:
+        sessions_db, _ = _resolve(args)
+        report = verify_commits(snap, sessions_db)
+        print(dumps_json(report) if args.json else render_verify(report))
+        return 0 if report["status"] == "clean" else 1
+    report = commits_report(snap)
     print(dumps_json(report) if args.json else render_commits_md(report))
     return 0
+
+
+def cmd_alerts(args: argparse.Namespace) -> int:
+    """Threshold alerts from a user-supplied JSON rules file.
+
+    Exit 0 = no rule fired · 1 = at least one rule fired · 2 = the
+    rules file could not be read/validated or names an unknown metric
+    (a bad rule must fail loudly, never silently pass).
+    """
+    try:
+        rules = load_rules(args.rules)
+        report = evaluate(rules, summarize(_snapshot(args)))
+    except RulesError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    print(dumps_json(report) if args.json else render_alerts(report))
+    return 1 if report["fired"] else 0
 
 
 def cmd_watch(args: argparse.Namespace) -> int:
@@ -226,10 +256,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="keep the N most recent activity days (default: all)",
     )
     p_daily.set_defaults(func=cmd_daily)
-    sub.add_parser(
+    p_commits = sub.add_parser(
         "commits", parents=[common],
         help="session→commit correlation (SHAs + repo URLs from "
-             "tool_call_state)").set_defaults(func=cmd_commits)
+             "tool_call_state)")
+    p_commits.add_argument(
+        "--verify", action="store_true",
+        help="verify the recorded commit data instead of reporting: "
+             "sha format, duplicate/orphan refs, recomputed counts and "
+             "a second-pass digest — exit 1 on any mismatch")
+    p_commits.set_defaults(func=cmd_commits)
+    p_alerts = sub.add_parser(
+        "alerts", parents=[common],
+        help="evaluate a JSON rules file against the summary metrics "
+             "— exit 1 when any rule fires")
+    p_alerts.add_argument(
+        "--rules", required=True, metavar="FILE",
+        help='JSON rules file — a list of '
+             '{"name", "metric", "op", "threshold"} objects; metric is '
+             "any 'summary --json' key, op one of > >= < <= == !=")
+    p_alerts.set_defaults(func=cmd_alerts)
     p_digest = sub.add_parser(
         "digest", parents=[common],
         help="compose summary+daily+watch into a report file")

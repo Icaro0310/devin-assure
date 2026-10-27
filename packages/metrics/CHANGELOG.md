@@ -6,6 +6,17 @@
 
 ## Unreleased
 
+- `devin-metrics alerts --rules FILE`: evaluates a JSON rules file —
+  a list of `{name, metric, op, threshold}` objects — against the
+  `summary` metrics. Breaches print ALERT lines and exit 1 (0 when all
+  clear); metrics with no numeric value are reported as SKIP, and
+  unknown metric names or malformed files exit 2.
+- `devin-metrics commits --verify`: integrity-checks the recorded
+  commit refs — sha format, duplicate refs, orphan refs (refs pointing
+  at sessions missing from the store), headline counts and rollups
+  recomputed independently, and a second-pass extraction digest.
+  Reports `clean` (exit 0) or `mismatch` (exit 1) with per-check
+  detail.
 - `devin-metrics commits`: session→commit correlation. 40-hex SHAs and
   `/commit/<sha>` repo URLs are extracted from `tool_call_state` payloads
   via `devin_internals.commits.commit_references`; the report shows each
