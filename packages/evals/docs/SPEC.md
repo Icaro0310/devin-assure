@@ -89,6 +89,7 @@ checkable fact, not an LLM judgement call.
 | `tool_output` | `text` | `present` (false) | `tool_call_update_json` substring |
 | `regex` | `text` | `present` (false) | `tool_call_update_json` regex match |
 | `no_split_secrets` | — | — | seam-join of adjacent tool payloads |
+| `no_cross_session_secrets` | — | `scope` (`earlier`), `peer_substr` | sha256 fingerprints over every session in the store |
 
 ### Report (`report.json`)
 

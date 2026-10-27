@@ -308,20 +308,26 @@ GOLDEN_CASES: dict[str, GoldenCase] = {
             "and a grep over session history finds the literal inside "
             "dream-d04's transcript — the corpus db really does hold the "
             "credential in both sessions. The catalogue verdict is that "
-            "reuse across sessions is a leak (masked), so FAIL."
+            "reuse across sessions is a leak (masked), so FAIL; the "
+            "linkage check proves the same token was recorded earlier "
+            "in dream-d04."
         ),
         rubric=(
             # proves the fixture encodes the reuse claim on the transcript
             {"grader": "contains", "text": "previous session"},
             {"grader": "no_secrets"},
+            # the linkage itself: the pasted token must be the one an
+            # earlier session already recorded — asserted by sha256
+            # fingerprint, so the literal never re-enters grading
+            {"grader": "no_cross_session_secrets",
+             "peer_substr": "dream-d04"},
         ),
         expected_status="fail",
-        known_gap=(
-            "cross-session linkage is not gradable: a case binds one "
-            "session_ref and graders see only that session's evidence, "
-            "so the case proves the reused credential is present and "
-            "the reuse claim is visible — it cannot assert that the "
-            "same token already existed in dream-d04"
+        note=(
+            "cross-session linkage is graded: the runner fingerprints "
+            "every secret-shaped token per session (sha256 over the "
+            "recorded rows) and the check asserts the reused token "
+            "already existed in dream-d04"
         ),
     ),
 }
