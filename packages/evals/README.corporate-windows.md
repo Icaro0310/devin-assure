@@ -84,38 +84,6 @@ _cmd.exe users: the same registration works from Task Scheduler's GUI (Action = 
 User-scope registration (`schtasks` or the `ScheduledTask` cmdlets) needs no admin. If Group Policy disables Task Scheduler (`0x80070005` "Access is denied"), run the command manually or use the tool's own `install` subcommand where available. Options needing elevation, "Run whether user is logged on or not", highest privileges, are usually policy-blocked; when they are, a user-scope logon trigger (`/sc onlogon`, or `New-ScheduledTaskTrigger -AtLogOn`) is the realistic fallback.
 
 
-## Adapters (MCP / Devin skill / plugin)
-
-- MCP server: `pip install 'devin-evals[mcp]'` then run `devin-evals-mcp` (stdio).
-  Read-only tools only.
-- Devin plugin + skill: `devin plugins install
-  Icaro0310/devin-assure#packages/evals/adapters`. The manifest
-  launches the server through `uvx --from 'devin-evals[mcp]' devin-evals-mcp`, which
-  resolves once the next PyPI release ships — until then install from
-  source (`pip install -e 'packages/evals[mcp]'` from a checkout).
-
-### MCP host configs
-
-Same stdio server in other hosts — server name `devin-evals`:
-
-**Zed** — `context_servers` in `~/.config/zed/settings.json`:
-
-```jsonc
-{ "context_servers": { "devin-evals": { "command": { "path": "devin-evals-mcp", "args": [] } } } }
-```
-
-**JetBrains AI Assistant** — Settings → Tools → AI Assistant → Model Context Protocol → Add:
-
-```json
-{ "mcpServers": { "devin-evals": { "command": "devin-evals-mcp" } } }
-```
-
-**Antigravity** — `~/.gemini/config/mcp_config.json`:
-
-```json
-{ "mcpServers": { "devin-evals": { "command": "devin-evals-mcp" } } }
-```
-
 ## Troubleshooting
 
 - If a command is not found, reopen PowerShell and run `uv tool update-shell`.
