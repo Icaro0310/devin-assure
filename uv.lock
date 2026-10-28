@@ -342,6 +342,7 @@ source = { editable = "packages/qa-pack" }
 dependencies = [
     { name = "devin-install-scheduler" },
     { name = "devin-internals-spec" },
+    { name = "devin-redact" },
 ]
 
 [package.optional-dependencies]
@@ -357,6 +358,7 @@ mcp = [
 requires-dist = [
     { name = "devin-install-scheduler", specifier = ">=0.1.0" },
     { name = "devin-internals-spec", specifier = ">=0.3.0,<0.4.0" },
+    { name = "devin-redact", specifier = ">=0.2.0,<0.3.0" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6" },

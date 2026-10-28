@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `report --redact` masks secrets, tokens and credentials in the
+  serialized HTML report at the output boundary — after rendering,
+  before the file write. The engine is `devin-redact` (new dependency,
+  same pin as `devin-evals`), producing deterministic `<REDACTED:hash>`
+  placeholders so reports stay byte-stable and shareable. The boundary
+  is fail-closed: a redaction error exits 2 and the unredacted report
+  is never written.
+
 ### Fixed
 
 - Claim extraction now applies clause-scoped negation to **every** claim

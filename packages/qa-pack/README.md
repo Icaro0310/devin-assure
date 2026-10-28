@@ -115,7 +115,9 @@ fetches the session's cloud events, and `--online` probes live URLs.
 Point `--sessions-db` at a copied database to keep reads fully off the
 original store — `session-end` still writes its verdict under the Devin
 data dir (`<data-dir>/qa/`; redirect with `--data-dir` or `--out`).
-Reports are not auto-redacted: excerpt the verdict block before sharing.
+Reports are not auto-redacted by default — `report --redact` masks
+secrets in the output file (fail-closed); without it, excerpt the verdict
+block before sharing.
 
 ```bash
 # audit one session (exact id or unique prefix)
@@ -127,6 +129,10 @@ devin-qa-pack audit --all --limit 20 --json
 # aggregated report: one self-contained static HTML file (inline CSS,
 # no JS, no external assets — opens offline)
 devin-qa-pack report --sessions-db path/to/sessions.db --out report.html
+
+# same, with secrets masked in the output (devin-redact; fail-closed —
+# a redaction error means no file is written)
+devin-qa-pack report --sessions-db path/to/sessions.db --out report.html --redact
 
 # live audit at SessionEnd: audit ONLY the session that just ended
 # (hook mode — writes a JSON side file, never touches the session)
@@ -173,7 +179,9 @@ verdict counts, a per-session table and a per-claim breakdown with
 evidence and the source excerpt for every checked claim. Verdicts and
 claim statuses render as labeled badges (color + text, never color
 alone) — the report stays self-contained: inline CSS, zero JS, no
-external assets.
+external assets. Pass `--redact` to mask secrets and tokens in the
+serialized HTML before it is written (the `devin-redact` engine;
+deterministic `<REDACTED:hash>` placeholders, fail-closed).
 
 `--sessions-db` may be omitted. It auto-detects
 `%APPDATA%/devin/cli/sessions.db` on Windows and
