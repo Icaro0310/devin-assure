@@ -47,41 +47,6 @@ _Weekly regression replay; `--evals` (dir of *.json cases) and `--sessions-db` a
 Equivalent `systemd --user` timer works too; enable lingering if it must run without a login session.
 
 
-## Adapters (MCP / Devin skill / plugin)
-
-- MCP server: `pip install 'devin-evals[mcp]'` then run `devin-evals-mcp` (stdio).
-  Read-only tools only.
-- Devin plugin + skill: `devin plugins install
-  Icaro0310/devin-assure#packages/evals/adapters`. The manifest
-  launches the server through `uvx --from 'devin-evals[mcp]' devin-evals-mcp`, which
-  resolves once the next PyPI release ships. Until then, an
-  editable install does not change what `uvx --from` resolves —
-  either run the source-installed `devin-evals-mcp` directly, or
-  point a local manifest copy at the checkout:
-  `uvx --from './packages/evals[mcp]' devin-evals-mcp`.
-
-### MCP host configs
-
-Same stdio server in other hosts — server name `devin-evals`:
-
-**Zed** — `context_servers` in `~/.config/zed/settings.json`:
-
-```jsonc
-{ "context_servers": { "devin-evals": { "command": { "path": "devin-evals-mcp", "args": [] } } } }
-```
-
-**JetBrains AI Assistant** — Settings → Tools → AI Assistant → Model Context Protocol → Add:
-
-```json
-{ "mcpServers": { "devin-evals": { "command": "devin-evals-mcp" } } }
-```
-
-**Antigravity** — `~/.gemini/config/mcp_config.json`:
-
-```json
-{ "mcpServers": { "devin-evals": { "command": "devin-evals-mcp" } } }
-```
-
 ## Troubleshooting
 
 - If a command is not found, ensure the `uv` tools directory is on `PATH` and run `uv tool update-shell`.

@@ -34,7 +34,7 @@ Use `--data-dir`/`--sessions-db` for non-default locations.
 - **Distros:** tested on Ubuntu; Debian, Fedora and Arch follow the same steps, only `uv`/Python acquisition differs (distro package or the uv installer script).
 - **Headless and minimal environments:** no display is needed, every CLI is text-only. In containers or WSL, install `uv` and Git and follow the same steps; `XDG_*` paths resolve normally.
 - **Permissions:** tools read Devin data under `$XDG_DATA_HOME/devin` and write only their own config/state, no root or sudo is required.
-- **Scheduling:** optional recurring work belongs to `systemd --user` timers or cron. `devin-qa-pack install --daily` registers a tagged `@daily` crontab line (`# devin-qa-pack-audit-daily`); remove it with `crontab -e` (delete the tagged line) — nothing else installs jobs.
+- **Scheduling:** optional recurring work belongs to `systemd --user` timers or cron; installation never creates jobs.
 
 ## Troubleshooting
 

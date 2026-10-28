@@ -33,8 +33,10 @@ def insert_session(
     messages: tuple[tuple[str, str], ...] = (),
     prompts: tuple[str, ...] = (),
     tool_calls: tuple[tuple[str, dict, dict | None], ...] = (),
+    created_at_ms: int | None = None,
 ) -> None:
     """Append one fully-specified session to an existing fixture db."""
+    base_ts = _BASE_TS_MS if created_at_ms is None else created_at_ms
     con = sqlite3.connect(db_path)
     with con:
         con.execute(
@@ -48,8 +50,8 @@ def insert_session(
                 "fixture-backend",
                 "fixture-model",
                 "fixture-mode",
-                _BASE_TS_MS,
-                _BASE_TS_MS + 120_000,
+                base_ts,
+                base_ts + 120_000,
                 title,
                 1,
                 0,
@@ -69,7 +71,7 @@ def insert_session(
                     i,
                     None if i == 1 else i - 1,
                     json.dumps({"role": role, "text": text}),
-                    _BASE_TS_MS + i * 10_000,
+                    base_ts + i * 10_000,
                     None,
                 ),
             )
@@ -77,7 +79,7 @@ def insert_session(
             con.execute(
                 "INSERT INTO prompt_history(content, timestamp, session_id, is_shell)"
                 " VALUES (?, ?, ?, ?)",
-                (content, _BASE_TS_MS + i * 5_000, session_id, 0),
+                (content, base_ts + i * 5_000, session_id, 0),
             )
         for call_id, call, update in tool_calls:
             con.execute(
