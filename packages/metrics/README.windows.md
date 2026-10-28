@@ -46,41 +46,6 @@ schtasks /create /tn "devin-metrics" /tr "devin-metrics summary" /sc daily /st 0
 Runs under your account, no admin needed. Adjust `/sc`/`/st` (or `/sc onlogon` for daemons) to taste.
 
 
-## Adapters (MCP / Devin skill / plugin)
-
-- MCP server: `pip install 'devin-metrics[mcp]'` then run `devin-metrics-mcp` (stdio).
-  Read-only tools only.
-- Devin plugin + skill: `devin plugins install
-  Icaro0310/devin-assure#packages/metrics/adapters`. The manifest
-  launches the server through `uvx --from 'devin-metrics[mcp]' devin-metrics-mcp`, which
-  resolves once the next PyPI release ships. Until then, an
-  editable install does not change what `uvx --from` resolves —
-  either run the source-installed `devin-metrics-mcp` directly, or
-  point a local manifest copy at the checkout:
-  `uvx --from './packages/metrics[mcp]' devin-metrics-mcp`.
-
-### MCP host configs
-
-Same stdio server in other hosts — server name `devin-metrics`:
-
-**Zed** — `context_servers` in `~/.config/zed/settings.json`:
-
-```jsonc
-{ "context_servers": { "devin-metrics": { "command": { "path": "devin-metrics-mcp", "args": [] } } } }
-```
-
-**JetBrains AI Assistant** — Settings → Tools → AI Assistant → Model Context Protocol → Add:
-
-```json
-{ "mcpServers": { "devin-metrics": { "command": "devin-metrics-mcp" } } }
-```
-
-**Antigravity** — `~/.gemini/config/mcp_config.json`:
-
-```json
-{ "mcpServers": { "devin-metrics": { "command": "devin-metrics-mcp" } } }
-```
-
 ## Troubleshooting
 
 - If a command is not found, reopen PowerShell and run `uv tool update-shell`.
