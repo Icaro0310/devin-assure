@@ -168,7 +168,11 @@ def cmd_digest(args: argparse.Namespace) -> int:
 
 
 def cmd_churn(args: argparse.Namespace) -> int:
-    report = churn_report(args.graph)
+    report = churn_report(
+        args.graph,
+        exclude_globs=tuple(args.exclude_glob),
+        include_pseudo=args.include_pseudo,
+    )
     print(json.dumps(report, indent=2) if args.json
           else render_churn(report))
     return 0
@@ -274,6 +278,14 @@ def build_parser() -> argparse.ArgumentParser:
         "churn", help="rework stats from a graph.db (devin-graph build first)")
     p_churn.add_argument("--graph", metavar="DB", default="graph.db",
                          help="path to a built graph.db (default ./graph.db)")
+    p_churn.add_argument(
+        "--exclude-glob", action="append", default=[], metavar="GLOB",
+        help="drop file paths matching GLOB from the churn ranking "
+             "(repeatable; matched on the whole path, '*' crosses '/')")
+    p_churn.add_argument(
+        "--include-pseudo", action="store_true",
+        help="keep pseudo-paths (/dev/null, NUL/CON devices, shell-builtin "
+             "streams) that the built-in denylist drops by default")
     p_churn.add_argument("--json", action="store_true")
     p_churn.set_defaults(func=cmd_churn)
     p_watch = sub.add_parser(

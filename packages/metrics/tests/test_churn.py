@@ -50,6 +50,69 @@ def test_churn_report(tmp_path):
     assert "s2" not in {s["session_id"] for s in r["sessions"]}
 
 
+def _graph_noise(path):
+    """s1 reworks /dev/null + a builtin stream (pseudo) and pkg.lock +
+    app.py (real files) — exercises the built-in denylist and globs."""
+    con = sqlite3.connect(path)
+    con.executescript("""
+    CREATE TABLE nodes (id TEXT PRIMARY KEY, kind TEXT, key TEXT,
+                        owner TEXT, attrs TEXT DEFAULT '{}');
+    CREATE TABLE edges (kind TEXT, src TEXT, dst TEXT, owner TEXT,
+                        attrs TEXT DEFAULT '{}',
+                        PRIMARY KEY (kind, src, dst));
+    """)
+    con.execute("INSERT INTO nodes VALUES ('session:s1','session','s1',NULL,"
+                "'{\"model\": \"m-a\"}')")
+    for i, key in enumerate(
+            ("/dev/null", "stdout", "/w/pkg.lock", "/w/app.py")):
+        con.execute("INSERT INTO nodes VALUES (?, 'file', ?, NULL, '{}')",
+                    (f"file:{key}", key))
+    # two touches per file → each would rank as rework if not excluded
+    for t, key in enumerate(
+            ("/dev/null", "stdout", "/w/pkg.lock", "/w/app.py")):
+        for i in range(2):
+            con.execute(
+                "INSERT INTO edges VALUES ('file_touched', ?, ?, 's1', '{}')",
+                (f"tool_call:s1:{key}:{i}", f"file:{key}"))
+    con.commit(); con.close()
+
+
+def test_pseudo_paths_denied_by_default(tmp_path):
+    db = tmp_path / "g.db"; _graph_noise(db)
+    r = churn_report(db)
+    s1 = r["sessions"][0]
+    assert s1["reworked_files"] == 2          # app.py + pkg.lock only
+    assert s1["repeat_calls"] == 2
+    assert s1["files_touched"] == 2
+    ranked = {f["file"] for f in r["top_files"]}
+    assert ranked == {"/w/pkg.lock", "/w/app.py"}
+
+
+def test_include_pseudo_keeps_edges(tmp_path):
+    db = tmp_path / "g.db"; _graph_noise(db)
+    r = churn_report(db, include_pseudo=True)
+    s1 = r["sessions"][0]
+    assert s1["reworked_files"] == 4
+    assert s1["files_touched"] == 4
+    ranked = {f["file"] for f in r["top_files"]}
+    assert "/dev/null" in ranked and "stdout" in ranked
+
+
+def test_exclude_glob_drops_matching_rows(tmp_path):
+    db = tmp_path / "g.db"; _graph_noise(db)
+    r = churn_report(db, exclude_globs=("*.lock",))
+    s1 = r["sessions"][0]
+    assert s1["reworked_files"] == 1
+    assert s1["files_touched"] == 1
+    assert {f["file"] for f in r["top_files"]} == {"/w/app.py"}
+
+
+def test_exclude_glob_repeatable(tmp_path):
+    db = tmp_path / "g.db"; _graph_noise(db)
+    r = churn_report(db, exclude_globs=("*.lock", "*.py"))
+    assert r["sessions"] == []
+
+
 def test_missing_graph_errors(tmp_path):
     with pytest.raises(FileNotFoundError):
         churn_report(tmp_path / "nope.db")

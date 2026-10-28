@@ -11,8 +11,29 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
+
+# Built-in denylist of pseudo-paths that devin-graph can record as real
+# ``file_touched`` edges — agent redirections to the null device, Windows
+# device names, and shell-builtin streams. They are genuine edges but not
+# meaningful rework, so they are excluded from the churn ranking by
+# default (``include_pseudo=True`` keeps them).
+PSEUDO_FULLPATHS: frozenset[str] = frozenset({
+    "/dev/null",
+    "/dev/stdin", "/dev/stdout", "/dev/stderr",
+    "/dev/tty", "/dev/fd",
+})
+PSEUDO_BASENAMES: frozenset[str] = frozenset({
+    # Windows device names — special in any directory
+    "nul", "nul:",
+    "con", "con:", "conin$", "conout$",
+    # shell-builtin streams recorded as touched files
+    "stdin", "stdout", "stderr",
+    "<stdin>", "<stdout>", "<stderr>",
+    "-",  # conventional stdin/stdout placeholder
+})
 
 
 def _connect_ro(path: Path) -> sqlite3.Connection:
@@ -21,12 +42,40 @@ def _connect_ro(path: Path) -> sqlite3.Connection:
     return con
 
 
-def churn_report(graph_db: str | Path) -> dict[str, Any]:
+def _is_pseudo(path: str) -> bool:
+    n = path.strip().replace("\\", "/").rstrip("/").lower()
+    return n in PSEUDO_FULLPATHS or n.rsplit("/", 1)[-1] in PSEUDO_BASENAMES
+
+
+def _is_excluded(
+    path: str,
+    globs: tuple[str, ...],
+    include_pseudo: bool,
+) -> bool:
+    # edge dsts fall back to the raw node id ("file:<path>") when the node
+    # row is missing — strip the scheme before matching.
+    p = path.removeprefix("file:")
+    if not include_pseudo and _is_pseudo(p):
+        return True
+    norm = p.strip().replace("\\", "/")
+    return any(fnmatch(norm, g) for g in globs)
+
+
+def churn_report(
+    graph_db: str | Path,
+    *,
+    exclude_globs: tuple[str, ...] = (),
+    include_pseudo: bool = False,
+) -> dict[str, Any]:
     """Per-session and per-model rework stats from a graph.db.
 
     Returns dict with ``sessions`` (one row per session that reworked at
     least one file), ``models`` (aggregated by the session node's model
     attr) and ``top_files`` (most-reworked paths overall).
+
+    ``file_touched`` edges whose path is pseudo (see ``PSEUDO_FULLPATHS`` /
+    ``PSEUDO_BASENAMES``) or matches one of ``exclude_globs`` are dropped
+    before ranking — excluded files count as neither touched nor reworked.
     """
     path = Path(graph_db).expanduser()
     if not path.exists():
@@ -41,8 +90,7 @@ def churn_report(graph_db: str | Path) -> dict[str, Any]:
             " GROUP BY e.owner, e.dst HAVING calls > 1"
         ).fetchall()
         touched = con.execute(
-            "SELECT owner, COUNT(DISTINCT dst) FROM edges"
-            " WHERE kind = 'file_touched' GROUP BY owner"
+            "SELECT owner, dst FROM edges WHERE kind = 'file_touched'"
         ).fetchall()
         models = {
             r[0]: _model_of(r[1])
@@ -59,14 +107,25 @@ def churn_report(graph_db: str | Path) -> dict[str, Any]:
     finally:
         con.close()
 
-    distinct_files = {owner: n for owner, n in touched}
+    def excluded(file_id: str) -> bool:
+        return _is_excluded(paths.get(file_id, file_id),
+                            tuple(exclude_globs), include_pseudo)
+
+    distinct_files: dict[str, set[str]] = {}
+    for owner, dst in touched:
+        if excluded(dst):
+            continue
+        distinct_files.setdefault(owner, set()).add(dst)
+
     per_session: dict[str, dict[str, Any]] = {}
     file_calls: dict[str, int] = {}
     for session_id, file_id, calls in reworked:
+        if excluded(file_id):
+            continue
         row = per_session.setdefault(session_id, {
             "session_id": session_id,
             "model": models.get(session_id),
-            "files_touched": distinct_files.get(session_id, 0),
+            "files_touched": len(distinct_files.get(session_id, ())),
             "reworked_files": 0,
             "repeat_calls": 0,
         })
