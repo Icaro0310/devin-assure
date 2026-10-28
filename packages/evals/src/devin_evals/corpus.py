@@ -235,10 +235,11 @@ GOLDEN_CASES: dict[str, GoldenCase] = {
         case_id="golden-d06-schema-drift",
         defect_id="D06",
         description=(
-            "Drift canary: the session lives in a v18 db that "
-            "devin-internals-spec must refuse loudly. The rubric is never "
-            "reached — the expected outcome is the harness-level error "
-            "when the store opens the drifted db."
+            "Drift canary: the session lives in a db one version beyond "
+            "the store's known schema range, which devin-internals-spec "
+            "must refuse loudly. The rubric is never reached — the "
+            "expected outcome is the harness-level error when the store "
+            "opens the drifted db."
         ),
         rubric=(
             {"grader": "contains", "text": "Canary session"},

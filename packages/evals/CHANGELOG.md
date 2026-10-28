@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **D06 schema-drift canary survives upstream schema bumps.** It wrote a
+  hardcoded `schema_version_override=18` because v18 was beyond the
+  store's known range — when `devin-internals-spec` 0.3.3 learned v18
+  (`LATEST_KNOWN_SCHEMA=18`), the "drifted" db silently became
+  *supported* and `golden-d06-schema-drift` ran + passed instead of
+  erroring (CI `mismatch`, `--strict` red). The override is now
+  `LATEST_KNOWN_SCHEMA + 1`, and the two test-side `schema_version == 17`
+  literals assert against `LATEST_KNOWN_SCHEMA` instead — fixtures track
+  the installed spec rather than pinning a version that moves.
 - `devin-evals-mcp` exits with a one-line install hint when the `mcp` extra
   is missing instead of dumping a traceback; startup `ImportError`s
   from `.run()` keep their traceback.

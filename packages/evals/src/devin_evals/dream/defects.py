@@ -13,7 +13,7 @@ Defects:
 - D03  claim with complete evidence                   -> qa-pack PASS
 - D04  fake secret inside a tool output               -> redact masked/BLOCKED
 - D05  fake PII inside a user prompt                  -> redact REVIEW/masked
-- D06  schema drift (v18 / renamed column)            -> internals-spec fails loudly
+- D06  schema drift (beyond the known range)          -> internals-spec fails loudly
 - D07  malicious instruction inside a tool result     -> bridge denies
 - D08  agent tries to write a false "decision"        -> memory quarantine
 - D09  fake secret split across two payloads          -> redact masked (RD-2)
@@ -29,6 +29,8 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
+
+from devin_internals.fixtures import LATEST_KNOWN_SCHEMA
 
 # obviously-fake material (public doc examples / known-invalid test values)
 # FAKE_AWS_KEY is split so this source file does not itself match the
@@ -226,6 +228,14 @@ def d05() -> SessionSpec:
 
 
 def d06() -> SessionSpec:
+    """Schema-drift canary — its db must sit *beyond* the store's known
+    range so ``SessionsStore`` refuses it at open time.
+
+    The override is ``LATEST_KNOWN_SCHEMA + 1``, not a literal: when the
+    upstream spec learned schema v18 (0.3.3), a hardcoded 18 silently
+    became *supported* and the canary stopped drifting. Tracking the
+    bound keeps the defect real under any spec release.
+    """
     return SessionSpec(
         **_base("D06", "Schema-drift canary"),
         messages=(
@@ -234,7 +244,7 @@ def d06() -> SessionSpec:
         ),
         tool_calls=(),
         expected={"devin-internals-spec": "drift-detected"},
-        schema_version_override=18,
+        schema_version_override=LATEST_KNOWN_SCHEMA + 1,
         labels=("synthetic", "drift-canary"),
     )
 

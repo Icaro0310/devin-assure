@@ -242,8 +242,9 @@ package, so the gate is fully self-contained.
 
 Each case carries `expected_status` (the verdict the case *should* reach:
 `pass` for the clean control D03, `fail` where a defect must be caught,
-`error` for the D06 schema-drift canary whose v18 db is refused at open
-time). `verify` prints `MATCH` / `GAP` / `MISMATCH` per case and exits 1
+`error` for the D06 schema-drift canary whose beyond-known-schema db is
+refused at open time). `verify` prints `MATCH` / `GAP` / `MISMATCH` per
+case and exits 1
 on any undocumented mismatch; `--strict` also fails on documented gaps.
 
 The D05/D07/D09 grader gaps are closed: `no_pii` covers PII, `tool_output`
