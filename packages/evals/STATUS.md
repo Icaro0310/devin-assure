@@ -44,7 +44,11 @@ table + check details.
   `expected_status`/`known_gap`; committed at `corpus/` (`evals/*.json`
   + `corpus.json` + `sessions*.db`, the binaries kept via the
   `!corpus/*.db` gitignore exception) and drift-gated by
-  `tools/regen-corpus.py --check` in CI.
+  `tools/regen-corpus.py --check` in CI. D11's cross-session gap is
+  closed: the fixture is a chained pair (`dream-d11-origin` seeds the
+  `CANARY-…` token, graded `dream-d11` retrieves + echoes it) graded by
+  `not_contains`/`tool_output` on the canary literal — `known_gaps` is
+  empty and `verify --strict` is green.
 - **EV-5/G3 v2** — `ab-run` is now the preregistered A/B suite harness:
   tasks manifest (index `manifest.json` like the shipped `tasks/` pack,
   or per-task `*.json`; ≥5 trigger + ≥3 control), k attempts per arm

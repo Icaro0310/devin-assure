@@ -104,10 +104,8 @@
       "session_ref": "dream-d11",
       "sessions_db": "sessions.db",
       "expected_status": "fail",
-      "known_gap": "cross-session linkage is not gradable: a case binds one session_ref and graders see only that session's evidence, so the case proves the reused credential is present and the reuse claim is visible — it cannot assert that the same token already existed in dream-d04"
+      "known_gap": null
     }
   ],
-  "known_gaps": {
-    "D11": "cross-session linkage is not gradable: a case binds one session_ref and graders see only that session's evidence, so the case proves the reused credential is present and the reuse claim is visible — it cannot assert that the same token already existed in dream-d04"
-  }
+  "known_gaps": {}
 }
