@@ -39,33 +39,6 @@ Use `--data-dir`/`--sessions-db` for non-default locations.
 - **Offline/air-gapped:** `pip download <package> -d wheels\` on a connected machine, copy the folder, then `pip install --no-index --find-links wheels\` on the target (pure-Python tools; native deps need a matching platform wheel). For `source_only` tools installed from a copied checkout, stage the build backend too (`pip download setuptools wheel`), then install with `pip install --no-index --find-links wheels\ --no-build-isolation .` inside the checkout.
 - **Fully local runtime:** the core audit is fully offline. Two opt-in exceptions that do not apply under local-only: `audit --source mcp` POSTs to `https://mcp.devin.ai/mcp` with `DEVIN_API_KEY` (fail-closed without it; `DEVIN_ORG_ID` is sent only when set, for tokens that need explicit org context; `DEVIN_MCP_URL` overrides the endpoint), and `--online`/`--allow-domain` makes HEAD requests to allowlisted claim URLs.
 
-## Read-only operation
-
-Every audit command in this package reads local Devin data only: the session database (`sessions.db`), the `.devin/` config tree, and transcript exports. Nothing writes back to those stores, uploads session content, or requires a running Devin instance — point the tools at a copied database (`--sessions-db C:\path\sessions-copy.db`) if you want a hard guarantee that the live store is untouched.
-
-Recommended posture on a restricted machine: run audits against a file copy or the filesystem-snapshot path, not the live `%APPDATA%\devin\cli\sessions.db`. The tools never need write access to Devin data; if a command ever asks for it, that is a bug, not a requirement.
-
-## What cannot be delegated from a restricted machine
-
-Corporate mode is local-only by posture, not by enforcement — the package has no corporate-mode switch. The capabilities below are unavailable *by choice* on a restricted machine; the opt-in flags exist in the CLI and must simply stay unused:
-
-- **Workload delegation** — no Devin VM, no remote workers, no ACP bridge (QwenPaw), no cloud sandboxes.
-- **External integrations** — Slack, GitHub Actions, hosted dashboards and webhook-style notifications stay off; nothing listens on the network.
-- **Online claim verification** — `--online`/`--allow-domain` and `--source mcp` are opt-in everywhere else and stay off here; audits run offline against local artifacts.
-- **Model calls** — audits are deterministic extraction and matching; no LLM is consulted, so nothing leaves the machine for inference either.
-
-If a workflow needs any of the above, run it on the unrestricted machine and copy only the resulting report artifacts back.
-
-## Reporting false positives without uploading session content
-
-Never paste raw session text into an issue or a chat channel on a restricted machine. To report a bad audit result:
-
-1. Re-run the audit and keep only the verdict block — the report is **not** auto-redacted: claim details and command evidence are emitted raw. If `devin-redact` is installed (`uv tool install devin-redact`, from the devin-state repo), run the fragment through `devin-redact scan --text "$(cat fragment.txt)"` first so secrets, tokens, emails and home paths come out as `<REDACTED:hash>` placeholders.
-2. Verify locally that the output you will share contains no raw identifiers (search for your own name, domain, and any token prefixes). Without a redaction pass this check is mandatory, not optional.
-3. Paste only the redacted verdict block and the claim/line reference — never the surrounding session transcript, file paths outside the report, or screenshots of session content.
-
-For bug reports, the smallest useful unit is: the verdict line, the rule/pattern name it cites, and the redacted fragment it fired on.
-
 ## Zscaler
 
 Zscaler é comum em ambientes corporativos e se comporta diferente de um proxy genérico. Dois produtos importam aqui: **Zscaler Internet Access (ZIA)**, proxy com inspeção de TLS, e **Zscaler Private Access (ZPA)**, túnel/VPN para aplicações internas.

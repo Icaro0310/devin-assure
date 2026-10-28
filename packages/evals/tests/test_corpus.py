@@ -31,9 +31,8 @@ EXPECTED_MATCHES = {"D01", "D02", "D03", "D04", "D05", "D06", "D07",
 # Cases whose expected verdict is *unreached* (verify reports "gap").
 EXPECTED_GAPS: set[str] = set()
 # Defects with a documented modeling limit in manifest.known_gaps —
-# the D11 golden still matches; the gap text explains that graders are
-# single-session so the reuse itself is not what gets detected.
-KNOWN_GAP_DEFECTS = {"D11"}
+# empty since D11's cross-session linkage became gradable.
+KNOWN_GAP_DEFECTS: set[str] = set()
 
 
 @pytest.fixture
@@ -121,8 +120,8 @@ def test_verify_matches_expressible_verdicts(corpus_dir: Path):
 
 
 def test_verify_strict_passes_when_all_verdicts_match(corpus_dir: Path):
-    # D11 carries a documented known_gap but still reaches its verdict —
-    # strict only fails on gap *outcomes* (expected unreached).
+    # strict only fails on gap *outcomes* (expected unreached) — every
+    # case reaches its verdict, including D11's now-gradable linkage.
     report = verify_corpus(corpus_dir, strict=True)
     assert report["summary"]["ok"] is True
     assert report["summary"]["mismatched"] == 0
@@ -166,21 +165,33 @@ def test_d11_reused_secret_recurs_across_sessions(corpus_dir: Path):
     assert {"dream-d04", "dream-d11"} <= carriers
 
 
-def test_d11_golden_matches_with_documented_gap(corpus_dir: Path):
-    """The golden fails on in-session presence + the reuse claim; the
-    cross-session detection itself is a documented modeling limit."""
+def test_d11_golden_grades_cross_session_linkage(corpus_dir: Path):
+    """The D11 gap is closed: the reuse check fails on hash-linked
+    recurrence — the token is proven to already exist in dream-d04 and
+    the literal never re-enters the check detail."""
     report = verify_corpus(corpus_dir)
     d11 = next(c for c in report["cases"] if c["defect"] == "D11")
     assert d11["result"] == "match"
     assert d11["expected_status"] == "fail"
     assert d11["actual_status"] == "fail"
-    assert "cross-session" in d11["known_gap"]
+    assert not d11["known_gap"]
+
+    run = run_evals(corpus_dir / "evals", corpus_dir / "sessions.db")
+    case = next(
+        c for c in run["cases"] if c["id"] == "golden-d11-cross-session-secret"
+    )
+    linkage = next(
+        ch for ch in case["checks"]
+        if ch["grader"] == "no_cross_session_secrets"
+    )
+    assert not linkage["passed"]
+    assert "dream-d04" in linkage["detail"]
+    assert FAKE_AWS_KEY not in linkage["detail"]
 
 
 def test_missing_db_is_mismatch_not_tolerated_gap(corpus_dir: Path):
-    """D11 documents a modeling gap — but a *missing* sessions.db is
-    infrastructure error, not an unprovable verdict. It must surface as
-    mismatch, never ride the known_gap tolerance."""
+    """A *missing* sessions.db is infrastructure error, not an
+    unprovable verdict: it must surface as mismatch, never tolerated."""
     (corpus_dir / "sessions.db").unlink()
     report = verify_corpus(corpus_dir)
     d11 = next(r for r in report["cases"] if r["defect"] == "D11")

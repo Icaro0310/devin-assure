@@ -84,6 +84,8 @@ devin-metrics summary                  # headline numbers + top-5 lists
 devin-metrics projects                 # per-project session/activity table
 devin-metrics daily --days 14          # activity over time
 devin-metrics commits                  # sessions → git commits (SHAs + repos)
+devin-metrics commits --verify         # integrity-check the recorded commit refs
+devin-metrics alerts --rules rules.json # threshold rules → exit 1 when any fires
 devin-metrics dashboard --out usage.html
 
 devin-dashboard build --out usage.html # dashboard executable alias
@@ -138,6 +140,35 @@ are extracted from `tool_call_state` payloads (via `devin-internals-spec`'s
 repo) plus a per-repo rollup; short 7-hex SHAs are ignored on purpose —
 they are too ambiguous to attribute safely. `summary` also reports
 "Sessions with commits" / "Unique commit SHAs" headline counts.
+
+`devin-metrics commits --verify` self-audits the recorded refs instead of
+reporting: sha well-formedness, duplicate refs, orphan refs (a
+`tool_call_state` row pointing at a session that no longer exists — the
+tamper case), headline counts and rollups recomputed independently, and a
+second-pass digest over the store. Exit 0 means `clean`; exit 1 means
+`mismatch` and every failed check names its offending records.
+
+
+### `devin-metrics alerts --rules FILE`
+
+Evaluates a JSON rules file against the `summary` metrics — deterministic
+and local. The file is a top-level list of rule objects:
+
+```json
+[
+  {"name": "cost-cap",    "metric": "cost_usd_total",      "op": ">=", "threshold": 5.0},
+  {"name": "big-context", "metric": "context_tokens_peak", "op": ">",  "threshold": 400000}
+]
+```
+
+`metric` is any key of `devin-metrics summary --json` (`sessions`,
+`messages`, `tool_calls`, `cost_usd_total`, `context_tokens_peak`,
+`unique_commit_shas`, …); `op` is one of `>` `>=` `<` `<=` `==` `!=`. A
+rule *fires* when `value <op> threshold` holds: the alert line is printed
+and the exit code is 1 (0 when nothing fires). A metric that exists but
+has no numeric value — `cost_usd_*` on a store with no acp data — is
+reported as `SKIP`, never fired. Unknown metric names and malformed
+files exit 2: a typo'd rule fails loudly rather than silently passing.
 
 
 ### `devin-metrics churn` (needs `devin-graph build`)

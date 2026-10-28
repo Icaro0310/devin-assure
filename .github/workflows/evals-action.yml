@@ -46,6 +46,10 @@ jobs:
         uses: Icaro0310/devin-evals-action@v1
         with:
           corpus: packages/evals/corpus
+          # Corpus and tool are versioned together in this repo — a new
+          # grader landing in the same PR as its rubric use can never be
+          # verified by a released devin-evals.
+          version: "./packages/evals"
 
       - name: assert real corpus passed
         run: |
@@ -59,6 +63,7 @@ jobs:
         continue-on-error: true
         with:
           corpus: .smoke-tampered
+          version: "./packages/evals"
 
       - name: assert regression classification fired
         run: |
