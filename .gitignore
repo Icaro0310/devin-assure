@@ -14,6 +14,4 @@ build/
 # Devin local runtime (hooks write session logs/state here — never commit)
 .devin/
 
-# devin-doctor writes its machine snapshot to cwd — contains absolute
-# paths, cron commands and unit names; never commit
 doctor/automation-snapshot.json
