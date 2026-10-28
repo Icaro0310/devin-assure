@@ -173,7 +173,13 @@ files exit 2: a typo'd rule fails loudly rather than silently passing.
 
 ### `devin-metrics churn` (needs `devin-graph build`)
 
-Rework stats from the knowledge graph: files re-touched by multiple tool calls in the same session, per session and per model. Known noise: pseudo-paths like `/dev/null` and shell builtins can rank high — they are real `file_touched` edges, just not meaningful rework.
+Rework stats from the knowledge graph: files re-touched by multiple tool calls in the same session, per session and per model.
+
+Pseudo-paths (`/dev/null`, Windows `NUL`/`CON` device names, shell-builtin streams like `stdout`/`<stdin>`) are real `file_touched` edges but not meaningful rework, so a built-in denylist drops them by default — `--include-pseudo` keeps them. `--exclude-glob GLOB` (repeatable) drops additional paths from the ranking, matched on the whole path:
+
+```bash
+devin-metrics churn --graph graph.db --exclude-glob '*.lock' --exclude-glob 'generated/*'
+```
 
 
 `devin-metrics watch` is an **advisory** context guard (ME-2): lists

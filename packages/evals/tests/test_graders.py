@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from conftest import FAKE_API_KEY, FAKE_GH_TOKEN
 from devin_evals.graders import (
@@ -154,6 +156,91 @@ def test_file_exists_no_workdir():
     assert not grade("file_exists", {"path": "output.txt"}, ev).passed
 
 
+# -- file_existed ------------------------------------------------------------
+
+
+def _edit_call_ev(path, working_directory=None):
+    """Evidence whose session recorded one ``edit``-shape write to ``path``."""
+    return make_evidence(
+        working_directory=working_directory,
+        tool_calls=(
+            ToolCall(
+                "tc-edit",
+                "edit",
+                json.dumps({
+                    "toolCallId": "tc-edit",
+                    "title": f"Wrote {path}",
+                    "kind": "edit",
+                    "content": [
+                        {"type": "diff", "path": path, "newText": "x\n"}
+                    ],
+                    "_meta": {"cognition.ai/inferenceToolName": "edit"},
+                }),
+                '{"status": "completed"}',
+            ),
+        ),
+    )
+
+
+def test_file_existed_still_on_disk(workspace):
+    ev = make_evidence(working_directory=str(workspace))
+    assert grade("file_existed", {"path": "output.txt"}, ev).passed
+
+
+def test_file_existed_from_recorded_edit(tmp_path):
+    # the workspace is gone — only the recorded history proves the file
+    ev = _edit_call_ev("src/old.py", working_directory=str(tmp_path / "gone"))
+    r = grade("file_existed", {"path": "src/old.py"}, ev)
+    assert r.passed and "tc-edit" in r.detail
+
+
+def test_file_existed_recorded_absolute_path(tmp_path):
+    wd = str(tmp_path / "gone")
+    ev = _edit_call_ev(f"{wd}/src/old.py", working_directory=wd)
+    assert grade("file_existed", {"path": "src/old.py"}, ev).passed
+
+
+def test_file_existed_from_command_string(tmp_path):
+    # shell writes (sed -i, cat >) carry no keyed path field — the path
+    # string inside the recorded command is the historical evidence
+    ev = make_evidence(
+        working_directory=str(tmp_path),
+        tool_calls=(
+            ToolCall(
+                "tc-1",
+                "run_shell",
+                '{"kind": "execute", "rawInput": {"command": '
+                '"sed -i s/v0/v1/ src/churned.py"}}',
+                '{"status": "completed"}',
+            ),
+        ),
+    )
+    assert grade("file_existed", {"path": "src/churned.py"}, ev).passed
+
+
+def test_file_existed_no_evidence(tmp_path):
+    ev = make_evidence(working_directory=str(tmp_path))
+    r = grade("file_existed", {"path": "nope.py"}, ev)
+    assert not r.passed and "no recorded tool call" in r.detail
+
+
+def test_file_existed_unrelated_tool_calls_fail(tmp_path):
+    ev = _edit_call_ev("src/other.py", working_directory=str(tmp_path))
+    assert not grade("file_existed", {"path": "src/mine.py"}, ev).passed
+
+
+def test_file_existed_short_path_needs_keyed_field(tmp_path):
+    # a 2-char path must not substring-match arbitrary payload strings
+    ev = make_evidence(
+        working_directory=str(tmp_path),
+        tool_calls=(
+            ToolCall("tc-1", "run_shell",
+                     '{"command": "go build ./..."}', None),
+        ),
+    )
+    assert not grade("file_existed", {"path": "go"}, ev).passed
+
+
 # -- exit_code ---------------------------------------------------------------
 
 
@@ -230,6 +317,7 @@ def test_all_expected_graders_registered():
         "not_contains",
         "tool_called",
         "file_exists",
+        "file_existed",
         "exit_code",
         "no_secrets",
         "no_pii",

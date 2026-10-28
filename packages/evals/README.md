@@ -132,6 +132,7 @@ failing case, and a tool-call-ground-truth case.
 | `contains` / `not_contains` | literal substring in the transcript (case-sensitive) |
 | `tool_called` | tool `name` called ≥`min_calls`, optional `args_substr` on call JSON |
 | `file_exists` | path on disk — relative resolves under the session's `working_directory` |
+| `file_existed` | like `file_exists`, plus historical evidence: a recorded tool call naming the path counts even when the workspace is cleaned |
 | `exit_code` | recorded exit codes match `value` per `mode` (`all`/`any`/`last`) |
 | `no_secrets` | zero secret-shaped strings (vendored devin-redact patterns) in transcript + tool JSON |
 | `no_pii` | zero PII-shaped strings (email, CPF) in transcript + tool JSON |
@@ -360,7 +361,8 @@ checks, not a gate.
   keys in `tool_call_json`; unknown shapes degrade to "tool never called"
   details, not crashes.
 - `file_exists` checks the filesystem *now* — replaying an old session
-  whose workspace was cleaned will fail that check.
+  whose workspace was cleaned will fail that check (use `file_existed`
+  when the recorded tool calls should count as evidence instead).
 
 ## Development
 
