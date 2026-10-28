@@ -14,6 +14,7 @@ from conftest import (
     write_eval,
 )
 from devin_evals.runner import run_evals
+from devin_internals.fixtures import LATEST_KNOWN_SCHEMA
 
 PASS_CASE = {
     "id": "ok",
@@ -33,7 +34,9 @@ def test_report_shape(evals_dir, sessions_db):
     report = run_evals(evals_dir, sessions_db)
     assert report["tool"] == "devin-evals"
     assert report["version"]
-    assert report["schema_version"] == 17
+    # the fixture db tracks the installed spec's latest schema, so the
+    # assertion does too (literal 17 broke when the spec learned v18)
+    assert report["schema_version"] == LATEST_KNOWN_SCHEMA
     assert report["sessions_db"].endswith("sessions.db")
     (case,) = report["cases"]
     assert case["id"] == "ok"

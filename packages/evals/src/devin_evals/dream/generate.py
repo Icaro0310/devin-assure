@@ -43,9 +43,10 @@ def write_sessions_db(
 ) -> Path:
     """Create a ``sessions.db`` holding the given session specs.
 
-    ``schema_version`` defaults to the latest known (17); a spec with
-    ``schema_version_override`` forces the whole DB to that version (D06
-    uses it — one drifted DB per defect dir).
+    ``schema_version`` defaults to the latest known
+    (``LATEST_KNOWN_SCHEMA``); a spec with ``schema_version_override``
+    forces the whole DB to that version (D06 uses it — one drifted DB
+    per defect dir).
     """
     path = Path(path)
     overrides = {

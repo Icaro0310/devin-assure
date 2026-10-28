@@ -20,7 +20,7 @@ from devin_evals.corpus import (
     generate_corpus,
     verify_corpus,
 )
-from devin_evals.dream.defects import FAKE_AWS_KEY
+from devin_evals.dream.defects import FAKE_CANARY
 from devin_evals.graders import _SECRET_PATTERNS
 from devin_evals.runner import _message_text, run_evals
 from devin_internals.parsers.sessions import SessionsStore
@@ -31,7 +31,8 @@ EXPECTED_MATCHES = {"D01", "D02", "D03", "D04", "D05", "D06", "D07",
 # Cases whose expected verdict is *unreached* (verify reports "gap").
 EXPECTED_GAPS: set[str] = set()
 # Defects with a documented modeling limit in manifest.known_gaps —
-# empty since D11's cross-session linkage became gradable.
+# empty since the D11 chained-pair fixture made the cross-session leak
+# directly gradable (the canary's presence in session B IS the leak).
 KNOWN_GAP_DEFECTS: set[str] = set()
 
 
@@ -120,8 +121,8 @@ def test_verify_matches_expressible_verdicts(corpus_dir: Path):
 
 
 def test_verify_strict_passes_when_all_verdicts_match(corpus_dir: Path):
-    # strict only fails on gap *outcomes* (expected unreached) — every
-    # case reaches its verdict, including D11's now-gradable linkage.
+    # Every golden reaches its verdict, so strict (which fails on gap
+    # *outcomes*) is green — and there are no known_gaps left anyway.
     report = verify_corpus(corpus_dir, strict=True)
     assert report["summary"]["ok"] is True
     assert report["summary"]["mismatched"] == 0
@@ -150,48 +151,39 @@ def test_d06_db_is_refused_loudly(corpus_dir: Path):
     assert "refused" in d06["detail"]
 
 
-def test_d11_reused_secret_recurs_across_sessions(corpus_dir: Path):
-    """D11's premise is real in the corpus db: the same fake credential
-    appears in two different sessions' rows (dream-d04 + dream-d11)."""
+def test_d11_canary_recurs_across_the_session_pair(corpus_dir: Path):
+    """D11's premise is real in the corpus db: the canary sits in the
+    origin session's rows AND the graded session's — and exactly those
+    two, so its presence in dream-d11 is definitionally a cross-session
+    leak (the token exists nowhere else it could have come from)."""
     with SessionsStore(corpus_dir / "sessions.db") as st:
         carriers = set()
         for tc in st.tool_call_state():
             blob = f"{tc.tool_call_json}{tc.tool_call_update_json}"
-            if FAKE_AWS_KEY in blob:
+            if FAKE_CANARY in blob:
                 carriers.add(tc.session_id)
         for n in st.message_nodes():
-            if FAKE_AWS_KEY in n.chat_message:
+            if FAKE_CANARY in n.chat_message:
                 carriers.add(n.session_id)
-    assert {"dream-d04", "dream-d11"} <= carriers
+    assert carriers == {"dream-d11-origin", "dream-d11"}
 
 
-def test_d11_golden_grades_cross_session_linkage(corpus_dir: Path):
-    """The D11 gap is closed: the reuse check fails on hash-linked
-    recurrence — the token is proven to already exist in dream-d04 and
-    the literal never re-enters the check detail."""
+def test_d11_golden_detects_the_cross_session_leak(corpus_dir: Path):
+    """The graded session echoes the canary: `not_contains`/`tool_output`
+    fail and the case reaches its `fail` verdict with no known_gap —
+    the chained fixture makes the leak fully gradable."""
     report = verify_corpus(corpus_dir)
     d11 = next(c for c in report["cases"] if c["defect"] == "D11")
     assert d11["result"] == "match"
     assert d11["expected_status"] == "fail"
     assert d11["actual_status"] == "fail"
-    assert not d11["known_gap"]
-
-    run = run_evals(corpus_dir / "evals", corpus_dir / "sessions.db")
-    case = next(
-        c for c in run["cases"] if c["id"] == "golden-d11-cross-session-secret"
-    )
-    linkage = next(
-        ch for ch in case["checks"]
-        if ch["grader"] == "no_cross_session_secrets"
-    )
-    assert not linkage["passed"]
-    assert "dream-d04" in linkage["detail"]
-    assert FAKE_AWS_KEY not in linkage["detail"]
+    assert d11["known_gap"] is None
 
 
-def test_missing_db_is_mismatch_not_tolerated_gap(corpus_dir: Path):
+def test_missing_db_is_mismatch_not_tolerated(corpus_dir: Path):
     """A *missing* sessions.db is infrastructure error, not an
-    unprovable verdict: it must surface as mismatch, never tolerated."""
+    unprovable verdict — it must surface as mismatch, never ride any
+    gap tolerance."""
     (corpus_dir / "sessions.db").unlink()
     report = verify_corpus(corpus_dir)
     d11 = next(r for r in report["cases"] if r["defect"] == "D11")

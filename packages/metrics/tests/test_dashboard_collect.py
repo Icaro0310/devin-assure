@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timezone
 
 import pytest
+from devin_internals.fixtures import LATEST_KNOWN_SCHEMA
 from devin_internals.schema import SchemaError
 from devin_metrics.dashboard.collect import collect_stats
 
@@ -23,7 +24,9 @@ def test_stats_dict_shape(stats):
     }
     assert stats["tool"] == "devin-dashboard"
     src = stats["source"]
-    assert src["schema_version"] == 17
+    # fixture db tracks the installed spec's latest schema — a literal
+    # broke when devin-internals-spec 0.3.3 learned schema v18
+    assert src["schema_version"] == LATEST_KNOWN_SCHEMA
     assert src["acp_available"] is True
     assert src["acp_db_files"] == 4
     assert src["matched_sessions"] == 3
