@@ -83,6 +83,7 @@ checkable fact, not an LLM judgement call.
 | `not_contains` | `text` | — | transcript |
 | `tool_called` | `name` | `args_substr`, `min_calls` (1) | parsed `tool_call_json` names + raw args |
 | `file_exists` | `path` | — | filesystem; relative = under session `working_directory` |
+| `file_existed` | `path` | — | filesystem **or** recorded history — a tool-call payload naming the path (keyed `path` fields, or the path inside commands/titles) proves it existed after the workspace is gone |
 | `exit_code` | — | `value` (0), `mode` (`all`/`any`/`last`) | `"exit_code"` fields in `tool_call_update_json` |
 | `no_secrets` | — | — | transcript **and** tool-call JSON (secrets leak via args) |
 | `no_pii` | — | — | transcript + tool-call JSON (email, CPF) |

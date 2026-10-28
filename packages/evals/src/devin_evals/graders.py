@@ -15,6 +15,11 @@ Grader corpus contract (what each one "sees"):
   ``tool_call_json`` for ``args_substr`` matching.
 - ``file_exists``: the real filesystem, relative to the session's recorded
   ``working_directory``.
+- ``file_existed``: the same, plus the session's recorded history — a tool
+  call whose payload names the path (keyed ``path``-style fields, or the
+  path string inside commands/titles) is evidence the file existed even
+  when the workspace was cleaned. Same convention the qa-pack ``file``
+  claim verifier uses over ``tool_call_state``.
 - ``exit_code``: ``"exit_code": N`` fields inside ``tool_call_update_json``.
 - ``no_secrets``: ``evidence.all_text`` — transcript *and* tool-call JSON,
   because secrets leak through tool args as often as through chat text.
@@ -22,8 +27,10 @@ Grader corpus contract (what each one "sees"):
 
 from __future__ import annotations
 
+import json
+import posixpath
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -146,6 +153,90 @@ def _file_exists(ev: Evidence, p: dict[str, Any]) -> tuple[bool, str]:
         candidate = raw
     ok = candidate.exists()
     return ok, ("exists" if ok else "missing") + f": {candidate}"
+
+
+# Path-shaped keys in recorded tool-call payloads — the observed ``edit``
+# envelope keeps its target at ``content[].path``; other tools carry it in
+# ``arguments``/``rawInput`` under these names.
+_PATH_FIELD_KEYS = frozenset({
+    "path", "file_path", "filepath", "target_file", "file", "filename",
+    "relative_path", "abs_path", "absolute_path",
+})
+
+
+def _walk_strings(value: Any) -> Iterable[str]:
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for v in value.values():
+            yield from _walk_strings(v)
+    elif isinstance(value, list):
+        for v in value:
+            yield from _walk_strings(v)
+
+
+def _walk_path_fields(value: Any) -> Iterable[str]:
+    """String values under path-shaped keys, anywhere in the payload."""
+    if isinstance(value, dict):
+        for k, v in value.items():
+            if isinstance(v, str) and str(k).lower() in _PATH_FIELD_KEYS:
+                yield v
+            else:
+                yield from _walk_path_fields(v)
+    elif isinstance(value, list):
+        for v in value:
+            yield from _walk_path_fields(v)
+
+
+def _norm_lex(path: str, working_directory: str | None) -> str:
+    """Normalize a recorded path lexically — no fs access, since the
+    workspace may be gone. Relative paths resolve under the session's
+    recorded working directory."""
+    s = path.strip().replace("\\", "/")
+    if s and not s.startswith("/") and working_directory:
+        s = working_directory.replace("\\", "/").rstrip("/") + "/" + s
+    return posixpath.normpath(s)
+
+
+def _file_existed(ev: Evidence, p: dict[str, Any]) -> tuple[bool, str]:
+    """``file_exists`` for cleaned workspaces: passes on current fs OR on
+    historical evidence that the session touched the path."""
+    raw = Path(p["path"]).expanduser()
+    if raw.is_absolute():
+        candidate = raw
+    elif ev.working_directory:
+        candidate = Path(ev.working_directory) / raw
+    else:
+        candidate = raw
+    if candidate.exists():
+        return True, f"exists: {candidate}"
+    want = _norm_lex(str(raw), ev.working_directory)
+    needle = str(raw).replace("\\", "/")
+    # weak-tier guard: a bare "a"/"." needle would substring-match anything
+    weak_ok = len(needle) >= 4 or "/" in needle or "." in needle
+    for tc in ev.tool_calls:
+        for blob in (tc.call_json, tc.update_json):
+            if not blob:
+                continue
+            try:
+                payload = json.loads(blob)
+            except json.JSONDecodeError:
+                continue
+            for recorded in _walk_path_fields(payload):
+                if _norm_lex(recorded, ev.working_directory) == want:
+                    return True, (
+                        f"not on disk ({candidate}); recorded tool call "
+                        f"{tc.tool_call_id} touched {recorded!r}")
+            if weak_ok and any(
+                needle in s.replace("\\", "/")
+                for s in _walk_strings(payload)
+            ):
+                return True, (
+                    f"not on disk ({candidate}); {needle!r} appears in "
+                    f"tool call {tc.tool_call_id}")
+    return False, (
+        f"missing: {candidate} — not on disk and no recorded tool call "
+        "touched it")
 
 
 def _exit_code(ev: Evidence, p: dict[str, Any]) -> tuple[bool, str]:
@@ -290,6 +381,12 @@ GRADERS: dict[str, GraderSpec] = {
         _file_exists,
         required=("path",),
         doc="`path` exists on disk (absolute, or under the session's working_directory)",
+    ),
+    "file_existed": GraderSpec(
+        _file_existed,
+        required=("path",),
+        doc="`path` exists on disk now, or a recorded tool call touched it "
+            "(historical evidence for cleaned workspaces)",
     ),
     "exit_code": GraderSpec(
         _exit_code,
