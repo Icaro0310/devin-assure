@@ -21,6 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `no_cross_session_secrets` grader: closes D11's last known gap.
+  `runner.build_secret_index` fingerprints every secret-shaped token in
+  every recorded session (sha256, per-session), `Evidence.linkage`
+  carries the index, and the check fails when a token in the bound
+  session recurs in a different one — `scope` `earlier` (default)
+  requires the peer to predate the bound session, `any` accepts either
+  direction, `peer_substr` pins an origin session id. Grading compares
+  hashes only, so the secret literal never re-enters grading artifacts;
+  missing linkage evidence is an error, never a silent pass. The D11
+  golden now asserts the pasted key already existed in `dream-d04` and
+  `corpus.json` reports zero known gaps.
 - `devin-evals dream replay <sessions.db>`: re-emits a real session as an
   anonymized synthetic template (`devin-dream/session-template` v1) for
   corpus bootstrap. Structure is preserved — message count, roles and
@@ -42,9 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   session printed and a grep over session history surfaces it inside
   `dream-d04`'s transcript — the corpus db genuinely carries the token
   in two sessions. Golden case `golden-d11-cross-session-secret` expects
-  `fail` (reuse is a leak) and documents in `known_gaps` that graders
-  are single-session: presence + the reuse claim are graded, the
-  traversal that proves recurrence is not. `devin-evals dream unit
+  `fail` (reuse is a leak); the recurrence itself is graded by
+  `no_cross_session_secrets` (see above). `devin-evals dream unit
   --defect all` now emits nine defects (D07/D08 stay
   inject-only).
 - Read-only adapters: `devin_evals.mcp_server` MCP server (`evals_run`

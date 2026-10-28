@@ -26,7 +26,14 @@ from devin_internals.parsers.sessions import Session, SessionsStore
 
 from devin_evals import __version__
 from devin_evals.cases import EvalCase, load_cases
-from devin_evals.graders import Evidence, ToolCall, grade_check
+from devin_evals.graders import (
+    LINKAGE_GRADERS,
+    Evidence,
+    SecretFingerprint,
+    ToolCall,
+    grade_check,
+    secret_token_hashes,
+)
 
 _TOOL_NAME_KEYS = ("name", "tool_name", "tool", "kind")
 
@@ -61,7 +68,12 @@ def _message_text(chat_message: str) -> str:
     return chat_message
 
 
-def build_evidence(store: SessionsStore, session: Session) -> Evidence:
+def build_evidence(
+    store: SessionsStore,
+    session: Session,
+    *,
+    linkage: tuple[SecretFingerprint, ...] | None = None,
+) -> Evidence:
     """Reduce one recorded session to the grader-facing Evidence shape."""
     texts = [
         _message_text(n.chat_message)
@@ -80,9 +92,35 @@ def build_evidence(store: SessionsStore, session: Session) -> Evidence:
     return Evidence(
         session_id=session.id,
         working_directory=session.working_directory,
+        created_at=session.created_at,
         transcript="\n".join(texts),
         tool_calls=calls,
+        linkage=linkage,
     )
+
+
+def build_secret_index(store: SessionsStore) -> tuple[SecretFingerprint, ...]:
+    """Fingerprint every secret-shaped token recorded in the store.
+
+    This is the linkage evidence for ``no_cross_session_secrets``: every
+    session's evidence text is scanned and each match is reduced to a
+    sha256 digest carrying its origin session, so a grader can prove a
+    token recurred across sessions without any literal reaching grading
+    artifacts.
+    """
+    out: list[SecretFingerprint] = []
+    for s in store.sessions():
+        text = build_evidence(store, s).all_text
+        for sha, category in secret_token_hashes(text).items():
+            out.append(
+                SecretFingerprint(
+                    sha256=sha,
+                    category=category,
+                    session_id=s.id,
+                    created_at=s.created_at,
+                )
+            )
+    return tuple(out)
 
 
 def _find_session(store: SessionsStore, ref: str) -> Session | None:
@@ -134,7 +172,12 @@ def _iso_to_ms(iso: str, *, end_of_day: bool = False) -> int:
     return int(datetime.combine(d, t, tzinfo=timezone.utc).timestamp() * 1000)
 
 
-def evaluate_case(case: EvalCase, store: SessionsStore) -> dict[str, Any]:
+def evaluate_case(
+    case: EvalCase,
+    store: SessionsStore,
+    *,
+    linkage: tuple[SecretFingerprint, ...] | None = None,
+) -> dict[str, Any]:
     if not case.session_ref:
         return {
             "id": case.id,
@@ -159,7 +202,14 @@ def evaluate_case(case: EvalCase, store: SessionsStore) -> dict[str, Any]:
             "checks": [],
         }
 
-    evidence = build_evidence(store, session)
+    if linkage is None and any(
+        c.grader in LINKAGE_GRADERS for c in case.checks
+    ):
+        # Callers that grade many cases against one store should build the
+        # index once and pass it in (``run_evals`` does); the lazy path
+        # keeps single-shot callers correct.
+        linkage = build_secret_index(store)
+    evidence = build_evidence(store, session, linkage=linkage)
     checks = []
     had_error = False
     for c in case.checks:
@@ -258,10 +308,14 @@ def run_evals(
     """
     cases = load_cases(evals_dir, packs_dir=packs_dir)
     case_results: list[dict[str, Any]] = []
+    needs_linkage = any(
+        ch.grader in LINKAGE_GRADERS for case in cases for ch in case.checks
+    )
     with SessionsStore(sessions_db) as store:
         schema_version = store.schema_info["schema_version"]
+        linkage = build_secret_index(store) if needs_linkage else None
         for case in cases:
-            case_results.append(evaluate_case(case, store))
+            case_results.append(evaluate_case(case, store, linkage=linkage))
 
     counts = {"pass": 0, "fail": 0, "skip": 0, "error": 0}
     for c in case_results:
