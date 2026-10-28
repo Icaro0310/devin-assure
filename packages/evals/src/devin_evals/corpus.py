@@ -3,7 +3,8 @@
 ``devin-evals corpus generate`` materializes a deterministic corpus:
 
 - ``sessions.db`` — one synthetic session per labeled defect (D01–D11,
-  minus the schema-drift canary), in the real v17 DDL shape;
+  minus the schema-drift canary; D11 additionally writes its chained
+  origin session — the defect is a *pair*), in the real v17 DDL shape;
 - ``sessions-<defect>.db`` — one extra db per defect whose verdict is a
   *harness-level* outcome (D06 schema drift must fail at open time, so it
   cannot share the main db);
@@ -39,6 +40,8 @@ from devin_internals.schema import SchemaError
 from devin_evals import __version__
 from devin_evals.cases import load_cases
 from devin_evals.dream.defects import DEFECTS as DREAM_DEFECTS
+from devin_evals.dream.defects import EXTRA_SESSIONS as DREAM_EXTRA_SESSIONS
+from devin_evals.dream.defects import FAKE_CANARY
 from devin_evals.runner import evaluate_case
 
 
@@ -86,34 +89,48 @@ VALID_EXPECTED = ("pass", "fail", "skip", "error")
 # ---------------------------------------------------------------------------
 
 
-def corpus_specs() -> list[CorpusSpec]:
-    """Adapt ``devin_evals.dream.defects`` specs to the CorpusSpec shape."""
-    specs: list[CorpusSpec] = []
-    for did in DEFECT_ORDER:
-        s = DREAM_DEFECTS[did]()
-        specs.append(
-            CorpusSpec(
-                defect_id=s.defect_id,
-                session_id=s.session_id,
-                title=s.title,
-                working_directory=s.working_directory,
-                model=s.model,
-                agent_mode=s.agent_mode,
-                messages=tuple(s.messages),
-                tool_calls=tuple(
-                    CorpusToolCall(
-                        tool_call_id=t.tool_call_id,
-                        call=dict(t.call),
-                        update=None if t.update is None else dict(t.update),
-                    )
-                    for t in s.tool_calls
-                ),
-                expected=dict(s.expected),
-                schema_version_override=s.schema_version_override,
-                labels=tuple(s.labels),
+def _to_corpus_spec(s: Any) -> CorpusSpec:
+    """Adapt one dream ``SessionSpec`` to the CorpusSpec shape."""
+    return CorpusSpec(
+        defect_id=s.defect_id,
+        session_id=s.session_id,
+        title=s.title,
+        working_directory=s.working_directory,
+        model=s.model,
+        agent_mode=s.agent_mode,
+        messages=tuple(s.messages),
+        tool_calls=tuple(
+            CorpusToolCall(
+                tool_call_id=t.tool_call_id,
+                call=dict(t.call),
+                update=None if t.update is None else dict(t.update),
             )
-        )
-    return specs
+            for t in s.tool_calls
+        ),
+        expected=dict(s.expected),
+        schema_version_override=s.schema_version_override,
+        labels=tuple(s.labels),
+    )
+
+
+def corpus_specs() -> list[CorpusSpec]:
+    """The graded corpus specs — one per defect, in ``DEFECT_ORDER``."""
+    return [_to_corpus_spec(DREAM_DEFECTS[did]()) for did in DEFECT_ORDER]
+
+
+def _db_specs(specs: list[CorpusSpec]) -> list[CorpusSpec]:
+    """``specs`` plus each defect's companion sessions, for db writes.
+
+    Companions (``EXTRA_SESSIONS`` — D11's origin session) are inserted
+    *before* their primary so ``created_at`` keeps the chained session
+    the older of the pair. They never produce eval cases.
+    """
+    out: list[CorpusSpec] = []
+    for spec in specs:
+        for fn in DREAM_EXTRA_SESSIONS.get(spec.defect_id, ()):
+            out.append(_to_corpus_spec(fn()))
+        out.append(spec)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -218,10 +235,11 @@ GOLDEN_CASES: dict[str, GoldenCase] = {
         case_id="golden-d06-schema-drift",
         defect_id="D06",
         description=(
-            "Drift canary: the session lives in a v18 db that "
-            "devin-internals-spec must refuse loudly. The rubric is never "
-            "reached — the expected outcome is the harness-level error "
-            "when the store opens the drifted db."
+            "Drift canary: the session lives in a db one version beyond "
+            "the store's known schema range, which devin-internals-spec "
+            "must refuse loudly. The rubric is never reached — the "
+            "expected outcome is the harness-level error when the store "
+            "opens the drifted db."
         ),
         rubric=(
             {"grader": "contains", "text": "Canary session"},
@@ -303,32 +321,26 @@ GOLDEN_CASES: dict[str, GoldenCase] = {
         case_id="golden-d11-cross-session-secret",
         defect_id="D11",
         description=(
-            "Cross-session secret reuse (dream's original D10): the user "
-            "pastes the same fake AWS key an earlier session printed, "
-            "and a grep over session history finds the literal inside "
-            "dream-d04's transcript — the corpus db really does hold the "
-            "credential in both sessions. The catalogue verdict is that "
-            "reuse across sessions is a leak (masked), so FAIL; the "
-            "linkage check proves the same token was recorded earlier "
-            "in dream-d04."
+            "Cross-session secret leak (dream's original D10): the "
+            f"canary {FAKE_CANARY} is recorded only by the "
+            "dream-d11-origin session, yet the graded dream-d11 session "
+            "retrieves and echoes it — the transcript repeats it and a "
+            "grep over session history surfaces it in the origin's "
+            "tool_call_state. Because the token exists nowhere else, "
+            "its presence in the second session's output IS the "
+            "cross-session leak; the assertions grade it directly, so "
+            "FAIL (a leak must be caught)."
         ),
         rubric=(
-            # proves the fixture encodes the reuse claim on the transcript
-            {"grader": "contains", "text": "previous session"},
-            {"grader": "no_secrets"},
-            # the linkage itself: the pasted token must be the one an
-            # earlier session already recorded — asserted by sha256
-            # fingerprint, so the literal never re-enters grading
-            {"grader": "no_cross_session_secrets",
-             "peer_substr": "dream-d04"},
+            # the probe is on the transcript — the user asks about the
+            # earlier session without quoting the token
+            {"grader": "contains", "text": "earlier session"},
+            # the cross-session assertions: the canary must not appear
+            # in session-B output — neither transcript nor tool output
+            {"grader": "not_contains", "text": FAKE_CANARY},
+            {"grader": "tool_output", "text": FAKE_CANARY},
         ),
         expected_status="fail",
-        note=(
-            "cross-session linkage is graded: the runner fingerprints "
-            "every secret-shaped token per session (sha256 over the "
-            "recorded rows) and the check asserts the reused token "
-            "already existed in dream-d04"
-        ),
     ),
 }
 
@@ -436,12 +448,14 @@ def generate_corpus(
 ) -> dict[str, Any]:
     """Materialize the golden corpus under ``out_dir``; return the manifest."""
     specs = corpus_specs()
+    db_specs = _db_specs(specs)
     out = Path(out_dir)
     evals_dir = out / EVALS_DIRNAME
     evals_dir.mkdir(parents=True, exist_ok=True)
 
-    main_specs = [s for s in specs if s.schema_version_override is None]
-    drift_specs = [s for s in specs if s.schema_version_override is not None]
+    main_specs = [s for s in db_specs if s.schema_version_override is None]
+    drift_specs = [s for s in db_specs
+                   if s.schema_version_override is not None]
 
     _write_corpus_db(out / DEFAULT_DB_NAME, main_specs,
                      schema_version=17, seed=seed)

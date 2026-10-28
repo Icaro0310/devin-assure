@@ -10,7 +10,12 @@ from pathlib import Path
 
 from devin_internals.schema import SchemaError
 
-from devin_evals.dream.defects import ADVERSARIAL, DEFECTS, UNIT_IDS
+from devin_evals.dream.defects import (
+    ADVERSARIAL,
+    DEFECTS,
+    EXTRA_SESSIONS,
+    UNIT_IDS,
+)
 from devin_evals.dream.generate import (
     build_fleet,
     write_expected,
@@ -36,8 +41,11 @@ def _cmd_unit(args: argparse.Namespace) -> int:
     out = Path(args.out)
     for did in ids:
         spec = DEFECTS[did]()
+        # chained companions (D11's origin session) go in first so the
+        # fixture's earlier session really is the older row
+        chained = [fn() for fn in EXTRA_SESSIONS.get(did, ())]
         ddir = out / did.lower()
-        write_sessions_db(ddir / "sessions.db", [spec],
+        write_sessions_db(ddir / "sessions.db", [*chained, spec],
                           schema_version=args.schema_version, seed=args.seed)
         ep = write_expected(ddir, spec)
         print(f"{did}: {ddir / 'sessions.db'} (+ {ep.name})")

@@ -4,7 +4,7 @@ import json
 
 import pytest
 from devin_evals.dream.cli import main
-from devin_evals.dream.defects import FAKE_AWS_KEY, UNIT_IDS
+from devin_evals.dream.defects import FAKE_AWS_KEY, FAKE_CANARY, UNIT_IDS
 from devin_evals.dream.generate import ARCHETYPES
 from devin_internals.commits import commit_references
 from devin_internals.parsers import SessionsStore, StateVscdbStore
@@ -22,8 +22,10 @@ def test_unit_generates_all_and_parses(tmp_path):
         exp = json.loads((db.parent / "expected.json").read_text())
         assert exp["defect"] == did and exp["expected"]
         with SessionsStore(db) as st:
-            assert len(st.sessions()) == 1
-            assert st.sessions()[0].id == exp["session_id"]
+            sessions = st.sessions()
+            # D11 ships a chained pair (origin + graded); others are solo
+            assert len(sessions) == (2 if did == "D11" else 1)
+            assert exp["session_id"] in {s.id for s in sessions}
             assert st.message_nodes()
 
 
@@ -66,22 +68,28 @@ def test_d10_claims_docs_but_writes_code(tmp_path):
     assert ".md" not in blobs  # the claim's file was never written
 
 
-def test_d11_reused_key_visible_in_transcript_and_tool(tmp_path):
-    """D11: the pasted credential lands in both the transcript (claim)
-    and the tool output (grep over earlier session history)."""
+def test_d11_chained_sessions_share_the_canary(tmp_path):
+    """D11 emits two chained sessions: the origin records the canary,
+    the graded session leaks it — transcript *and* tool output."""
     out = tmp_path / "u"
     main(["unit", "--out", str(out), "--defect", "D11"])
     with SessionsStore(out / "d11" / "sessions.db") as st:
+        assert {"dream-d11", "dream-d11-origin"} == {
+            s.id for s in st.sessions()}
         blobs = " ".join(
             (tc.tool_call_json or "") + (tc.tool_call_update_json or "")
             for tc in st.tool_call_state())
         transcript = " ".join(
             json.loads(n.chat_message).get("content", "")
             for n in st.message_nodes())
-    assert FAKE_AWS_KEY in transcript  # pasted, marked as reused
-    assert FAKE_AWS_KEY in blobs       # found again in earlier history
-    assert "previous session" in transcript
-    assert "dream-d04" in blobs        # the earlier carrier session
+        origin_rows = " ".join(
+            (tc.tool_call_update_json or "")
+            for tc in st.tool_call_state("dream-d11-origin"))
+    assert FAKE_CANARY in transcript    # echoed by the graded session
+    assert FAKE_CANARY in blobs         # grep over history surfaces it
+    assert FAKE_CANARY in origin_rows   # introduced by the earlier session
+    assert "earlier session" in transcript
+    assert "dream-d11-origin" in blobs  # the earlier carrier session
 
 
 def test_unknown_defect_is_usage_error(tmp_path):

@@ -14,7 +14,10 @@ from devin_evals.dream.cli import main
 from devin_evals.dream.defects import d01, d06
 from devin_evals.dream.generate import write_sessions_db
 from devin_evals.dream.replay import envelope_to_specs, replay_db
-from devin_internals.fixtures import create_sessions_db
+from devin_internals.fixtures import (
+    LATEST_KNOWN_SCHEMA,
+    create_sessions_db,
+)
 from devin_internals.parsers import SessionsStore
 
 _BASE_TS_MS = 1_780_000_000_000
@@ -153,7 +156,7 @@ def test_replay_anonymizes_everything(real_db, tmp_path):
     assert [m["parent_node_id"] for m in s["messages"]] == [None, 1, 1]
     assert len(s["tool_calls"]) == 2
     assert s["duration_ms"] == 240_000
-    assert s["stats"]["schema_version"] == 17
+    assert s["stats"]["schema_version"] == LATEST_KNOWN_SCHEMA
     # placeholders are hash-keyed, not sequential
     msg = s["messages"][0]["chat_message"]
     assert msg["role"] == "user"               # enum survives
@@ -221,7 +224,7 @@ def test_replay_corrupt_db_fails_loudly(tmp_path, capsys):
 
 
 def test_replay_unknown_schema_fails_loudly(tmp_path, capsys):
-    db = write_sessions_db(tmp_path / "drift.db", [d06()])  # v18
+    db = write_sessions_db(tmp_path / "drift.db", [d06()])  # beyond known
     assert main(["replay", str(db)]) == 2
     assert "unknown" in capsys.readouterr().err.lower()
 
