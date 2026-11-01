@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **CI** — `actions/setup-python` bumped from v5 to v7 in
+  `evals-action.yml`, `release.yml` and the root `action.yml`
+  (dependabot).
 - **CI** — `pr-approve` caller repinned from v1.6 to v1.9 in
   `auto-approve.yml` (the v1.9 gate fixes the self-cancel so a
   successful approval no longer renders as a failed check, and adds
