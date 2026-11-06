@@ -76,3 +76,4 @@ under `packages/<name>/`.
 <!-- lane-b e2e probe 2026-11-06 -->
 <!-- lane-b e2e probe 2 -->
 <!-- lane-b e2e probe 3 - tag:qwenpaw -->
+<!-- pending-coverage e2e probe 1793961266 -->
