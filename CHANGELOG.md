@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **CI** — `docker/setup-buildx-action` bumped from 3.12.0 to 4.4.1 in
+  `docker-publish.yml` (dependabot).
 - **CI** — `pr-approve` caller repinned from v1.6 to v1.9 in
   `auto-approve.yml` (the v1.9 gate fixes the self-cancel so a
   successful approval no longer renders as a failed check, and adds
