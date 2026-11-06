@@ -7,12 +7,9 @@ name: evals-action (satellite smoke)
 # real corpus must pass clean.
 
 on:
-  pull_request:
-    paths:
-      - 'packages/evals/**'
-      - '.github/workflows/evals-action.yml'
   push:
     branches: [main]
+  # pull_request testing now lives in ci.yml (job-level path gating + ci-gate aggregator)
 
 permissions:
   contents: read
