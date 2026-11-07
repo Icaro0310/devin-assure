@@ -33,7 +33,7 @@ Use `--data-dir`/`--sessions-db` for non-default locations.
 - **Shell:** PowerShell 7 + Windows Terminal is the recommended setup; every command also works in `cmd.exe` and Windows PowerShell 5.1, none require admin.
 - **Install location:** executables live under `%USERPROFILE%\.local\bin`; data under `%APPDATA%\devin`. Nothing touches `Program Files` or the registry.
 - **WSL:** treat it as a Linux machine, follow [README.linux.md](README.linux.md) inside it.
-- **Uninstall:** `uv tool uninstall <package>` (or `npm uninstall -g` for a Node.js tool) removes the CLI; delete `%APPDATA%\devin` to remove local data. No services or scheduled tasks are left behind.
+- **Uninstall:** `uv tool uninstall <package>` (or `npm uninstall -g` for a Node.js tool) removes the CLI; delete `%APPDATA%\devin` to remove local data. If you ran `devin-qa-pack install --daily`, also remove the scheduled task it registered: `schtasks /delete /tn devin-qa-pack-audit-daily /f`.
 
 ## Troubleshooting
 
