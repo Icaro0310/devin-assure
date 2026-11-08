@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **CI** — `pypi-publish.yml` verifier pin updated (pinned build,
+  Twine, and packaging installs replace floating installs); publish
+  gate unchanged (Dependabot PR #127).
 - **CI** — `pr-approve` caller repinned from v1.6 to v1.9 in
   `auto-approve.yml` (the v1.9 gate fixes the self-cancel so a
   successful approval no longer renders as a failed check, and adds
