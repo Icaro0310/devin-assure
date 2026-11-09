@@ -36,3 +36,13 @@ def test_gate_pin_is_v1_14() -> None:
     job = _load()["jobs"]["approve"]
     uses = job["uses"]
     assert uses == GATE_PIN + "v1.14"
+
+
+def test_gate_permissions_allow_auto_merge_arm() -> None:
+    """v1.14+ arms ``gh pr merge --auto`` after approval — the caller
+    must grant ``contents: write`` at both workflow and job level or
+    the arm step fails closed."""
+    wf = _load()
+    assert wf["permissions"]["contents"] == "write"
+    perms = wf["jobs"]["approve"]["permissions"]
+    assert perms == {"contents": "write", "pull-requests": "write"}
