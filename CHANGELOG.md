@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **CI** — `pr-approve` caller bumped to `devin-powerups` `@v1.14`:
+  the gate arms auto-merge (`gh pr merge --auto`) after approval,
+  which requires `contents: write` in the caller — both workflow- and
+  job-level `contents` permissions raised from `read` to `write`;
+  `test_auto_approve_workflow.py` pins the v1.14 contract including
+  the new permission.
 - **CI** — `pr-approve` caller repinned from v1.6 to v1.9 in
   `auto-approve.yml` (the v1.9 gate fixes the self-cancel so a
   successful approval no longer renders as a failed check, and adds
