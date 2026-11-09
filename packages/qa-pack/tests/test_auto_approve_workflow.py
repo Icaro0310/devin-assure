@@ -31,8 +31,8 @@ def test_review_comment_trigger_re_evaluates_gate() -> None:
     assert _load()["on"]["pull_request_review_comment"]["types"] == ["created"]
 
 
-def test_gate_pin_is_v1_12() -> None:
+def test_gate_pin_is_v1_14() -> None:
     """The pin must be exact so a silent downgrade is caught here."""
     job = _load()["jobs"]["approve"]
     uses = job["uses"]
-    assert uses == GATE_PIN + "v1.12"
+    assert uses == GATE_PIN + "v1.14"
