@@ -31,17 +31,18 @@ def test_review_comment_trigger_re_evaluates_gate() -> None:
     assert _load()["on"]["pull_request_review_comment"]["types"] == ["created"]
 
 
-def test_gate_pin_is_v1_14() -> None:
+def test_gate_pin_is_v1_16() -> None:
     """The pin must be exact so a silent downgrade is caught here."""
     job = _load()["jobs"]["approve"]
     uses = job["uses"]
-    assert uses == GATE_PIN + "v1.14"
+    assert uses == GATE_PIN + "v1.16"
 
 
 def test_gate_permissions_allow_auto_merge_arm() -> None:
-    """v1.14+ arms ``gh pr merge --auto`` after approval — the caller
-    must grant ``contents: write`` at both workflow and job level or
-    the arm step fails closed."""
+    """v1.16 arms ``gh pr merge --auto`` from the dedicated
+    ``arm-auto-merge`` job after approval — the caller must grant
+    ``contents: write`` at both workflow and job level or the arm
+    step fails closed."""
     wf = _load()
     assert wf["permissions"]["contents"] == "write"
     perms = wf["jobs"]["approve"]["permissions"]
