@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `tests/test_review_fallback.py` realigned with the
+  `devin-review-fallback` contract after lane A (Ollama
+  `review-a`/`review-b`) was retired: the pipeline is now
+  `classify -> static-scan + judge -> coverage`, `static-scan` is
+  advisory (never gates), the judge verdict decides coverage —
+  approve `COVERED`/`success`, reject `failure`, gate error
+  `action_required`, verdict-in-flight `in_progress`/`pending`.
 - Claim extraction now applies clause-scoped negation to **every** claim
   kind, not only `delegation` — a denied cue ("tests did not pass",
   "didn't push to origin", "coverage is not 87%") no longer produces a

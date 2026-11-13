@@ -1,6 +1,6 @@
 """Integration coverage for the sibling ``devin-review-fallback`` repo.
 
-The reusable pipeline (``classify -> review-a -> review-b -> coverage``)
+The reusable pipeline (``classify -> static-scan + judge -> coverage``)
 lives in its own checkout next to ``devin-assure`` — new consumer repos
 are expected to wire it in via ``examples/caller.yml``, so the pack pins
 the contract those callers rely on:
@@ -10,14 +10,18 @@ the contract those callers rely on:
   from a credit-exhausted skip — both post ``state: success``, only the
   ``description`` differs. Exercised here as a subprocess against a stub
   ``gh`` serving canned ``/status`` payloads; nothing hits the network.
-- ``publish-review-coverage.py`` must turn reviewer outcomes into an
-  honest verdict: full fallback coverage is ``success``, exactly one
-  reviewer is ``action_required``/``DEGRADED`` (never green — that is
-  the skipped-as-success bug one layer down), none is ``failure``.
-- ``ai-review-fallback.yml`` must keep ``review-b`` serialized after
-  ``review-a`` — a single-slot Ollama cannot serve two reviewers at
-  once; reverting that ``needs`` reintroduces the queue-into-timeout
-  failure mode.
+- ``publish-review-coverage.py`` must turn the judge verdict into an
+  honest outcome: approve is ``success``/``COVERED``, reject is
+  ``failure`` (terminal — advisory evidence cannot clear it), a gate
+  error is ``action_required``, and a verdict still in flight stays
+  ``in_progress``/``pending`` — pending is not a failure; the
+  laptop-side watcher completes the check when ``devin-judge/review``
+  lands.
+- ``ai-review-fallback.yml`` must keep ``static-scan`` advisory (it
+  never gates coverage) while ``judge`` — the decider — polls the
+  ``devin-judge/review`` commit status posted by the watcher. Lane A
+  (Ollama ``review-a``/``review-b``) was retired 2026-11: a 1.5B model
+  is an intern for static data, not a PR decider.
 
 Resolution order for the checkout: ``$DEVIN_REVIEW_FALLBACK_ROOT``, then
 ``<devin-assure>/../devin-review-fallback``. The whole module skips when
@@ -340,22 +344,36 @@ def _run_publish(
 
 
 @pytest.mark.parametrize(
-    ("devin", "a", "b", "verdict", "conclusion"),
+    ("devin", "a", "b", "verdict", "status", "conclusion"),
     [
         # primary reviewer ran — fallbacks skipped, still covered
-        ("EXECUTED", "SKIPPED", "SKIPPED", "EXECUTED", "success"),
-        # full fallback coverage
-        ("UNVERIFIED", "EXECUTED", "EXECUTED", "COVERED", "success"),
-        ("SKIPPED_CREDITS", "EXECUTED", "EXECUTED", "COVERED", "success"),
-        # exactly one reviewer ran — partial evidence, human call
-        ("UNVERIFIED", "EXECUTED", "FAILED", "DEGRADED", "action_required"),
-        ("UNVERIFIED", "FAILED", "EXECUTED", "DEGRADED", "action_required"),
-        ("FAILED_BEFORE_REVIEW", "EXECUTED", "UNAVAILABLE", "DEGRADED",
-         "action_required"),
-        # nothing ran — no review evidence at all
-        ("UNVERIFIED", "FAILED", "FAILED", "FAILURE", "failure"),
-        ("SKIPPED_CREDITS", "UNAVAILABLE", "UNAVAILABLE", "FAILURE",
+        ("EXECUTED", "SKIPPED", "SKIPPED", "EXECUTED", "completed",
+         "success"),
+        # devin=EXECUTED wins even over a queued judge reject — the
+        # primary review already covered this head
+        ("EXECUTED", "DISABLED", "REJECTED", "EXECUTED", "completed",
+         "success"),
+        # judge approved — coverage is judge-only since lane A retired
+        ("UNVERIFIED", "DISABLED", "EXECUTED", "COVERED", "completed",
+         "success"),
+        ("SKIPPED_CREDITS", "DISABLED", "EXECUTED", "COVERED",
+         "completed", "success"),
+        # judge rejected — terminal; advisory evidence cannot clear it
+        ("UNVERIFIED", "EXECUTED", "REJECTED", "FAILURE", "completed",
          "failure"),
+        # judge ran and errored — a human decides, nothing is approved
+        ("UNVERIFIED", "DISABLED", "ERROR", "ACTION_REQUIRED",
+         "completed", "action_required"),
+        ("FAILED_BEFORE_REVIEW", "DISABLED", "ERROR", "ACTION_REQUIRED",
+         "completed", "action_required"),
+        # no judge verdict yet — pending is not a failure: the watcher
+        # completes the check run when devin-judge/review lands
+        ("UNVERIFIED", "DISABLED", "UNAVAILABLE", "PENDING",
+         "in_progress", "None"),
+        ("SKIPPED_CREDITS", "DISABLED", "SKIPPED", "PENDING",
+         "in_progress", "None"),
+        ("FAILED_BEFORE_REVIEW", "DISABLED", "UNAVAILABLE", "PENDING",
+         "in_progress", "None"),
     ],
 )
 def test_publish_verdict_table(
@@ -364,6 +382,7 @@ def test_publish_verdict_table(
     a: str,
     b: str,
     verdict: str,
+    status: str,
     conclusion: str,
 ) -> None:
     proc, _ = _run_publish(
@@ -371,6 +390,8 @@ def test_publish_verdict_table(
         ["--devin", devin, "--a", a, "--b", b, "--dry-run"],
     )
     assert _stdout_key(proc, "verdict") == verdict
+    assert _stdout_key(proc, "status") == status
+    # in_progress runs carry no conclusion — the script prints "None"
     assert _stdout_key(proc, "conclusion") == conclusion
 
 
@@ -420,25 +441,50 @@ def test_publish_blocking_findings_stay_success(tmp_path: Path) -> None:
     assert "findings=blocking" in _stdout_key(proc, "description")
 
 
-def test_publish_degraded_posts_action_required_check_and_pending_status(
+def test_publish_error_posts_action_required_check_and_pending_status(
     tmp_path: Path,
 ) -> None:
-    """The published surfaces must agree on 'not green': the check run
-    (gate's source of truth) is ``action_required`` and the commit-status
-    mirror is ``pending`` — a DEGRADED ``success`` status would reopen
-    the skipped-as-success hole."""
+    """b=ERROR is terminal but not a code failure: the published
+    surfaces must agree on 'not green' — the check run (gate's source
+    of truth) completes ``action_required`` and the commit-status
+    mirror is ``pending``, since statuses have no action_required."""
     proc, log = _run_publish(
         tmp_path,
-        ["--devin", "UNVERIFIED", "--a", "EXECUTED", "--b", "FAILED"],
+        ["--devin", "UNVERIFIED", "--a", "DISABLED", "--b", "ERROR"],
         stub=True,
     )
     assert proc.returncode == 0, proc.stderr
     calls = log.read_text(encoding="utf-8").splitlines()
     check = next(c for c in calls if "check-runs" in c)
     status = next(c for c in calls if "/statuses/" in c)
+    assert "status=completed" in check
     assert "conclusion=action_required" in check
     assert "name=Review Coverage" in check
-    assert "DEGRADED" in check
+    assert "ACTION_REQUIRED" in check
+    assert "state=pending" in status
+    assert "context=Review Coverage" in status
+
+
+def test_publish_pending_verdict_posts_in_progress_check(
+    tmp_path: Path,
+) -> None:
+    """A judge verdict still in flight is pending, not a failure: the
+    check run stays ``in_progress`` with NO conclusion field — the
+    watcher completes it when ``devin-judge/review`` lands — and the
+    status mirror is ``pending``. Posting a terminal conclusion here
+    would either fake coverage (success) or blame the code (failure)."""
+    proc, log = _run_publish(
+        tmp_path,
+        ["--devin", "UNVERIFIED", "--a", "DISABLED", "--b", "UNAVAILABLE"],
+        stub=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    calls = log.read_text(encoding="utf-8").splitlines()
+    check = next(c for c in calls if "check-runs" in c)
+    status = next(c for c in calls if "/statuses/" in c)
+    assert "status=in_progress" in check
+    assert "conclusion=" not in check
+    assert "name=Review Coverage" in check
     assert "state=pending" in status
     assert "context=Review Coverage" in status
 
@@ -477,35 +523,41 @@ def test_workflow_is_reusable_only() -> None:
 
 
 def test_pipeline_shape() -> None:
-    assert {"classify", "review-a", "review-b", "coverage"} <= set(_jobs())
+    assert {"classify", "static-scan", "judge", "coverage"} <= set(_jobs())
 
 
-def test_reviewers_wait_for_classify() -> None:
-    """The fallback reviewers only pay for a PR the primary reviewer did
-    not cover — they must gate on the classifier's output."""
-    assert _jobs()["review-a"]["needs"] == "classify"
-    for job in ("review-a", "review-b"):
+def test_retired_reviewer_lanes_are_gone() -> None:
+    """Lane A (Ollama) was retired 2026-11 — a 1.5B model is advisory
+    for static data, never a PR decider; the ``review-a``/``review-b``
+    job names must not reappear under the retired contract."""
+    assert "review-a" not in _jobs()
+    assert "review-b" not in _jobs()
+
+
+def test_fallback_lanes_wait_for_classify() -> None:
+    """The fallback lanes only pay for a PR the primary reviewer did
+    not cover — they must gate on the classifier's output, and
+    ``always()`` keeps their outcomes honest when classify itself had
+    a rough ride."""
+    for job in ("static-scan", "judge"):
+        assert _jobs()[job]["needs"] == "classify"
+        assert "always()" in _jobs()[job]["if"]
         assert "needs.classify.outputs.state != 'EXECUTED'" in _jobs()[
             job
         ]["if"]
 
 
-def test_review_b_serialized_after_review_a() -> None:
-    """Regression guard for the single-slot Ollama fix: B needs A, not
-    just classify — two concurrent reviewers queue into their own
-    request timeouts on ``-np 1`` endpoints."""
-    assert set(_jobs()["review-b"]["needs"]) == {"classify", "review-a"}
-
-
-def test_review_b_runs_even_when_a_fails() -> None:
-    """``always()`` keeps B's outcome honest when A failed — without it
-    a skipped B would read as coverage that never happened."""
-    assert "always()" in _jobs()["review-b"]["if"]
+def test_judge_does_not_depend_on_static_scan() -> None:
+    """static-scan is advisory evidence only — the judge (the decider)
+    must not wait on it, or a stuck scan would pin the verdict."""
+    assert _jobs()["judge"]["needs"] == "classify"
 
 
 def test_coverage_collects_every_leg() -> None:
+    """Coverage waits on classify + judge only — static-scan is
+    advisory and must never gate the verdict."""
     job = _jobs()["coverage"]
-    assert sorted(job["needs"]) == ["classify", "review-a", "review-b"]
+    assert sorted(job["needs"]) == ["classify", "judge"]
     assert "always()" in job["if"]
 
 
@@ -518,11 +570,13 @@ def test_coverage_can_publish_both_surfaces() -> None:
     assert perms["statuses"] == "write"
 
 
-def test_reviewer_jobs_are_bounded() -> None:
-    """An unbounded reviewer pins the coverage gate for the 6h platform
-    default when the tailnet or model sticks."""
-    assert _jobs()["review-a"]["timeout-minutes"] == 10
-    assert _jobs()["review-b"]["timeout-minutes"] == 15
+def test_lane_jobs_are_bounded() -> None:
+    """An unbounded lane pins the coverage gate for the 6h platform
+    default when a scanner or the judge poll sticks. The judge timeout
+    must stay comfortably above the ``judge-wait-minutes`` input
+    default (5) or the poll deadline never fires."""
+    assert _jobs()["static-scan"]["timeout-minutes"] == 15
+    assert _jobs()["judge"]["timeout-minutes"] == 30
 
 
 def test_every_action_is_sha_pinned() -> None:
