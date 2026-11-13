@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
+import builtins
 import json
 import sys
 import types
-
-import pytest
 
 from devin_qa_pack import ledger_audit
 
 
 def test_run_without_devin_memory_reports_install_hint():
     """No devin-memory installed → clear error dict, not an exception."""
-    pytest.importorskip  # keep pytest import used
     # Force the ImportError path regardless of the ambient environment.
     real_import = __import__
 
@@ -22,7 +20,6 @@ def test_run_without_devin_memory_reports_install_hint():
             raise ImportError("blocked for test")
         return real_import(name, *a, **k)
 
-    import builtins
     builtins.__import__ = _blocked
     try:
         rep = ledger_audit.run()

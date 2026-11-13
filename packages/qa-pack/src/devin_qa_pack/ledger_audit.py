@@ -35,7 +35,6 @@ def run(parked_days: int = 7, ledger_dir: str | None = None) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
-    import sys
 
     ap = argparse.ArgumentParser(prog="devin-qa-pack ledger-audit")
     ap.add_argument("--parked-days", type=int, default=7,
