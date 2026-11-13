@@ -266,6 +266,16 @@ def _build_parser() -> argparse.ArgumentParser:
         choices=["auto", "cron", "tasksch", "elapsed"],
     )
     inst.add_argument("--json", action="store_true", help="JSON output")
+    la = sub.add_parser(
+        "ledger-audit",
+        help="open-loop audit of the task ledger "
+        "(optional: pip install 'devin-qa-pack[ledger]')",
+    )
+    la.add_argument("--parked-days", type=int, default=7,
+                    help="parked tasks older than N days are overdue")
+    la.add_argument("--ledger-dir", metavar="PATH", default=None,
+                    help="override ledger store path (default: XDG)")
+    la.add_argument("--json", action="store_true", help="JSON output")
     return parser
 
 
@@ -621,6 +631,14 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_session_end(args)
     if args.command == "install":
         return _cmd_install(args)
+    if args.command == "ledger-audit":
+        from devin_qa_pack.ledger_audit import main as _ledger_main
+        argv = ["--parked-days", str(args.parked_days)]
+        if args.ledger_dir:
+            argv += ["--ledger-dir", args.ledger_dir]
+        if args.json:
+            argv.append("--json")
+        return _ledger_main(argv)
     _build_parser().print_help()
     return 2
 

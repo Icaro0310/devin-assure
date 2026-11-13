@@ -312,6 +312,19 @@ wheels = [
 ]
 
 [[package]]
+name = "devin-memory"
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "devin-internals-spec" },
+    { name = "devin-redact" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ad/00/586765553d97d0cbb511b8795f81930add472cf0c773b5ad3375f10fa3b1/devin_memory-0.4.0.tar.gz", hash = "sha256:6e649fceb8931efdf2c479d332ca973df60d63b2d5da2f59e057c8950d5c6797", size = 137342, upload-time = "2026-11-13T14:05:14.937Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/98/3f/2a2ea6554a7a897bb40fc48210a75cd0eed4d6dfc39474fe4d7891a7f7d6/devin_memory-0.4.0-py3-none-any.whl", hash = "sha256:47c3756f16a8ddca30250c5a0b90a84cdc924effd4da804da91a4fa5e30bcecc", size = 95046, upload-time = "2026-11-13T14:05:13.62Z" },
+]
+
+[[package]]
 name = "devin-metrics"
 version = "0.2.1"
 source = { editable = "packages/metrics" }
@@ -337,7 +350,7 @@ provides-extras = ["dev", "mcp"]
 
 [[package]]
 name = "devin-qa-pack"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "packages/qa-pack" }
 dependencies = [
     { name = "devin-install-scheduler" },
@@ -350,6 +363,9 @@ dev = [
     { name = "pytest" },
     { name = "pyyaml" },
 ]
+ledger = [
+    { name = "devin-memory" },
+]
 mcp = [
     { name = "mcp" },
 ]
@@ -358,12 +374,13 @@ mcp = [
 requires-dist = [
     { name = "devin-install-scheduler", specifier = ">=0.1.0" },
     { name = "devin-internals-spec", specifier = ">=0.3.0,<0.4.0" },
+    { name = "devin-memory", marker = "extra == 'ledger'", specifier = ">=0.4.0" },
     { name = "devin-redact", specifier = ">=0.2.0,<0.3.0" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pyyaml", marker = "extra == 'dev'", specifier = ">=6" },
 ]
-provides-extras = ["dev", "mcp"]
+provides-extras = ["dev", "mcp", "ledger"]
 
 [[package]]
 name = "devin-redact"

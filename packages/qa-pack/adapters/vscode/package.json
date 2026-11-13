@@ -1,11 +1,11 @@
 {
   "name": "devin-qa-pack",
   "displayName": "devin-qa-pack",
-  "description": "QA audits for Devin sessions, inside the editor. Thin adapter: the extension shells out to the devin-qa-pack CLI and renders the result — no audit logic is reimplemented here.",
-  "version": "0.3.0",
+  "description": "QA audits for Devin sessions, inside the editor. Thin adapter: the extension shells out to the devin-qa-pack CLI and renders the result \u2014 no audit logic is reimplemented here.",
+  "version": "0.4.0",
   "publisher": "icaro0310",
   "license": "MIT",
-  "devin-qa-pack-cli": ">=0.1.2,<0.4",
+  "devin-qa-pack-cli": ">=0.1.2,<0.5",
   "repository": {
     "type": "git",
     "url": "https://github.com/Icaro0310/devin-assure.git",
@@ -76,7 +76,7 @@
             "type": "string"
           },
           "default": [],
-          "description": "Extra CLI args appended to every devin-qa-pack call (e.g. [\"--sessions-db\", \"…\"]). Network/evidence-mode flags — --online, --allow-domain, --transcript, --source — are filtered out: this surface stays offline and read-only."
+          "description": "Extra CLI args appended to every devin-qa-pack call (e.g. [\"--sessions-db\", \"\u2026\"]). Network/evidence-mode flags \u2014 --online, --allow-domain, --transcript, --source \u2014 are filtered out: this surface stays offline and read-only."
         }
       }
     }
