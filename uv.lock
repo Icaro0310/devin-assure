@@ -350,7 +350,7 @@ provides-extras = ["dev", "mcp"]
 
 [[package]]
 name = "devin-qa-pack"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "packages/qa-pack" }
 dependencies = [
     { name = "devin-install-scheduler" },
