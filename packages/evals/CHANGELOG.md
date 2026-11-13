@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Committed golden corpus regenerated against `devin-internals-spec`
+  0.3.4 (`uv.lock` 0.3.3→0.3.4). The 0.3.4 release taught
+  `create_sessions_db` the field-inspected v18–v20 schema deltas, so the
+  D06 canary (`LATEST_KNOWN_SCHEMA + 1` = 21) now produces a different
+  `sessions-d06.db` than the one committed under 0.3.3 — the `--check`
+  drift gate went red in every environment resolving the newer spec.
 - **D06 schema-drift canary survives upstream schema bumps.** It wrote a
   hardcoded `schema_version_override=18` because v18 was beyond the
   store's known range — when `devin-internals-spec` 0.3.3 learned v18
