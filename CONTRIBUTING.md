@@ -12,10 +12,18 @@
 
 ## Setup
 
+This repo is a uv workspace (`packages/*` members, shared root venv).
+A bare `uv sync` resolves only the root project and **prunes member
+packages and extras** (e.g. `pyyaml` for qa-pack tests) from `.venv` —
+sync the whole workspace instead:
+
 ```bash
-pip install -e ".[dev]"
-pytest
+uv sync --all-packages --all-extras
+uv run pytest packages/evals/tests packages/metrics/tests packages/qa-pack/tests
 ```
+
+A single package can also be installed standalone:
+`pip install -e "packages/evals[dev]"` etc.
 
 ## Before opening a PR
 
