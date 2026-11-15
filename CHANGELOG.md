@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **CI** — `sigstore/cosign-installer` bumped from `4.1.2` to `4.1.3`
+  in `docker-publish.yml` (Dependabot).
 - **CI** — `pr-approve` caller bumped to `devin-powerups` `@v1.16`:
   the auto-merge arm moved into a dedicated `arm-auto-merge` job
   inside the reusable so the approve path runs read-only again;
