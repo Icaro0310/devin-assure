@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-16
+
+### Added
+
+- `devin-qa-pack audit-ledger` — semantic audit of `done` task-ledger
+  claims (DL-f540). Distinct from `ledger-audit` (open-loop health):
+  this re-verifies the done claims themselves in two layers.
+  Deterministic anchors resolve `commit:`/`file:`/`url:`/`pr:` evidence
+  tokens against `--repo` (repeatable — ledgers span repos; `missing`
+  only when no candidate disproves it; `file:` under the temp dir is
+  EPHEMERAL; `url:`/`pr:` stay UNVERIFIED offline, `--online`
+  HEAD-checks `url:` best-effort). An optional semantic layer
+  (`devin-qa-pack[judge]` → poordjaevin, backend via
+  `POORDJAEVIN_BACKEND`, default `acp`) asks one Noul per
+  declared-met acceptance criterion plus a contradiction probe, mapped
+  by a deterministic fail-safe rule. Verdicts PASS / PARTIAL /
+  UNVERIFIED / VIOLATION; exit 0 all-PASS · 1 any non-PASS · 2 could
+  not run. `--task`, `--limit`, `--no-judge`, `--json`.
+
+## [0.4.0] - 2026-11-13
+
 ### Added
 
 - `report --redact` masks secrets, tokens and credentials in the
