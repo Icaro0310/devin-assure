@@ -481,6 +481,8 @@ def test_judge_backend_error_circuits_remaining_tasks(monkeypatch):
     assert len(client.calls) == 1  # circuit breaker: one failure only
     assert all(t["judge"]["state"] == "unavailable" for t in rep["tasks"])
     assert all(t["verdict"] == audit_ledger.UNVERIFIED for t in rep["tasks"])
+    # the summary must not keep claiming the judge is available
+    assert rep["judge"]["available"] is False
 
 
 def test_judge_only_asks_declared_met_criteria(monkeypatch):
@@ -526,6 +528,50 @@ def test_anchor_violation_wins_over_judge(monkeypatch, git_repo):
 # ---------------------------------------------------------------------------
 # output shape + exit codes + CLI wiring
 # ---------------------------------------------------------------------------
+
+
+def test_url_alive_refuses_non_global_destinations(monkeypatch):
+    """SSRF guard: ledger-controlled URLs must not reach internal
+    services — loopback/private hosts and non-http schemes die before
+    any request is attempted."""
+    assert audit_ledger._url_alive("http://127.0.0.1:8080/internal") is False
+    assert audit_ledger._url_alive("http://[::1]/x") is False
+    assert audit_ledger._url_alive("file:///etc/passwd") is False
+    assert audit_ledger._url_alive("gopher://example.com/") is False
+
+
+def test_build_judge_authorizes_remote_backend(monkeypatch):
+    """ACP is the sanctioned free backend of this ecosystem — the
+    default closed Policy denied it (is_remote=True) so the judge died
+    on the first ask. The client must be built with an explicit remote
+    authorization."""
+    captured = {}
+
+    class _Policy:
+        def __init__(self, allow_remote=False):
+            self.allow_remote = allow_remote
+
+    class _Client:
+        def __init__(self, **kw):
+            captured.update(kw)
+
+    class _Backend:
+        is_remote = True
+
+    mod = types.ModuleType("poordjaevin")
+    mod.Client = _Client
+    srv = types.ModuleType("poordjaevin.mcp_server")
+    srv._select_backend = lambda: _Backend()
+    pol = types.ModuleType("poordjaevin.policy")
+    pol.Policy = _Policy
+    monkeypatch.setitem(sys.modules, "poordjaevin", mod)
+    monkeypatch.setitem(sys.modules, "poordjaevin.mcp_server", srv)
+    monkeypatch.setitem(sys.modules, "poordjaevin.policy", pol)
+
+    client, _name, detail = audit_ledger._build_judge()
+    assert detail is None
+    assert isinstance(client, _Client)
+    assert captured["policy"].allow_remote is True
 
 
 def test_json_shape(monkeypatch, git_repo, capsys):

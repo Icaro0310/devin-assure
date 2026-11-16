@@ -56,8 +56,11 @@ import math
 import os
 import re
 import subprocess
+import ipaddress
+import socket
 import tempfile
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -259,11 +262,11 @@ def _resolve_file(
     # ephemeral check — ``Path.resolve()`` would anchor them at the
     # process CWD, and a qa-pack run inside a ``/tmp`` worktree would
     # falsely mark repo files EPHEMERAL.
-    looks_absolute = (
-        p.is_absolute()
-        or val.startswith(("/", "\\"))
-        or bool(getattr(p, "drive", ""))
-    )
+    looks_absolute = p.is_absolute() or val.startswith("/")
+    # Not absolutes: ``D:docs/x`` (drive-relative) and ``\\docs\\x``
+    # (root-relative to the current drive) — on Windows they anchor at
+    # the current directory/drive, so they must fall through to the
+    # repo-join below instead of checking a bogus standalone path.
     # Volatile-temp evidence is EPHEMERAL on every platform: a
     # ``/tmp/...`` token written on Linux stays volatile even when the
     # audit runs on Windows.
@@ -306,17 +309,35 @@ def _exists_status(p: Path) -> str:
         return "unverified"
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """Ledger URLs must not pivot the audit into an internal service
+    via a 30x hop — the redirect target itself is never requested."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def _url_alive(url: str) -> bool:
     """Best-effort HEAD check for ``--online``. Any failure — DNS,
     timeout, 4xx/5xx, non-http scheme — is UNVERIFIED, never missing:
-    a network error does not prove the evidence is false."""
+    a network error does not prove the evidence is false. Destinations
+    are restricted: http(s) only, the host must resolve exclusively to
+    globally-routable addresses (loopback/private/link-local refused),
+    and redirects are never followed."""
     try:
+        parts = urllib.parse.urlsplit(url)
+        if parts.scheme not in ("http", "https") or not parts.hostname:
+            return False
+        for info in socket.getaddrinfo(parts.hostname, None):
+            if not ipaddress.ip_address(info[4][0]).is_global:
+                return False
         req = urllib.request.Request(
             url,
             method="HEAD",
             headers={"User-Agent": f"devin-qa-pack/{__version__}"},
         )
-        with urllib.request.urlopen(req, timeout=_URL_TIMEOUT) as r:
+        opener = urllib.request.build_opener(_NoRedirect)
+        with opener.open(req, timeout=_URL_TIMEOUT) as r:
             return 200 <= r.status < 400
     except urllib.error.HTTPError as exc:
         return 200 <= exc.code < 400
@@ -422,8 +443,17 @@ def _build_judge() -> tuple[Any, str | None, str | None]:
     except Exception as exc:  # noqa: BLE001 - unresolvable backend = unavailable
         return None, None, f"backend selection failed: {exc}"
     try:
+        from poordjaevin.policy import Policy
+
+        # The ACP backend is the sanctioned free model of this
+        # ecosystem (same Devin credentials as the rest of the
+        # tooling) — remote use is deliberate here, not incidental.
         return (
-            Client(backend=backend, abstain_threshold=JUDGE_ABSTAIN),
+            Client(
+                backend=backend,
+                abstain_threshold=JUDGE_ABSTAIN,
+                policy=Policy(allow_remote=True),
+            ),
             backend_name,
             None,
         )
@@ -769,7 +799,9 @@ def run(
         "repos": [str(rp) for rp in repo_paths],
         "judge": {
             "enabled": judge,
-            "available": client is not None,
+            # judge_ctx, not the initial client — a mid-run backend
+            # failure clears the reference via the circuit breaker.
+            "available": judge_ctx["client"] is not None,
             "backend": backend_name,
             "detail": judge_ctx["detail"] if judge else None,
         },
