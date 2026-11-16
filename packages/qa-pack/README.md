@@ -153,6 +153,15 @@ devin-qa-pack audit --transcript ~/.claude/projects/<slug>/<id>.jsonl
 # (needs $DEVIN_API_KEY — a cog_ service-user key or PAT)
 export DEVIN_API_KEY=cog_...
 devin-qa-pack audit --source mcp --session <cloud-session-id>
+
+# semantic audit of DONE task-ledger claims (DL-f540) — distinct from
+# `ledger-audit` (open-loop health): this re-verifies the done claims.
+# --repo is repeatable: ledgers span repos; an anchor is only missing
+# when no candidate repo disproves it.
+devin-qa-pack audit-ledger --repo . --repo ../other-repo --no-judge
+
+# same, one task, JSON output
+devin-qa-pack audit-ledger --task DL-152 --json
 ```
 
 Real output, on the synthetic fixture from the quick start:

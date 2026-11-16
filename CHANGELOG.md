@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- **qa-pack** — audit-ledger hardening (Devin Review #140): the
+  semantic judge now authorizes the remote ACP backend explicitly
+  (poordjaevin's closed default `Policy` had made it permanently
+  unavailable); `--online` checks only http(s) URLs whose hosts
+  resolve exclusively to globally-routable addresses and never
+  follow redirects; `judge.available` in the report follows the
+  circuit breaker; Windows drive-relative (`D:x`) and root-relative
+  (`\x`) evidence tokens join the repo candidates instead of being
+  treated as absolute.
 - **CI** — `pr-approve` caller bumped to `devin-powerups` `@v1.17`
   (was v1.16); dead `bootstrap-approve-138.yml` removed (one-shot
   for a merged PR); `test_auto_approve_workflow.py` pins v1.17.

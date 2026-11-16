@@ -109,7 +109,7 @@ Session verdict:
 | Interface | Description |
 |---|---|
 | **Library** `devin_qa_pack` | `claims.extract_claims` · `verify.verify_claim(s)` · `report.audit_session/audit_all` — frozen dataclasses in, statuses out |
-| **CLI** `devin-qa-pack` | `audit --sessions-db <path> --session <id|prefix>` · `audit --all [--limit N]` · `report [--session <id|prefix>] [--limit N] --out <file>` (self-contained HTML) · `session-end [--session-id <id>] [--out <file>] [--data-dir <dir>] [--limit N]` (SessionEnd hook handler) · `--json` on audit · auto-detects `<data dir>/cli/sessions.db` when `--sessions-db` omitted |
+| **CLI** `devin-qa-pack` | `audit --sessions-db <path> --session <id|prefix>` · `audit --all [--limit N]` · `report [--session <id|prefix>] [--limit N] --out <file>` (self-contained HTML) · `session-end [--session-id <id>] [--out <file>] [--data-dir <dir>] [--limit N]` (SessionEnd hook handler) · `audit-ledger [--ledger-dir <dir>] --repo <path> [--repo <path> …] [--task <id|prefix>] [--limit N] [--no-judge] [--online] [--json]` (semantic audit of done task-ledger claims: deterministic anchors + optional poordjaevin judge; needs `devin-qa-pack[ledger]`, optional judge via `devin-qa-pack[judge]`) · `--json` on audit · auto-detects `<data dir>/cli/sessions.db` when `--sessions-db` omitted |
 | **Docs** | `SPEC.md` (canonical) + `SPEC.pt-BR.md` |
 
 CLI exit codes: `0` every audited session `PASS` · `1` audit ran, some

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-16
+
+### Changed
+
+- Lockstep bump of the bundled CLI compat range to
+  `devin-qa-pack >=0.1.2,<0.6` (the 0.5.x CLI added the `audit-ledger`
+  subcommand — additive only, no breaking change for this surface).
+  No extension-side code changes beyond the version pin and range
+  bounds.
+
 ## [0.2.1] - 2026-10-16
 
 ### Fixed
