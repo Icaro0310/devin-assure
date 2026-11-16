@@ -400,6 +400,38 @@ def test_judge_contradiction_is_violation(monkeypatch):
     assert rep["tasks"][0]["verdict"] == audit_ledger.VIOLATION
 
 
+def test_dl309f_public_private_scope_mismatch_is_violation(monkeypatch):
+    """DL-309f regression: a ``done`` claim about the PUBLIC deepwiki
+    backed only by PRIVATE/org indexing evidence is a scope mismatch —
+    the judge's contradiction probe must surface it as VIOLATION."""
+    _stub_ledger(
+        monkeypatch,
+        {
+            "DL-309f": _task(
+                tid="DL-309f",
+                title="Index public repos on deepwiki.com (public wiki)",
+                accept=["5 priority public repos indexed on deepwiki.com"],
+                evidence="generate_wiki indexed 45 repos in the private "
+                "org wiki (app.devin.ai/wiki); public deepwiki.com "
+                "still shows 0 indexed",
+                met=[1],
+            )
+        },
+    )
+    client = _FakeClient(
+        {"c1": _Ans(False, 0.15), "contradiction": _Ans(True, 0.85)}
+    )
+    _fake_judge(monkeypatch, client)
+    rep = audit_ledger.run(repo=".", judge=True)
+    row = rep["tasks"][0]
+    assert row["id"] == "DL-309f"
+    assert row["verdict"] == audit_ledger.VIOLATION
+    # the judge actually saw the public/private scope text
+    state_text, _questions = client.calls[0]
+    assert "deepwiki.com" in state_text
+    assert "private" in state_text
+
+
 def test_judge_abstains_is_unverified_never_violation(monkeypatch):
     _stub_ledger(
         monkeypatch,
