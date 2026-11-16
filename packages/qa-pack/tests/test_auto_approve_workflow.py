@@ -35,11 +35,11 @@ def test_gate_pin_is_v1_16() -> None:
     """The pin must be exact so a silent downgrade is caught here."""
     job = _load()["jobs"]["approve"]
     uses = job["uses"]
-    assert uses == GATE_PIN + "v1.16"
+    assert uses == GATE_PIN + "v1.17"
 
 
 def test_gate_permissions_allow_auto_merge_arm() -> None:
-    """v1.16 arms ``gh pr merge --auto`` from the dedicated
+    """v1.17 arms ``gh pr merge --auto`` from the dedicated
     ``arm-auto-merge`` job after approval — the caller must grant
     ``contents: write`` at both workflow and job level or the arm
     step fails closed."""

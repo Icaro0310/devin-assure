@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **CI** — `pr-approve` caller bumped to `devin-powerups` `@v1.17`
+  (was v1.16); dead `bootstrap-approve-138.yml` removed (one-shot
+  for a merged PR); `test_auto_approve_workflow.py` pins v1.17.
 - **CI** — `sigstore/cosign-installer` bumped from `4.1.2` to `4.1.3`
   in `docker-publish.yml` (Dependabot).
 - **CI** — `pr-approve` caller bumped to `devin-powerups` `@v1.16`:
