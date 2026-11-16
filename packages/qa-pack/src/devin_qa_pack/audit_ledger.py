@@ -51,13 +51,13 @@ a missing integration is not an audit failure (same contract as
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import math
 import os
 import re
-import subprocess
-import ipaddress
 import socket
+import subprocess
 import tempfile
 import urllib.error
 import urllib.parse
