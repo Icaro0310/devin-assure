@@ -253,13 +253,24 @@ def _resolve_file(
     a: dict[str, Any], repos: list[tuple[Path, bool]], val: str
 ) -> None:
     p = Path(val)
-    if p.is_absolute():
-        # Absolute evidence path: the temp dir is volatile → EPHEMERAL
-        # (warned, never missing, never resolved — same rule as
-        # devin_memory.ledger.core._under_tmp).
-        if _under_tmp(p, val):
-            a["status"] = "ephemeral"
-            return
+    # "Absolute-looking" on any platform: ``Path.is_absolute()`` misses
+    # ``/tmp/x`` on Windows (no drive → not absolute there), so also
+    # accept a leading separator. Relative tokens must NOT hit the
+    # ephemeral check — ``Path.resolve()`` would anchor them at the
+    # process CWD, and a qa-pack run inside a ``/tmp`` worktree would
+    # falsely mark repo files EPHEMERAL.
+    looks_absolute = (
+        p.is_absolute()
+        or val.startswith(("/", "\\"))
+        or bool(getattr(p, "drive", ""))
+    )
+    # Volatile-temp evidence is EPHEMERAL on every platform: a
+    # ``/tmp/...`` token written on Linux stays volatile even when the
+    # audit runs on Windows.
+    if looks_absolute and _under_tmp(p, val):
+        a["status"] = "ephemeral"
+        return
+    if looks_absolute:
         a["status"] = _exists_status(p)
         return
     # Relative path resolves against each candidate repo and stays
