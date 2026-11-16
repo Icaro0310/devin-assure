@@ -131,18 +131,3 @@
 - Packages consolidated into this repo:
   `devin-evals` 0.2.0, `devin-metrics` 0.2.0, `devin-qa-pack` 0.1.0.
 - Prior per-repo history lives in each package's git history.
-
-### Fixed
-- qa-pack audit-ledger: the semantic judge was always unavailable on
-  the default ACP backend — poordjaevin's closed default `Policy`
-  denied remote backends; the client now passes an explicit
-  `allow_remote` authorization (Devin Review #140).
-- qa-pack audit-ledger: `--online` URL checks restricted — http(s)
-  only, hosts must resolve exclusively to globally-routable
-  addresses, redirects never followed (SSRF hardening).
-- qa-pack audit-ledger: `judge.available` in the report now reflects
-  the circuit breaker instead of the initial client reference.
-- qa-pack audit-ledger: Windows drive-relative (`D:x`) and
-  root-relative (`\x`) evidence tokens join the repo candidates
-  instead of being treated as absolute paths.
-
