@@ -46,4 +46,8 @@ def test_gate_permissions_allow_auto_merge_arm() -> None:
     wf = _load()
     assert wf["permissions"]["contents"] == "write"
     perms = wf["jobs"]["approve"]["permissions"]
-    assert perms == {"contents": "write", "pull-requests": "write"}
+    assert perms == {
+        "contents": "write",
+        "pull-requests": "write",
+        "statuses": "read",
+    }
