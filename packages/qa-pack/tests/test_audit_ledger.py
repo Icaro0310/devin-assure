@@ -17,7 +17,6 @@ import types
 from pathlib import Path
 
 import pytest
-
 from devin_qa_pack import audit_ledger
 from devin_qa_pack.cli import main as cli_main
 

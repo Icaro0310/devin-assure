@@ -56,7 +56,6 @@ import math
 import os
 import re
 import subprocess
-import sys
 import tempfile
 import urllib.error
 import urllib.request
@@ -161,6 +160,7 @@ def _is_git_repo(repo: Path) -> bool:
         r = subprocess.run(
             ["git", "-C", str(repo), "rev-parse", "--git-dir"],
             capture_output=True,
+            check=False,
             timeout=_GIT_TIMEOUT,
         )
         return r.returncode == 0
@@ -216,6 +216,7 @@ def _commit_status(repo: Path, sha: str) -> str:
         r = subprocess.run(
             ["git", "-C", str(repo), "cat-file", "-e", f"{sha}^{{commit}}"],
             capture_output=True,
+            check=False,
             timeout=_GIT_TIMEOUT,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -391,8 +392,10 @@ def _build_judge() -> tuple[Any, str | None, str | None]:
         return (
             None,
             None,
-            "poordjaevin not installed "
-            "(pip install 'devin-qa-pack[judge]')",
+            (
+                "poordjaevin not installed "
+                "(pip install 'devin-qa-pack[judge]')"
+            ),
         )
     backend = None
     backend_name = "local_nli(default)"
@@ -777,9 +780,11 @@ def render_text(rep: dict[str, Any]) -> str:
         return line
     s = rep["summary"]
     lines = [
-        f"audit-ledger: {s['total']} done task(s) — "
-        f"PASS={s['PASS']} PARTIAL={s['PARTIAL']} "
-        f"UNVERIFIED={s['UNVERIFIED']} VIOLATION={s['VIOLATION']}"
+        (
+            f"audit-ledger: {s['total']} done task(s) — "
+            f"PASS={s['PASS']} PARTIAL={s['PARTIAL']} "
+            f"UNVERIFIED={s['UNVERIFIED']} VIOLATION={s['VIOLATION']}"
+        )
     ]
     j = rep.get("judge") or {}
     if j.get("enabled"):
