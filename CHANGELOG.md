@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **CI** — `actions/setup-python` bumped from `@v5` to `@v7.1.0`
+  across `ci.yml`, `evals-action.yml`, `release.yml` and the
+  composite `action.yml` (Dependabot).
 - **CI** — `pr-approve` caller bumped to `devin-powerups` `@v1.16`:
   the auto-merge arm moved into a dedicated `arm-auto-merge` job
   inside the reusable so the approve path runs read-only again;
