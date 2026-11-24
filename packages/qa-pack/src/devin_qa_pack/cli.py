@@ -276,6 +276,33 @@ def _build_parser() -> argparse.ArgumentParser:
     la.add_argument("--ledger-dir", metavar="PATH", default=None,
                     help="override ledger store path (default: XDG)")
     la.add_argument("--json", action="store_true", help="JSON output")
+    al = sub.add_parser(
+        "audit-ledger",
+        help="semantic audit of done task-ledger claims — evidence "
+        "anchors vs --repo plus an optional poordjaevin judge over the "
+        "acceptance criteria (optional: pip install "
+        "'devin-qa-pack[ledger]' and 'devin-qa-pack[judge]')",
+    )
+    al.add_argument("--ledger-dir", metavar="PATH", default=None,
+                    help="override ledger store path (default: XDG)")
+    al.add_argument("--repo", action="append", default=None,
+                    metavar="PATH",
+                    help="git repo(s) used to resolve commit:/file: "
+                    "anchors — repeatable for multi-repo ledgers "
+                    "(default: .)")
+    al.add_argument("--task", metavar="DL-xxxx", default=None,
+                    help="audit one task (exact id or unique prefix); "
+                    "must be done")
+    al.add_argument("--limit", type=int, metavar="N", default=None,
+                    help="max done tasks audited, most recently "
+                    "updated first")
+    al.add_argument("--no-judge", action="store_true",
+                    help="deterministic anchors only — skip the "
+                    "poordjaevin semantic layer")
+    al.add_argument("--online", action="store_true",
+                    help="allow live HEAD checks of url: evidence "
+                    "(opt-in; pr: still needs the forge API)")
+    al.add_argument("--json", action="store_true", help="JSON output")
     return parser
 
 
@@ -576,6 +603,31 @@ def _cmd_session_end(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_audit_ledger(args: argparse.Namespace) -> int:
+    """Semantic audit of done task-ledger claims (DL-f540).
+
+    Direct call into the module (no argv re-packaging — the subparser
+    already holds every flag): ``run`` returns the report dict and the
+    shared ``render_text``/``exit_code`` helpers keep the standalone
+    ``python -m devin_qa_pack.audit_ledger`` path identical.
+    """
+    from devin_qa_pack import audit_ledger
+
+    rep = audit_ledger.run(
+        ledger_dir=args.ledger_dir,
+        repo=args.repo,
+        task_id=args.task,
+        limit=args.limit,
+        judge=not args.no_judge,
+        online=args.online,
+    )
+    if args.json or "error" in rep:
+        print(json.dumps(rep, indent=2, sort_keys=True))
+    else:
+        print(audit_ledger.render_text(rep))
+    return audit_ledger.exit_code(rep)
+
+
 def _cmd_install(args: argparse.Namespace) -> int:
     """Register the daily ``audit --all`` sweep (install-scheduler).
 
@@ -639,6 +691,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.json:
             argv.append("--json")
         return _ledger_main(argv)
+    if args.command == "audit-ledger":
+        return _cmd_audit_ledger(args)
     _build_parser().print_help()
     return 2
 

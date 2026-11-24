@@ -1,6 +1,6 @@
 {
   "name": "devin-qa-pack",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Verify what an agent session claimed it did (tests, commits, files, pushes) against its own tool-call evidence. Read-only audit \u2014 PASS / PARTIAL / UNVERIFIED per session.",
   "author": {
     "name": "Icaro0310"
