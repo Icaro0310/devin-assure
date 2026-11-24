@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **CI** — `actions/setup-python` bumped from `@v5` to `@v7.1.0`
+  across `ci.yml`, `evals-action.yml`, `release.yml` and the
+  composite `action.yml` (Dependabot).
 - **qa-pack** — audit-ledger hardening (Devin Review #140): the
   semantic judge now authorizes the remote ACP backend explicitly
   (poordjaevin's closed default `Policy` had made it permanently
